@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\NewMessage;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,3 +21,10 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', 'HomeController@index')->name('home');
+
+Route::post('/pusher/auth','HomeController@authenticate');
+
+Route::get('test-message', function () {
+    event(new NewMessage("Hello world",2));
+});
+Route::get('test-translation','HomeController@testTranslation');
