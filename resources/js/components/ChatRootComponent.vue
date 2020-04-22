@@ -1,5 +1,25 @@
 <template>
     <div class="container">
+        <div class="video-chat-outer-container">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="video-container shadow-sm">
+                        <div class="user-video-container">
+                            <video :srcObject.prop="userVideoSrc" ref="userVideo" autoplay="autoplay" class="user-video w-100"></video>
+                        </div>
+                        <div class="my-video-container">
+                            <video :srcObject.prop="myVideoSrc" ref="myVideo" class="my-video" autoplay="autoplay"></video>
+                        </div>
+                        <div class="bottom-action-bar p-2 bg-white text-center">
+                            <button class="btn btn-danger rounded"><i class="fa fa-phone-slash"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 px-0">
+                    <text-chat></text-chat>
+                </div>
+            </div>
+        </div>
         <div class="row justify-content-center">
             <div class="col-md-12">
                 <div class="card">
@@ -8,14 +28,7 @@
                     <div class="card-body">
                         <button @click="callTo(2)">Call Other User 2</button>
                         <button @click="callTo(1)">Call Other User 1</button>
-                        <div class="row">
-                            <div class="col-6">
-                                <video width="320" height="240" :srcObject.prop="myVideoSrc" ref="myVideo" class="my-video" autoplay="autoplay"></video>
-                            </div>
-                            <div class="col-6">
-                                <video width="320" height="240" :srcObject.prop="userVideoSrc" ref="userVideo" autoplay="autoplay" class="user-video"></video>
-                            </div>
-                        </div>
+                        
                     </div>
                 </div>
             </div>
@@ -25,6 +38,7 @@
 
 <script>
     import MediaHandler from "../MediaHandler";
+    import TextChatComponent from "./chat/TextChatComponent"
     import Pusher from 'pusher-js';
     import Peer from 'simple-peer';
     const APP_KEY = 'ABCD123';
@@ -115,5 +129,28 @@
                 this.peers[userId] = this.startPeer(userId,true);
             }
         },
+        components:{
+            'text-chat':TextChatComponent
+        }
     }
 </script>
+<style>
+.my-video-container{
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+.video-container{
+    position: relative;
+    background-color: #9a9999;
+    border: solid 1px #cccccc;
+}
+video.my-video{
+    height: 100%;
+    width: 200px;
+}
+video.user-video{
+    width: 100%;
+    height: 500px;
+}
+</style>
