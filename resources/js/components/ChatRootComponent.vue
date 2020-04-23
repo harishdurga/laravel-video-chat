@@ -11,6 +11,7 @@
                             <video :srcObject.prop="myVideoSrc" ref="myVideo" class="my-video" autoplay="autoplay"></video>
                         </div>
                         <div class="bottom-action-bar p-2 bg-white text-center">
+                            <button class="btn btn-danger rounded" @click="stopMedia" title="Stop Media"><i class="fas fa-video-slash"></i></button>
                             <button class="btn btn-danger rounded"><i class="fa fa-phone-slash"></i></button>
                         </div>
                     </div>
@@ -58,11 +59,7 @@
                 }
             })
 
-            Echo.private(`NewMessage.User.${this.user.id}`)
-            .listen('NewMessage', (e) => {
-                console.log("Got New Message");
-                console.log(e.message);
-            });
+            
         },
         data() {
             return {
@@ -127,6 +124,11 @@
             callTo(userId){
                 console.log(`Calling ${userId}`)
                 this.peers[userId] = this.startPeer(userId,true);
+            },
+            stopMedia(){
+                this.myVideoSrc.getTracks().forEach(function(track) {
+                    track.stop();
+                });
             }
         },
         components:{

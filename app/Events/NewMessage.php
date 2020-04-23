@@ -19,12 +19,10 @@ class NewMessage implements ShouldBroadcast
      *
      * @return void
      */
-    public $message;
-    public $reciever;
-    public function __construct($message='',$reciever=null)
+    public $data;
+    public function __construct($data)
     {
-        $this->message = $message;
-        $this->reciever = $reciever;
+        $this->data = $data;
     }
 
     /**
@@ -34,6 +32,6 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return [new PrivateChannel('NewMessage.User.'.$this->reciever)];
+        return [new PrivateChannel('NewMessage.User.'.$this->data['recipient_id'])];
     }
 }

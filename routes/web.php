@@ -28,3 +28,6 @@ Route::get('test-message', function () {
     event(new NewMessage("Hello world",2));
 });
 Route::get('test-translation','HomeController@testTranslation');
+Route::post('send-new-message', 'HomeController@sendNewMessage');
+Route::get('my-profile','HomeController@getMyProfile')->name('my-profile');
+Route::post('my-profile', 'HomeController@saveMyProfile')->name('my-profile');

@@ -6,6 +6,8 @@
 
 require('./bootstrap');
 import Echo from "laravel-echo";
+import axios from 'axios'
+import VueAxios from 'vue-axios'
 window.Pusher = require('pusher-js');
 window.Echo = new Echo({
     broadcaster: 'pusher',
@@ -15,6 +17,9 @@ window.Echo = new Echo({
     disableStats: true,
 });
 window.Vue = require('vue');
+
+ 
+Vue.use(VueAxios, axios)
 
 /**
  * The following block of code may be used to automatically register your

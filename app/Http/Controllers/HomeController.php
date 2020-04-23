@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
 use Pusher\Pusher;
+use App\UserMessage;
+use App\GoogleLanguage;
+use App\Events\NewMessage;
 use Illuminate\Http\Request;
 use Google\Cloud\Translate\V3\TranslationServiceClient;
 
@@ -40,25 +44,83 @@ class HomeController extends Controller
         return response($key);
     }
 
-    public function testTranslation(){
-        // dd(base_path(env('GOOGLE_APPLICATION_CREDENTIALS')));
-        putenv('GOOGLE_APPLICATION_CREDENTIALS='.env('GOOGLE_APPLICATION_CREDENTIALS'));
-        $translationClient = new TranslationServiceClient();
-        $content = ["Пришлите мне ваши"];
-        $targetLanguage = 'en';
-
-        $response = $translationClient->translateText(
-            $content,
-            $targetLanguage,
-            TranslationServiceClient::locationName(env('GOOGLE_PROJECT_ID',''), 'global'),
-            [
-                'sourceLanguageCode'=>'ru'
-            ]
-        );
-
-        foreach ($response->getTranslations() as $key => $translation) {
-            
-            echo $translation->getTranslatedText();
+    public function testTranslation($message='',$sender_lang="en",$recipient_lang="ru"){
+        $translation = "";
+        try {
+            putenv('GOOGLE_APPLICATION_CREDENTIALS='.env('GOOGLE_APPLICATION_CREDENTIALS'));
+            $translationClient = new TranslationServiceClient();
+            $content = [$message];
+            $targetLanguage = $recipient_lang;
+            $response = $translationClient->translateText(
+                $content,
+                $targetLanguage,
+                TranslationServiceClient::locationName(env('GOOGLE_PROJECT_ID',''), 'global'),
+                [
+                    'sourceLanguageCode'=>$sender_lang
+                ]
+            );
+            $translation = $response->getTranslations()[0]->getTranslatedText();
+            // foreach ($response->getTranslations() as $key => $translation) {
+                
+            //     echo $translation->getTranslatedText();
+            // }
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
         }
+        return $translation;
+    }
+
+    public function sendNewMessage(Request $request){
+        $recipient = User::find($request->recipient_id);
+        $translation = $this->testTranslation($request->message,auth()->user()->preferred_language,$recipient->preferred_language);
+        $user_message = new UserMessage();
+        $user_message->sender_id = auth()->user()->id;
+        $user_message->recipient_id = $recipient->id;
+        $user_message->message = $request->message;
+        $user_message->translated_message = $translation;
+        $user_message->org_lang = auth()->user()->preferred_language;
+        $user_message->trans_lang = $recipient->preferred_language;
+        $user_message->status = 0;
+        try {
+            $user_message->save();
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+        }
+        event(new NewMessage(
+            [
+                'message'=>$request->message,
+                'sender'=>auth()->user()->name,
+                'recipient_id'=>$request->recipient_id,
+                'sender_id'=>auth()->user()->id,
+                'translated_message'=>$translation
+            ]
+        ));
+        return response()->json(['message'=>$request->message,'sender'=>auth()->user()->name,'recipient_id'=>$request->recipient_id,'sender_id'=>auth()->user()->id,'translated_message'=>$translation]);
+    }
+
+    public function getMyProfile(){
+        $user = auth()->user();
+        $languages = GoogleLanguage::where('enabled',1)->get();
+        return view('my_profile',compact('user','languages'));
+    }
+    public function saveMyProfile(Request $request)
+    {
+        $validatedData = $request->validate([
+            'name' => 'required|max:191',
+            'preferred_language' => 'required|max:10',
+        ]);
+        $user = User::find(auth()->user()->id);
+        if($user){
+            $user->name = $request->name;
+            $user->preferred_language = $request->preferred_language;
+            if($user->save()){
+                flash("User information successfully updated!")->success();
+            }else{
+                flash("Unable to save the user information!")->error();
+            }
+        }else{
+            flash("Unable to find the user!")->error();
+        }
+        return redirect()->back();
     }
 }

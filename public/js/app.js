@@ -1952,6 +1952,7 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
 
 
 
@@ -1972,10 +1973,6 @@ var APP_CLUSTER = 'mt1';
       } catch (error) {
         _this.myVideoSrc = URL.createObjectURL(stream);
       }
-    });
-    Echo["private"]("NewMessage.User.".concat(this.user.id)).listen('NewMessage', function (e) {
-      console.log("Got New Message");
-      console.log(e.message);
     });
   },
   data: function data() {
@@ -2050,6 +2047,11 @@ var APP_CLUSTER = 'mt1';
     callTo: function callTo(userId) {
       console.log("Calling ".concat(userId));
       this.peers[userId] = this.startPeer(userId, true);
+    },
+    stopMedia: function stopMedia() {
+      this.myVideoSrc.getTracks().forEach(function (track) {
+        track.stop();
+      });
     }
   },
   components: {
@@ -2101,10 +2103,43 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "TextChatComponent",
+  mounted: function mounted() {
+    var _this = this;
+
+    Echo["private"]("NewMessage.User.".concat(this.$parent.user.id)).listen('NewMessage', function (e) {
+      _this.previous_messages.push(e.data);
+    });
+  },
   data: function data() {
-    return {};
+    return {
+      message: '',
+      previous_messages: [],
+      waiting: false
+    };
+  },
+  methods: {
+    sendMessage: function sendMessage() {
+      var _this2 = this;
+
+      if (this.message.length == 0) {
+        return false;
+      }
+
+      this.waiting = true;
+      Vue.axios.post('/send-new-message', {
+        'message': this.message,
+        'recipient_id': 2
+      }).then(function (response) {
+        _this2.previous_messages.push(response.data);
+
+        _this2.message = "";
+        _this2.waiting = false;
+      });
+    }
   }
 });
 
@@ -53985,6 +54020,19 @@ function config (name) {
 
 /***/ }),
 
+/***/ "./node_modules/vue-axios/dist/vue-axios.min.js":
+/*!******************************************************!*\
+  !*** ./node_modules/vue-axios/dist/vue-axios.min.js ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;var _typeof="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(o){return typeof o}:function(o){return o&&"function"==typeof Symbol&&o.constructor===Symbol&&o!==Symbol.prototype?"symbol":typeof o};!function(){function o(e,t){if(!o.installed){if(o.installed=!0,!t)return void console.error("You have to install axios");e.axios=t,Object.defineProperties(e.prototype,{axios:{get:function(){return t}},$http:{get:function(){return t}}})}}"object"==( false?undefined:_typeof(exports))?module.exports=o: true?!(__WEBPACK_AMD_DEFINE_ARRAY__ = [], __WEBPACK_AMD_DEFINE_RESULT__ = (function(){return o}).apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)):undefined}();
+
+/***/ }),
+
 /***/ "./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponent.vue?vue&type=template&id=64b49968&":
 /*!********************************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ChatRootComponent.vue?vue&type=template&id=64b49968& ***!
@@ -54023,7 +54071,23 @@ var render = function() {
               })
             ]),
             _vm._v(" "),
-            _vm._m(0)
+            _c(
+              "div",
+              { staticClass: "bottom-action-bar p-2 bg-white text-center" },
+              [
+                _c(
+                  "button",
+                  {
+                    staticClass: "btn btn-danger rounded",
+                    attrs: { title: "Stop Media" },
+                    on: { click: _vm.stopMedia }
+                  },
+                  [_c("i", { staticClass: "fas fa-video-slash" })]
+                ),
+                _vm._v(" "),
+                _vm._m(0)
+              ]
+            )
           ])
         ]),
         _vm._v(" "),
@@ -54073,15 +54137,9 @@ var staticRenderFns = [
     var _vm = this
     var _h = _vm.$createElement
     var _c = _vm._self._c || _h
-    return _c(
-      "div",
-      { staticClass: "bottom-action-bar p-2 bg-white text-center" },
-      [
-        _c("button", { staticClass: "btn btn-danger rounded" }, [
-          _c("i", { staticClass: "fa fa-phone-slash" })
-        ])
-      ]
-    )
+    return _c("button", { staticClass: "btn btn-danger rounded" }, [
+      _c("i", { staticClass: "fa fa-phone-slash" })
+    ])
   }
 ]
 render._withStripped = true
@@ -54111,76 +54169,112 @@ var render = function() {
         _c(
           "ul",
           { staticClass: "list-unstyled" },
-          _vm._l(100, function(i) {
-            return _c("li", { key: i }, [_vm._m(0, true)])
+          _vm._l(_vm.previous_messages, function(message, index) {
+            return _c("li", { key: index }, [
+              _c(
+                "div",
+                { staticClass: "chat-bubble shadow-sm p-1 mb-2 rounded" },
+                [
+                  _c("div", { staticClass: "d-flex" }, [
+                    _c("div", { staticClass: "sender pr-2" }, [
+                      _c("b", [_vm._v(_vm._s(message.sender) + ":")])
+                    ]),
+                    _vm._v(" "),
+                    _c("div", { staticClass: "message" }, [
+                      _vm._v(
+                        "\n                                " +
+                          _vm._s(
+                            _vm.$parent.user.id == message.sender_id
+                              ? message.translated_message
+                              : message.message
+                          ) +
+                          "\n                            "
+                      )
+                    ])
+                  ]),
+                  _vm._v(" "),
+                  _c("div", { staticClass: "small org-message" }, [
+                    _vm._v(
+                      "\n                            " +
+                        _vm._s(
+                          _vm.$parent.user.id == message.sender_id
+                            ? message.message
+                            : message.translated_message
+                        ) +
+                        "\n                        "
+                    )
+                  ])
+                ]
+              )
+            ])
           }),
           0
         )
       ]),
       _vm._v(" "),
-      _vm._m(1)
+      _c("div", { staticClass: "text-input-container" }, [
+        _c(
+          "form",
+          {
+            on: {
+              submit: function($event) {
+                $event.preventDefault()
+                return _vm.sendMessage($event)
+              }
+            }
+          },
+          [
+            _c("div", { staticClass: "input-group mb-3" }, [
+              _c("input", {
+                directives: [
+                  {
+                    name: "model",
+                    rawName: "v-model",
+                    value: _vm.message,
+                    expression: "message"
+                  }
+                ],
+                staticClass: "form-control",
+                attrs: {
+                  disabled: _vm.waiting,
+                  type: "text",
+                  placeholder: "Type Your message",
+                  "aria-label": "Type Your message",
+                  "aria-describedby": "basic-addon2"
+                },
+                domProps: { value: _vm.message },
+                on: {
+                  input: function($event) {
+                    if ($event.target.composing) {
+                      return
+                    }
+                    _vm.message = $event.target.value
+                  }
+                }
+              }),
+              _vm._v(" "),
+              _c("div", { staticClass: "input-group-append" }, [
+                _c(
+                  "button",
+                  {
+                    staticClass: "btn btn-outline-secondary",
+                    attrs: {
+                      disabled: _vm.message.length == 0 || _vm.waiting,
+                      type: "button"
+                    },
+                    on: { click: _vm.sendMessage }
+                  },
+                  [_c("i", { staticClass: "far fa-paper-plane" })]
+                )
+              ])
+            ])
+          ]
+        )
+      ])
     ])
   ])
 }
-var staticRenderFns = [
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
-    return _c(
-      "div",
-      { staticClass: "chat-bubble shadow-sm p-1 mb-2 rounded" },
-      [
-        _c("div", { staticClass: "d-flex" }, [
-          _c("div", { staticClass: "sender pr-2" }, [
-            _c("b", [_vm._v("Strong Name:")])
-          ]),
-          _vm._v(" "),
-          _c("div", { staticClass: "message" }, [
-            _vm._v(
-              "\n                                This is some message isihosd\n                            "
-            )
-          ])
-        ]),
-        _vm._v(" "),
-        _c("div", { staticClass: "small org-message" }, [
-          _vm._v(
-            "\n                            Lorem, ipsum dolor sit\n                        "
-          )
-        ])
-      ]
-    )
-  },
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
-    return _c("div", { staticClass: "text-input-container" }, [
-      _c("div", { staticClass: "input-group mb-3" }, [
-        _c("input", {
-          staticClass: "form-control",
-          attrs: {
-            type: "text",
-            placeholder: "Type Your message",
-            "aria-label": "Type Your message",
-            "aria-describedby": "basic-addon2"
-          }
-        }),
-        _vm._v(" "),
-        _c("div", { staticClass: "input-group-append" }, [
-          _c(
-            "button",
-            {
-              staticClass: "btn btn-outline-secondary",
-              attrs: { type: "button" }
-            },
-            [_c("i", { staticClass: "far fa-paper-plane" })]
-          )
-        ])
-      ])
-    ])
-  }
-]
+var staticRenderFns = []
 render._withStripped = true
 
 
@@ -66398,12 +66492,18 @@ var MediaHandler = /*#__PURE__*/function () {
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var laravel_echo__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! laravel-echo */ "./node_modules/laravel-echo/dist/echo.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var vue_axios__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vue-axios */ "./node_modules/vue-axios/dist/vue-axios.min.js");
+/* harmony import */ var vue_axios__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(vue_axios__WEBPACK_IMPORTED_MODULE_2__);
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
  * building robust, powerful web applications using Vue and Laravel.
  */
 __webpack_require__(/*! ./bootstrap */ "./resources/js/bootstrap.js");
+
+
 
 
 window.Pusher = __webpack_require__(/*! pusher-js */ "./node_modules/pusher-js/dist/web/pusher.js");
@@ -66415,6 +66515,7 @@ window.Echo = new laravel_echo__WEBPACK_IMPORTED_MODULE_0__["default"]({
   disableStats: true
 });
 window.Vue = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.common.js");
+Vue.use(vue_axios__WEBPACK_IMPORTED_MODULE_2___default.a, axios__WEBPACK_IMPORTED_MODULE_1___default.a);
 /**
  * The following block of code may be used to automatically register your
  * Vue components. It will recursively scan this directory for the Vue
