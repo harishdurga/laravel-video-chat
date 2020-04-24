@@ -32,3 +32,4 @@ Route::post('send-new-message', 'HomeController@sendNewMessage');
 Route::get('my-profile','HomeController@getMyProfile')->name('my-profile');
 Route::post('my-profile', 'HomeController@saveMyProfile')->name('my-profile');
 Route::get('get-init-data', 'HomeController@getInitData');
+Route::get('previous-messages/{id}', 'HomeController@getPreviousMessages');

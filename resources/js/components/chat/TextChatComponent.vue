@@ -16,6 +16,9 @@
                             <div class="small org-message">
                                 {{$parent.user.id == message.sender_id?message.message:message.translated_message}}
                             </div>
+                            <div class="message-time text-right">
+                                <span>{{message.time}}</span>
+                            </div>
                         </div>
                     </li>
                 </ul>
@@ -39,6 +42,7 @@
 <script>
 export default {
     name:"TextChatComponent",
+    props:['selected_user'],
     mounted(){
         Echo.private(`NewMessage.User.${this.$parent.user.id}`)
             .listen('NewMessage', (e) => {
@@ -68,13 +72,22 @@ export default {
         },
         sendTypingSignal(){
             if(this.message.length > 0){
-                this.$parent.channel.whisper(`typing-signal-3`,{
+                this.$parent.channel.whisper(`typing-signal-${this.selected_user.id}`,{
                     type:'signal',
                     userId:this.$parent.user.id,
                     data:{}
                 })
             }
-            
+        },
+        getPassMessages(){
+            Vue.axios.get('/previous-messages/'+this.selected_user.id).then((response) => {
+                this.previous_messages = response.data.previous_messages;
+            })
+        }
+    },
+    watch: {
+        'selected_user'(){
+            this.getPassMessages();
         }
     },
 }
@@ -101,5 +114,8 @@ export default {
     }
     .typing-gif{
         height: 40px;
+    }
+    .message-time{
+        font-size: x-small;
     }
 </style>

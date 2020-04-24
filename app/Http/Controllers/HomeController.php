@@ -93,10 +93,19 @@ class HomeController extends Controller
                 'sender'=>auth()->user()->name,
                 'recipient_id'=>$request->recipient_id,
                 'sender_id'=>auth()->user()->id,
-                'translated_message'=>$translation
+                'translated_message'=>$translation,
+                'time'=>date('d-m-Y H:i:s')
             ]
         ));
-        return response()->json(['message'=>$request->message,'sender'=>auth()->user()->name,'recipient_id'=>$request->recipient_id,'sender_id'=>auth()->user()->id,'translated_message'=>$translation]);
+        return response()->json(
+            [
+            'message'=>$request->message,
+            'sender'=>auth()->user()->name,
+            'recipient_id'=>$request->recipient_id,
+            'sender_id'=>auth()->user()->id,
+            'translated_message'=>$translation,
+            'time'=>date('d-m-Y H:i:s')
+            ]);
     }
 
     public function getMyProfile(){
@@ -128,14 +137,46 @@ class HomeController extends Controller
     public function getInitData(){
         $friendsQuery = FriendRequest::where(function($query)
         {
-            $query->where('sender_id', 'keyword');
-            $query->orWhere('recipient_id', 'like', 'keyword');
+            $query->where('sender_id', auth()->user()->id);
+            $query->orWhere('recipient_id', auth()->user()->id);
         })->where('accepted',1)->with('sender')->with('recipient')->get();
         $friends = [];
         if($friendsQuery->count()){
             foreach ($friendsQuery as $key => $value) {
-                
+                if($value->sender->id != auth()->user()->id){
+                    $friends[] = ['id'=>$value->sender->id,'name'=>$value->sender->name];
+                }else{
+                    $friends[] = ['id'=>$value->recipient->id,'name'=>$value->recipient->name, 'is_selected'=>false,'is_online'=>false];
+                }
             }
         }
+        return response()->json(['friends'=>$friends]);
+    }
+
+    public function getPreviousMessages($id){
+        $previous_messages = [];
+        $messagesQuery = UserMessage::where(function($query) use($id)
+        {
+            $query->where('sender_id', auth()->user()->id);
+            $query->where('recipient_id', $id);
+        })->orWhere(function($query) use($id)
+        {
+            $query->where('sender_id', $id);
+            $query->where('recipient_id', auth()->user()->id);
+        })->with('sender')->with('recipient')->orderBy('created_at','DESC')->limit(50)->get();
+        if($messagesQuery->count() > 0){
+            foreach ($messagesQuery as $key => $value) {
+                $previous_messages[] = [
+                    'message'=>$value->message,
+                    'sender'=>$value->sender->name,
+                    'recipient_id'=>$value->recipient->id,
+                    'sender_id'=>$value->sender->id,
+                    'translated_message'=>$value->translated_message,
+                    'time'=>date('d-m-Y H:i:s',strtotime($value->created_at))
+                ];
+            }
+        }
+        $previous_messages = array_reverse($previous_messages);
+        return \response()->json(['previous_messages'=>$previous_messages]);
     }
 }

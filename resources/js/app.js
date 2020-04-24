@@ -8,6 +8,7 @@ require('./bootstrap');
 import Echo from "laravel-echo";
 import axios from 'axios'
 import VueAxios from 'vue-axios'
+import Toasted from 'vue-toasted';
 window.Pusher = require('pusher-js');
 window.Echo = new Echo({
     broadcaster: 'pusher',
@@ -17,6 +18,9 @@ window.Echo = new Echo({
     disableStats: true,
 });
 window.Vue = require('vue');
+
+
+Vue.use(Toasted)
 
  
 Vue.use(VueAxios, axios)

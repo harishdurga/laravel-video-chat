@@ -2,12 +2,12 @@
     <div class="container-fluid">
         <div class="video-chat-outer-container">
             <div class="row">
-                <div class="col-md-2">
+                <div class="col-md-2 px-0">
                     <friends-list></friends-list>
                 </div>
-                <div class="col-md-7">
+                <div class="col-md-7 bg-light">
                     <div class="video-container shadow-sm">
-                        <div class="user-video-container">
+                        <div  class="user-video-container">
                             <video :srcObject.prop="userVideoSrc" ref="userVideo" autoplay="autoplay" class="user-video w-100"></video>
                         </div>
                         <div class="my-video-container">
@@ -15,25 +15,13 @@
                         </div>
                         <div class="bottom-action-bar p-2 bg-white text-center">
                             <button class="btn btn-danger rounded" @click="stopMedia" title="Stop Media"><i class="fas fa-video-slash"></i></button>
+                            <button :disabled="!is_online" @click="callTo" class="btn btn-success rounded"><i class="fas fa-phone-alt"></i></button>
                             <button class="btn btn-danger rounded"><i class="fa fa-phone-slash"></i></button>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3 px-0">
-                    <text-chat></text-chat>
-                </div>
-            </div>
-        </div>
-        <div class="row justify-content-center">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">Example Component</div>
-
-                    <div class="card-body">
-                        <button @click="callTo(2)">Call Other User 2</button>
-                        <button @click="callTo(1)">Call Other User 1</button>
-                        
-                    </div>
+                    <text-chat :selected_user="selected_user"></text-chat>
                 </div>
             </div>
         </div>
@@ -56,6 +44,7 @@
             this.setupPusher();
             this.joinOnlineChannel();
             this.getUserMedia();
+            this.getInitData();
         },
         data() {
             return {
@@ -71,7 +60,9 @@
                 online_users:[],
                 friends:[],
                 typing_timeout:null,
-                is_typing:false
+                is_typing:false,
+                selected_user:null,
+                is_online:false
             }
         },
         methods: {
@@ -79,14 +70,21 @@
                 
                 this.channel = Echo.private('presence-video-channel');
                 this.channel.listenForWhisper(`client-signal-${this.user.id}`,(signal)=>{
-                    console.log("client-signal came");
-                    let peer = this.peers[signal.userId];
-                    //If peer is empty, means we got incoming call
-                    if(peer === undefined){
-                        this.otherUserId = signal.userId;
-                        peer = this.startPeer(signal.userId,false);
+                    if(confirm(`Do you want to accept call this call from ${signal.userName}?`)){
+                        let peer = this.peers[signal.userId];
+                        //If peer is empty, means we got incoming call
+                        if(peer === undefined){
+                            this.otherUserId = signal.userId;
+                            peer = this.startPeer(signal.userId,false);
+                        }
+                        peer.signal(signal.data);
+                    }else{
+                        this.channel.whisper(`callreject-signal-${signal.userId}`,{
+                            type:'signal',
+                            data:{}
+                        })
                     }
-                    peer.signal(signal.data);
+                    
                 })
                 this.channel.listenForWhisper(`typing-signal-${this.user.id}`,(signal)=>{
                     clearTimeout(this.typing_timeout);
@@ -95,6 +93,9 @@
                     this.typing_timeout = setTimeout(function () {
                         thiss.is_typing = false
                     }, 1000);
+                })
+                this.channel.listenForWhisper(`callreject-signal-${this.user.id}`,(signal)=>{
+                    this.$toasted.show("User rejected you call!",{type:'error'});
                 })
             },
             startPeer(userId,initiator=true){
@@ -109,6 +110,7 @@
                     this.channel.whisper(`client-signal-${userId}`,{
                         type:'signal',
                         userId:this.user.id,
+                        userName:this.user.name,
                         data:data
                     })
                 })
@@ -129,8 +131,12 @@
                 })
                 return peer;
             },
-            callTo(userId){
-                console.log(`Calling ${userId}`)
+            callTo(){
+                if(this.selected_user == null){
+                    this.$toasted.show('Please select a user from the friends on the left side!',{type:'error'})
+                    return false;
+                }
+                var userId = this.selected_user.id;
                 this.peers[userId] = this.startPeer(userId,true);
             },
             stopMedia(){
@@ -154,21 +160,31 @@
                     }
                 })
             },
-            checkIfFriend(){
-
+            checkIfUserOnline(){
+                var thiss = this;
+                this.is_online = false;
+                this.online_users.forEach(element => {
+                    if(element.id == this.selected_user.id){
+                        thiss.is_online = true;
+                        return;
+                    }
+                });
             },
             getInitData(){
                 Vue.axios.get('/get-init-data').then((response) => {
-                this.previous_messages.push(response.data);
-                this.message = "";
-                this.waiting = false;
-            })
+                    this.friends = response.data.friends;
+                })
             }
         },
         components:{
             'text-chat':TextChatComponent,
             'friends-list':FriendsList
-        }
+        },
+        watch: {
+            'selected_user'(){
+                this.checkIfUserOnline();
+            }
+        },
     }
 </script>
 <style>
