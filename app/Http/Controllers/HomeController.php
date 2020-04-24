@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\User;
 use Pusher\Pusher;
 use App\UserMessage;
+use App\FriendRequest;
 use App\GoogleLanguage;
 use App\Events\NewMessage;
 use Illuminate\Http\Request;
@@ -122,5 +123,19 @@ class HomeController extends Controller
             flash("Unable to find the user!")->error();
         }
         return redirect()->back();
+    }
+
+    public function getInitData(){
+        $friendsQuery = FriendRequest::where(function($query)
+        {
+            $query->where('sender_id', 'keyword');
+            $query->orWhere('recipient_id', 'like', 'keyword');
+        })->where('accepted',1)->with('sender')->with('recipient')->get();
+        $friends = [];
+        if($friendsQuery->count()){
+            foreach ($friendsQuery as $key => $value) {
+                
+            }
+        }
     }
 }

@@ -24,3 +24,8 @@ Broadcast::channel('NewMessage.User.{id}', function ($user, $id) {
 Broadcast::channel('presence-video-channel', function ($user) {
     return $user;
 });
+Broadcast::channel('online', function ($user) {
+    if (auth()->check()) {
+        return $user->toArray();
+    }
+});

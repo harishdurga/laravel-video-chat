@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="text-chat-outer-container">
-            <div class="chat-container">
+            <div class="chat-container p-2">
                 <ul class="list-unstyled">
                     <li class="" v-for="(message,index) in previous_messages" :key="index">
                         <div class="chat-bubble shadow-sm p-1 mb-2 rounded">
@@ -20,12 +20,15 @@
                     </li>
                 </ul>
             </div>
+            <div class="typing-animation">
+                <img v-if="$parent.is_typing" class="typing-gif" src="/images/typing.gif" alt="">
+            </div>
             <div class="text-input-container">
                 <form v-on:submit.prevent="sendMessage">
                     <div class="input-group mb-3">
-                        <input :disabled="waiting" v-model="message" type="text" class="form-control" placeholder="Type Your message" aria-label="Type Your message" aria-describedby="basic-addon2">
+                        <input @keyup="sendTypingSignal" :disabled="waiting" v-model="message" type="text" class="form-control" placeholder="Type Your message" aria-label="Type Your message" aria-describedby="basic-addon2">
                         <div class="input-group-append">
-                            <button @click="sendMessage" :disabled="(message.length == 0) || waiting" class="btn btn-outline-secondary" type="button"><i class="far fa-paper-plane"></i></button>
+                            <button @click="sendMessage" :disabled="(message.length == 0) || waiting" class="btn btn-success" type="button"><i class="far fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </form>
@@ -41,12 +44,14 @@ export default {
             .listen('NewMessage', (e) => {
                 this.previous_messages.push(e.data);
             });
+            
     },
     data() {
         return {
             message:'',
             previous_messages:[],
-            waiting:false
+            waiting:false,
+             
         }
     },
     methods: {
@@ -60,22 +65,41 @@ export default {
                 this.message = "";
                 this.waiting = false;
             })
+        },
+        sendTypingSignal(){
+            if(this.message.length > 0){
+                this.$parent.channel.whisper(`typing-signal-3`,{
+                    type:'signal',
+                    userId:this.$parent.user.id,
+                    data:{}
+                })
+            }
+            
         }
     },
 }
 </script>
 <style>
     .chat-container{
-        height: 500px;
+        height: 472px;
         overflow-y: auto;
     }
     .chat-bubble{
-        background: #eaeaea;
+        background: #fff;
     }
     .chat-bubble .sender{
         color: crimson;
     }
     .chat-bubble .org-message{
         color: #626263;
+    }
+    .text-chat-outer-container{
+        background:#e6e6e6 !important;
+    }
+    .typing-animation{
+        height: 50px;
+    }
+    .typing-gif{
+        height: 40px;
     }
 </style>

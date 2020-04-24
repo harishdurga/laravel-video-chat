@@ -1,8 +1,11 @@
 <template>
-    <div class="container">
+    <div class="container-fluid">
         <div class="video-chat-outer-container">
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-md-2">
+                    <friends-list></friends-list>
+                </div>
+                <div class="col-md-7">
                     <div class="video-container shadow-sm">
                         <div class="user-video-container">
                             <video :srcObject.prop="userVideoSrc" ref="userVideo" autoplay="autoplay" class="user-video w-100"></video>
@@ -16,7 +19,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 px-0">
+                <div class="col-md-3 px-0">
                     <text-chat></text-chat>
                 </div>
             </div>
@@ -40,6 +43,7 @@
 <script>
     import MediaHandler from "../MediaHandler";
     import TextChatComponent from "./chat/TextChatComponent"
+    import FriendsList from './chat/FriendsList'
     import Pusher from 'pusher-js';
     import Peer from 'simple-peer';
     const APP_KEY = 'ABCD123';
@@ -50,16 +54,8 @@
         },
         mounted() {
             this.setupPusher();
-            this.mediaHandler.getPermissions().then((stream)=>{
-                this.hasMedia = true;
-                try {
-                    this.myVideoSrc = stream;
-                } catch (error) {
-                    this.myVideoSrc = URL.createObjectURL(stream);
-                }
-            })
-
-            
+            this.joinOnlineChannel();
+            this.getUserMedia();
         },
         data() {
             return {
@@ -71,7 +67,11 @@
                 pusher:null,
                 user:window.user,
                 channel:null,
-                peers:{}
+                peers:{},
+                online_users:[],
+                friends:[],
+                typing_timeout:null,
+                is_typing:false
             }
         },
         methods: {
@@ -87,6 +87,14 @@
                         peer = this.startPeer(signal.userId,false);
                     }
                     peer.signal(signal.data);
+                })
+                this.channel.listenForWhisper(`typing-signal-${this.user.id}`,(signal)=>{
+                    clearTimeout(this.typing_timeout);
+                    this.is_typing = true;
+                    var thiss = this;
+                    this.typing_timeout = setTimeout(function () {
+                        thiss.is_typing = false
+                    }, 1000);
                 })
             },
             startPeer(userId,initiator=true){
@@ -129,10 +137,37 @@
                 this.myVideoSrc.getTracks().forEach(function(track) {
                     track.stop();
                 });
+            },
+            joinOnlineChannel(){
+                Echo.join('online')
+                .here(users => (this.online_users = users))
+                .joining(user => this.online_users.push(user))
+                .leaving(user => (this.online_users = this.online_users.filter(u => (u.id !== user.id))))
+            },
+            getUserMedia(){
+                this.mediaHandler.getPermissions().then((stream)=>{
+                    this.hasMedia = true;
+                    try {
+                        this.myVideoSrc = stream;
+                    } catch (error) {
+                        this.myVideoSrc = URL.createObjectURL(stream);
+                    }
+                })
+            },
+            checkIfFriend(){
+
+            },
+            getInitData(){
+                Vue.axios.get('/get-init-data').then((response) => {
+                this.previous_messages.push(response.data);
+                this.message = "";
+                this.waiting = false;
+            })
             }
         },
         components:{
-            'text-chat':TextChatComponent
+            'text-chat':TextChatComponent,
+            'friends-list':FriendsList
         }
     }
 </script>
