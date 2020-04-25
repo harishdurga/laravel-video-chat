@@ -102,7 +102,7 @@
                 const peer = new Peer({
                     initiator,
                     stream: this.myVideoSrc,
-                    trickle:false
+                    trickle:true
                 });
                 peer.on('signal',(data)=>{
                     console.log("Peer On Signal");
