@@ -9,14 +9,14 @@ import Echo from "laravel-echo";
 import axios from 'axios'
 import VueAxios from 'vue-axios'
 import Toasted from 'vue-toasted';
-window.Pusher = require('pusher-js');
+import Pusher from "pusher-js"
 window.Echo = new Echo({
     broadcaster: 'pusher',
     key: 'ABCD123',
     wsHost: window.location.hostname,
     wsPort: 6001,
     disableStats: true,
-    encrypted: true
+    encrypted: false
 });
 window.Vue = require('vue');
 

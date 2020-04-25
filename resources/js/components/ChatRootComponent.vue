@@ -32,7 +32,6 @@
     import MediaHandler from "../MediaHandler";
     import TextChatComponent from "./chat/TextChatComponent"
     import FriendsList from './chat/FriendsList'
-    import Pusher from 'pusher-js';
     import Peer from 'simple-peer';
     const APP_KEY = 'ABCD123';
     const APP_CLUSTER = 'mt1';
