@@ -69,7 +69,8 @@
                 
                 this.channel = Echo.private('presence-video-channel');
                 this.channel.listenForWhisper(`client-signal-${this.user.id}`,(signal)=>{
-                    if(confirm(`Do you want to accept call this call from ${signal.userName}?`)){
+                    //confirm(`Do you want to accept call this call from ${signal.userName}?`)
+                    if(true){
                         let peer = this.peers[signal.userId];
                         //If peer is empty, means we got incoming call
                         if(peer === undefined){
