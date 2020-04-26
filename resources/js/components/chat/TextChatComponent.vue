@@ -29,7 +29,7 @@
             <div class="text-input-container">
                 <form v-on:submit.prevent="sendMessage">
                     <div class="input-group mb-3">
-                        <input @keyup="sendTypingSignal" :disabled="waiting" v-model="message" type="text" class="form-control" placeholder="Type Your message" aria-label="Type Your message" aria-describedby="basic-addon2">
+                        <input @keyup="sendTypingSignal" :disabled="waiting || (selected_user == null)" v-model="message" type="text" class="form-control" placeholder="Type Your message" aria-label="Type Your message" aria-describedby="basic-addon2">
                         <div class="input-group-append">
                             <button @click="sendMessage" :disabled="(message.length == 0) || waiting" class="btn btn-success" type="button"><i class="far fa-paper-plane"></i></button>
                         </div>
@@ -46,7 +46,16 @@ export default {
     mounted(){
         Echo.private(`NewMessage.User.${this.$parent.user.id}`)
             .listen('NewMessage', (e) => {
-                this.previous_messages.push(e.data);
+                if(this.selected_user != null){
+                    if(this.selected_user.id == e.data.sender_id){
+                        this.previous_messages.push(e.data);
+                    }else{
+                        this.setBlinkingIcon(e.data.sender_id);
+                    }
+                }else{
+                    this.setBlinkingIcon(e.data.sender_id);
+                }
+                
             });
             
     },
@@ -64,7 +73,7 @@ export default {
                 return false;
             }
             this.waiting = true;
-            Vue.axios.post('/send-new-message',{'message':this.message,'recipient_id':2}).then((response) => {
+            Vue.axios.post('/send-new-message',{'message':this.message,'recipient_id':this.selected_user.id}).then((response) => {
                 this.previous_messages.push(response.data);
                 this.message = "";
                 this.waiting = false;
@@ -83,6 +92,15 @@ export default {
             Vue.axios.get('/previous-messages/'+this.selected_user.id).then((response) => {
                 this.previous_messages = response.data.previous_messages;
             })
+        },
+        setBlinkingIcon(userId){
+            var thiss = this;
+            this.$parent.friends.forEach(element => {
+                if(element.id == userId){
+                    element.new_message = true;
+                    return;
+                }
+            });
         }
     },
     watch: {

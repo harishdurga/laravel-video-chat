@@ -5,7 +5,7 @@
             <div class="friendlist">
                 <ul class="list-unstyled">
                     <li @click="friendSelected(index)" v-for="(val,index) in $parent.friends" :key="index" :class="{'bg-primary text-white':val.is_selected,'bg-light':!val.is_selected}" class="friendlist-item my-2 p-2">
-                        {{val.name}}
+                        {{val.name}} <span v-if="val.new_message" class="newmessage-blink"><i class="fas fa-envelope-square"></i></span>
                     </li>
                 </ul>
             </div>
@@ -27,6 +27,7 @@ export default {
                 element.is_selected = false;
             });
             this.$parent.friends[index].is_selected = true;
+            this.$parent.friends[index].new_message = false;
             this.$parent.selected_user = this.$parent.friends[index];
         }
     }
@@ -41,5 +42,13 @@ export default {
     }
     .friendlist-item{
         cursor: pointer;
+    }
+    .newmessage-blink{
+        animation: blink 1s linear infinite;;
+    }
+    @keyframes blink{
+        0%{opacity: 0;}
+        50%{opacity: .5;}
+        100%{opacity: 1;}
     }
 </style>

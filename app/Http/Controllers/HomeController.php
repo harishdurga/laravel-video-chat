@@ -45,8 +45,11 @@ class HomeController extends Controller
         return response($key);
     }
 
-    public function testTranslation($message='',$sender_lang="en",$recipient_lang="ru"){
+    public function testTranslation($message='',$sender_lang="en",$recipient_lang="en"){
         $translation = "";
+        if($sender_lang==$recipient_lang){
+            return $message;
+        }
         try {
             putenv('GOOGLE_APPLICATION_CREDENTIALS='.env('GOOGLE_APPLICATION_CREDENTIALS'));
             $translationClient = new TranslationServiceClient();
@@ -144,9 +147,9 @@ class HomeController extends Controller
         if($friendsQuery->count()){
             foreach ($friendsQuery as $key => $value) {
                 if($value->sender->id != auth()->user()->id){
-                    $friends[] = ['id'=>$value->sender->id,'name'=>$value->sender->name];
+                    $friends[] = ['id'=>$value->sender->id,'name'=>$value->sender->name,'is_selected'=>false,'is_online'=>false,'new_message'=>false];
                 }else{
-                    $friends[] = ['id'=>$value->recipient->id,'name'=>$value->recipient->name, 'is_selected'=>false,'is_online'=>false];
+                    $friends[] = ['id'=>$value->recipient->id,'name'=>$value->recipient->name, 'is_selected'=>false,'is_online'=>false,'new_message'=>false];
                 }
             }
         }

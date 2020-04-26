@@ -2267,6 +2267,7 @@ __webpack_require__.r(__webpack_exports__);
         element.is_selected = false;
       });
       this.$parent.friends[index].is_selected = true;
+      this.$parent.friends[index].new_message = false;
       this.$parent.selected_user = this.$parent.friends[index];
     }
   }
@@ -2414,7 +2415,15 @@ __webpack_require__.r(__webpack_exports__);
     var _this = this;
 
     Echo["private"]("NewMessage.User.".concat(this.$parent.user.id)).listen('NewMessage', function (e) {
-      _this.previous_messages.push(e.data);
+      if (_this.selected_user != null) {
+        if (_this.selected_user.id == e.data.sender_id) {
+          _this.previous_messages.push(e.data);
+        } else {
+          _this.setBlinkingIcon(e.data.sender_id);
+        }
+      } else {
+        _this.setBlinkingIcon(e.data.sender_id);
+      }
     });
   },
   data: function data() {
@@ -2435,7 +2444,7 @@ __webpack_require__.r(__webpack_exports__);
       this.waiting = true;
       Vue.axios.post('/send-new-message', {
         'message': this.message,
-        'recipient_id': 2
+        'recipient_id': this.selected_user.id
       }).then(function (response) {
         _this2.previous_messages.push(response.data);
 
@@ -2457,6 +2466,15 @@ __webpack_require__.r(__webpack_exports__);
 
       Vue.axios.get('/previous-messages/' + this.selected_user.id).then(function (response) {
         _this3.previous_messages = response.data.previous_messages;
+      });
+    },
+    setBlinkingIcon: function setBlinkingIcon(userId) {
+      var thiss = this;
+      this.$parent.friends.forEach(function (element) {
+        if (element.id == userId) {
+          element.new_message = true;
+          return;
+        }
       });
     }
   },
@@ -8997,7 +9015,7 @@ exports = module.exports = __webpack_require__(/*! ../../../../node_modules/css-
 
 
 // module
-exports.push([module.i, "\n.friendlist-container{\n    background: #e6e6e6;\n    height: 500px;\n    overflow-y: auto;\n}\n.friendlist-item{\n    cursor: pointer;\n}\n", ""]);
+exports.push([module.i, "\n.friendlist-container{\n    background: #e6e6e6;\n    height: 500px;\n    overflow-y: auto;\n}\n.friendlist-item{\n    cursor: pointer;\n}\n.newmessage-blink{\n    -webkit-animation: blink 1s linear infinite;\n            animation: blink 1s linear infinite;\n}\n@-webkit-keyframes blink{\n0%{opacity: 0;}\n50%{opacity: .5;}\n100%{opacity: 1;}\n}\n@keyframes blink{\n0%{opacity: 0;}\n50%{opacity: .5;}\n100%{opacity: 1;}\n}\n", ""]);
 
 // exports
 
@@ -54653,11 +54671,12 @@ var render = function() {
                 }
               },
               [
-                _vm._v(
-                  "\n                    " +
-                    _vm._s(val.name) +
-                    "\n                "
-                )
+                _vm._v("\n                    " + _vm._s(val.name) + " "),
+                val.new_message
+                  ? _c("span", { staticClass: "newmessage-blink" }, [
+                      _c("i", { staticClass: "fas fa-envelope-square" })
+                    ])
+                  : _vm._e()
               ]
             )
           }),
@@ -54900,7 +54919,7 @@ var render = function() {
                 ],
                 staticClass: "form-control",
                 attrs: {
-                  disabled: _vm.waiting,
+                  disabled: _vm.waiting || _vm.selected_user == null,
                   type: "text",
                   placeholder: "Type Your message",
                   "aria-label": "Type Your message",
