@@ -5,7 +5,7 @@
             <div class="friendlist">
                 <ul class="list-unstyled">
                     <li @click="friendSelected(index)" v-for="(val,index) in $parent.friends" :key="index" :class="{'bg-primary text-white':val.is_selected,'bg-light':!val.is_selected}" class="friendlist-item my-2 p-2">
-                        {{val.name}} <span v-if="val.new_message" class="newmessage-blink"><i class="fas fa-envelope-square"></i></span>
+                        {{val.name}} <span v-if="val.is_online" class="text-success"><i class="fas fa-globe"></i></span> <span v-if="val.new_message" class="newmessage-blink"><i class="fas fa-envelope-square"></i></span>
                     </li>
                 </ul>
             </div>

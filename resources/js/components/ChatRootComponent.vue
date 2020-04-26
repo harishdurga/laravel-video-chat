@@ -54,7 +54,7 @@
         mounted() {
             this.setupPusher();
             this.joinOnlineChannel();
-            
+            this.getUserMedia();
             this.getInitData();
         },
         data() {
@@ -112,6 +112,9 @@
             },
             startPeer(userId,initiator=true){
                 console.log("Starting peer");
+                if(!this.myVideoSrc){
+                    this.getUserMedia();
+                }
                 const peer = new Peer({
                     initiator,
                     stream: this.myVideoSrc,
@@ -157,9 +160,7 @@
                     this.$toasted.show('Please select a user from the friends on the left side!',{type:'error'})
                     return false;
                 }
-                if(this.myVideoSrc == null || this.myVideoSrc == undefined){
-                    this.getUserMedia();
-                }
+                
                 var userId = this.selected_user.id;
                 this.peers[userId] = this.startPeer(userId,true);
             },
@@ -170,9 +171,9 @@
             },
             joinOnlineChannel(){
                 Echo.join('online')
-                .here(users => (this.online_users = users))
-                .joining(user => this.online_users.push(user))
-                .leaving(user => (this.online_users = this.online_users.filter(u => (u.id !== user.id))))
+                .here(users => {this.online_users = users;this.checkForFriendsOnline()})
+                .joining(user => {this.online_users.push(user);this.checkForFriendsOnline()})
+                .leaving(user => {this.online_users = this.online_users.filter(u => (u.id !== user.id));this.checkForFriendsOnline()})
             },
             getUserMedia(){
                 this.mediaHandler.getPermissions().then((stream)=>{
@@ -184,11 +185,11 @@
                     }
                 })
             },
-            checkIfUserOnline(){
+            checkIfUserOnline(userId){
                 var thiss = this;
                 this.is_online = false;
                 this.online_users.forEach(element => {
-                    if(element.id == this.selected_user.id){
+                    if(element.id == userId){
                         thiss.is_online = true;
                         return;
                     }
@@ -197,6 +198,19 @@
             getInitData(){
                 Vue.axios.get('/get-init-data').then((response) => {
                     this.friends = response.data.friends;
+                    this.checkForFriendsOnline();
+                })
+            },
+            checkForFriendsOnline(){
+                var thiss = this;
+                this.friends.forEach((friend)=>{
+                    thiss.online_users.forEach((online_user)=>{
+                        if(friend.id == online_user.id){
+                            friend.is_online = true;
+                            return;
+                        }
+                        friend.is_online = false;
+                    })
                 })
             }
         },
@@ -208,8 +222,9 @@
         },
         watch: {
             'selected_user'(){
-                this.checkIfUserOnline();
-            }
+                this.checkIfUserOnline(this.selected_user.id);
+            },
+            
         },
     }
 </script>
