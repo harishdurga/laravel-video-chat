@@ -179,4 +179,108 @@ class HomeController extends Controller
         $previous_messages = array_reverse($previous_messages);
         return \response()->json(['previous_messages'=>$previous_messages]);
     }
+
+    public function searchUsers(Request $request){
+        $users = [];
+        if(!empty($request->keyword)){
+            $userId = auth()->user()->id;
+            $usersQuery = User::select('id','name','email')->where('email','like',"%$request->keyword%")->where('id','!=',$userId)->get();
+            $friendsQuery = FriendRequest::select('sender_id','recipient_id')->where(function($query) use($userId)
+            {
+                $query->where('sender_id', $userId);
+                $query->orWhere('recipient_id', $userId);
+            })->where('accepted',1)->get();
+            $friendIds = [];
+            foreach ($friendsQuery as $key => $value) {
+                if($value->sender_id != $userId){
+                    $friendIds[] = $value->sender_id;
+                }else{
+                    $friendIds[] = $value->recipient_id;
+                }
+            }
+            foreach ($usersQuery as $key => $value) {
+                $users[] = [
+                    'id'=>$value->id,
+                    'name'=>$value->name,
+                    'is_friend'=>in_array($value->id,$friendIds)
+                ];
+            }
+        }
+        
+        return response()->json(['users'=>$users]);
+    }
+
+    public function addFriend(Request $request){
+        $message = "";
+        $status = true;
+        $userId = auth()->user()->id;
+        $recipientId = $request->user_id;
+        $frinedRequest = FriendRequest::where('sender_id',$userId)->where('recipient_id',$recipientId)->first();
+        if($frinedRequest){
+            if($frinedRequest->accepted == 0){
+                $status = false;
+                $message = "You have already sent a freind request! Please wait for the user to accept it";
+            }elseif($frinedRequest->accepted == 1){
+                $status = false;
+                $message = "You are already friends with the user!";
+            }elseif($frinedRequest->accepted == -1){
+                $status = false;
+                $message = "User rejected your last request!";
+            }
+        }
+        if($status){
+            $frinedRequest = FriendRequest::where('sender_id',$recipientId)->where('recipient_id',$userId)->first();
+            if($frinedRequest){
+                if($frinedRequest->accepted == 0){
+                    $status = false;
+                    $message = "User has sent you a friend request! Please check in your friend requests list!";
+                }elseif($frinedRequest->accepted == 1){
+                    $status = false;
+                    $message = "You are already friends with the user!";
+                }
+            }
+        }
+        if($status){
+            $frinedRequest = new FriendRequest();
+            $frinedRequest->sender_id = $userId;
+            $frinedRequest->recipient_id = $recipientId;
+            $frinedRequest->accepted = 0;
+            if($frinedRequest->save()){
+                $message = "Friend request sent to the user!";
+            }else{
+                $status = false;
+                $message = "Unable to send friend request to user!";
+            }
+        }
+        return response()->json(['status'=>$status,'message'=>$message]);
+    }
+
+    public function friendRequests(){
+        $frinedRequestsQuery = FriendRequest::where(['recipient_id'=>auth()->user()->id,'accepted'=>0])->with('sender')->get();
+        $frinedRequests = [];
+        if($frinedRequestsQuery->count()){
+            foreach ($frinedRequestsQuery as $key => $value) {
+                $frinedRequests[] = ['id'=>$value->id,'name'=>$value->sender->name];
+            }
+        }
+        return response()->json(['requests'=>$frinedRequests]);
+    }
+
+    public function acceptRejectPost(Request $request){
+        $status = false;
+        $message = "";
+        $frinedRequest = FriendRequest::where(['id'=>$request->id,'recipient_id'=>auth()->user()->id])->first();
+        if($frinedRequest){
+            $frinedRequest->accepted = ($request->action == true)?1:-1;
+            if($frinedRequest->save()){
+                $status = true;
+                $message = "Request successfully ".(($request->action == true)?'accepted':'rejected');
+            }else{
+                $message = "Unable to accept/reject the request!";
+            }
+        }else{
+            $message = "Unable to find the friend request!";
+        }
+        return response()->json(['status'=>$status,'message'=>$message]);
+    }
 }

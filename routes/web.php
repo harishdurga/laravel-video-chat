@@ -33,3 +33,7 @@ Route::get('my-profile','HomeController@getMyProfile')->name('my-profile');
 Route::post('my-profile', 'HomeController@saveMyProfile')->name('my-profile');
 Route::get('get-init-data', 'HomeController@getInitData');
 Route::get('previous-messages/{id}', 'HomeController@getPreviousMessages');
+Route::get('search-users','HomeController@searchUsers');
+Route::post('add-friend','HomeController@addFriend');
+Route::get('friend-requests','HomeController@friendRequests');
+Route::post('accept-reject-request','HomeController@acceptRejectPost');

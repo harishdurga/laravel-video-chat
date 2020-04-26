@@ -25,6 +25,16 @@
                 </div>
             </div>
         </div>
+        <div class="row">
+            <div class="col-md-6">
+                <h3 class="text-uppercase">Search A User</h3>
+                <search-user></search-user>
+            </div>
+            <div class="col-md-6">
+                <h3 class="text-uppercase">Friend Requests</h3>
+                <friend-requests></friend-requests>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -32,6 +42,8 @@
     import MediaHandler from "../MediaHandler";
     import TextChatComponent from "./chat/TextChatComponent"
     import FriendsList from './chat/FriendsList'
+    import SearchUser from "./chat/SearchUser";
+    import FriendRequests from "./chat/FriendRequests";
     import Peer from 'simple-peer';
     const APP_KEY = 'ABCD123';
     const APP_CLUSTER = 'mt1';
@@ -42,7 +54,7 @@
         mounted() {
             this.setupPusher();
             this.joinOnlineChannel();
-            this.getUserMedia();
+            
             this.getInitData();
         },
         data() {
@@ -145,6 +157,9 @@
                     this.$toasted.show('Please select a user from the friends on the left side!',{type:'error'})
                     return false;
                 }
+                if(this.myVideoSrc == null || this.myVideoSrc == undefined){
+                    this.getUserMedia();
+                }
                 var userId = this.selected_user.id;
                 this.peers[userId] = this.startPeer(userId,true);
             },
@@ -187,7 +202,9 @@
         },
         components:{
             'text-chat':TextChatComponent,
-            'friends-list':FriendsList
+            'friends-list':FriendsList,
+            'search-user':SearchUser,
+            'friend-requests':FriendRequests
         },
         watch: {
             'selected_user'(){
