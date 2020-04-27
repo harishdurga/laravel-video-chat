@@ -10,6 +10,7 @@ use App\GoogleLanguage;
 use App\Events\NewMessage;
 use Illuminate\Http\Request;
 use Google\Cloud\Translate\V3\TranslationServiceClient;
+use Twilio\Rest\Client;
 
 class HomeController extends Controller
 {
@@ -153,7 +154,7 @@ class HomeController extends Controller
                 }
             }
         }
-        return response()->json(['friends'=>$friends]);
+        return response()->json(['friends'=>$friends,'iceServers'=>$this->testTwillio()]);
     }
 
     public function getPreviousMessages($id){
@@ -285,5 +286,20 @@ class HomeController extends Controller
             $message = "Unable to find the friend request!";
         }
         return response()->json(['status'=>$status,'message'=>$message]);
+    }
+
+    public function testTwillio(){
+        $cachedIceServersKey = 'twillio_ice_servers';
+        $iceServers = [];
+        if(!\Cache::has($cachedIceServersKey)){
+            $sid    = env('TWILLIO_ACCOUNT_ID','');
+            $token  = env('TWILLIO_AUTH_TOKEN','');
+            $twilio = new Client($sid, $token);
+            $token = $twilio->tokens->create();
+            \Cache::put($cachedIceServersKey, $token->iceServers, (24*60*60));
+        }
+        $iceServers = \Cache::get($cachedIceServersKey, []);
+        return $iceServers;
+        
     }
 }

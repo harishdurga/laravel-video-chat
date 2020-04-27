@@ -53,9 +53,9 @@
         },
         mounted() {
             this.setupPusher();
+            this.getInitData();
             this.joinOnlineChannel();
             this.getUserMedia();
-            this.getInitData();
         },
         data() {
             return {
@@ -73,7 +73,8 @@
                 typing_timeout:null,
                 is_typing:false,
                 selected_user:null,
-                is_online:false
+                is_online:false,
+                iceServers:[]
             }
         },
         methods: {
@@ -119,14 +120,7 @@
                     initiator,
                     stream: this.myVideoSrc,
                     trickle:true,
-                    config: { iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' }, 
-                        { urls: 'stun:stun3.l.google.com:19302' },
-                        { urls: 'stun:stun4.l.google.com:19302' }, 
-                        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
-                        ] 
+                    config: { iceServers: this.iceServers 
                     }
                 });
                 peer.on('signal',(data)=>{
@@ -158,6 +152,10 @@
             callTo(){
                 if(this.selected_user == null){
                     this.$toasted.show('Please select a user from the friends on the left side!',{type:'error'})
+                    return false;
+                }
+                if(this.iceServers.length == 0){
+                    this.$toasted.show('Sorry! No ice servers found!',{type:'error'})
                     return false;
                 }
                 
@@ -198,6 +196,7 @@
             getInitData(){
                 Vue.axios.get('/get-init-data').then((response) => {
                     this.friends = response.data.friends;
+                    this.iceServers = response.data.iceServers;
                     this.checkForFriendsOnline();
                 })
             },
