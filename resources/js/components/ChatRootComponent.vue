@@ -6,7 +6,8 @@
                     <friends-list></friends-list>
                 </div>
                 <div class="col-md-7 bg-light">
-                    <div class="video-container shadow-sm">
+                    <twillio-video></twillio-video>
+                    <div v-if="false" class="video-container shadow-sm">
                         <div  class="user-video-container">
                             <video :srcObject.prop="userVideoSrc" ref="userVideo" autoplay="autoplay" class="user-video w-100"></video>
                         </div>
@@ -35,6 +36,11 @@
                 <friend-requests></friend-requests>
             </div>
         </div>
+        <div class="row">
+            <div class="col-md-12">
+                
+            </div>
+        </div>
     </div>
 </template>
 
@@ -44,6 +50,7 @@
     import FriendsList from './chat/FriendsList'
     import SearchUser from "./chat/SearchUser";
     import FriendRequests from "./chat/FriendRequests";
+    import TwillioVideoChat from "./chat/TwillioVideoChat";
     import Peer from 'simple-peer';
     const APP_KEY = 'ABCD123';
     const APP_CLUSTER = 'mt1';
@@ -55,7 +62,7 @@
             this.setupPusher();
             this.getInitData();
             this.joinOnlineChannel();
-            this.getUserMedia();
+            // this.getUserMedia();
         },
         data() {
             return {
@@ -217,7 +224,8 @@
             'text-chat':TextChatComponent,
             'friends-list':FriendsList,
             'search-user':SearchUser,
-            'friend-requests':FriendRequests
+            'friend-requests':FriendRequests,
+            'twillio-video':TwillioVideoChat
         },
         watch: {
             'selected_user'(){

@@ -11,6 +11,9 @@ use App\Events\NewMessage;
 use Illuminate\Http\Request;
 use Google\Cloud\Translate\V3\TranslationServiceClient;
 use Twilio\Rest\Client;
+use Twilio\Jwt\AccessToken;
+use Twilio\Jwt\Grants\VideoGrant;
+
 
 class HomeController extends Controller
 {
@@ -301,5 +304,58 @@ class HomeController extends Controller
         $iceServers = \Cache::get($cachedIceServersKey, []);
         return $iceServers;
         
+    }
+
+    public function generateTwillioAccessToken(){
+        $accountSid = env('TWILIO_ACCOUNT_SID');
+        $apiKeySid = env('TWILIO_API_KEY_SID');
+        $apiKeySecret = env('TWILIO_API_KEY_SECRET');
+        $identity = auth()->user()->email;
+        $token = new AccessToken(
+            $accountSid,
+            $apiKeySid,
+            $apiKeySecret,
+            3600,
+            $identity
+        );
+        // Grant access to Video
+        $grant = new VideoGrant();
+        $room_sid = $this->createTwillioRoom();
+        $grant->setRoom($room_sid);
+        $token->addGrant($grant);
+
+        // Serialize the token as a JWT
+        echo $token->toJWT();
+    }
+
+    public function createTwillioRoom(){
+        $sid    = env('TWILLIO_ACCOUNT_ID','');
+        $token  = env('TWILLIO_AUTH_TOKEN');
+        $twilio = new Client($sid, $token);
+        $room = null;
+        try {
+            $room = $twilio->video->v1->rooms("OneToOne")->fetch();
+        } catch (\Throwable $th) {
+            $room = null;
+        }
+        if(!$room){
+            $room = $twilio->video->v1->rooms->create([
+                "uniqueName" => "OneToOne",
+                'maxParticipants'=>2,
+                'type'=>'peer-to-peer',
+                'recordParticipantsOnConnect'=>false,
+                'region'=>'in1',
+                'enableTurn'=>true
+                ]);
+        }
+        return $room->uniqueName;
+    }
+
+    public function completeTwillioRoom($room){
+        $sid    = env('TWILLIO_ACCOUNT_ID','');
+        $token  = env('TWILLIO_AUTH_TOKEN');
+        $twilio = new Client($sid, $token);
+        $room = $twilio->video->v1->rooms($room)->update("completed");
+        dd($room->uniqueName);
     }
 }

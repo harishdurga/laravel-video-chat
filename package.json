@@ -27,6 +27,7 @@
         "laravel-echo": "^1.7.0",
         "pusher-js": "^5.1.1",
         "simple-peer": "^9.6.2",
+        "twilio-video": "^2.0.0",
         "vue-axios": "^2.1.5",
         "vue-toasted": "^1.1.28"
     }

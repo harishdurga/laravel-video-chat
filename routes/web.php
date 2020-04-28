@@ -34,3 +34,6 @@ Route::get('search-users','HomeController@searchUsers');
 Route::post('add-friend','HomeController@addFriend');
 Route::get('friend-requests','HomeController@friendRequests');
 Route::post('accept-reject-request','HomeController@acceptRejectPost');
+Route::get('twillio_access_token', 'HomeController@generateTwillioAccessToken');
+Route::get('twillio-create-room', 'HomeController@createTwillioRoom');
+Route::get('twillio-complete-room/{room}', 'HomeController@completeTwillioRoom');
