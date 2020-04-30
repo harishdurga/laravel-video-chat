@@ -157,7 +157,7 @@ class HomeController extends Controller
                 }
             }
         }
-        return response()->json(['friends'=>$friends,'iceServers'=>$this->testTwillio()]);
+        return response()->json(['friends'=>$friends,'iceServers'=>[]]);
     }
 
     public function getPreviousMessages($id){
@@ -311,21 +311,23 @@ class HomeController extends Controller
         $apiKeySid = env('TWILIO_API_KEY_SID');
         $apiKeySecret = env('TWILIO_API_KEY_SECRET');
         $identity = auth()->user()->email;
-        $token = new AccessToken(
-            $accountSid,
-            $apiKeySid,
-            $apiKeySecret,
-            3600,
-            $identity
-        );
-        // Grant access to Video
-        $grant = new VideoGrant();
-        $room_sid = $this->createTwillioRoom();
-        $grant->setRoom($room_sid);
-        $token->addGrant($grant);
-
-        // Serialize the token as a JWT
-        echo $token->toJWT();
+        $twillio_cache_key = 'twillio_access_token_'.$identity;
+        if(!\Cache::has($twillio_cache_key)){
+            $token = new AccessToken(
+                $accountSid,
+                $apiKeySid,
+                $apiKeySecret,
+                3600,
+                $identity
+            );
+            // Grant access to Video
+            $grant = new VideoGrant();
+            $room_sid = $this->createTwillioRoom();
+            $grant->setRoom($room_sid);
+            $token->addGrant($grant);
+            \Cache::put($twillio_cache_key, strval($token->toJWT()), 3600);
+        }
+        echo \Cache::get($twillio_cache_key);
     }
 
     public function createTwillioRoom(){

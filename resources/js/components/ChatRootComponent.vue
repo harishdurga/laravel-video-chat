@@ -81,7 +81,8 @@
                 is_typing:false,
                 selected_user:null,
                 is_online:false,
-                iceServers:[]
+                iceServers:[],
+                room:null
             }
         },
         methods: {
