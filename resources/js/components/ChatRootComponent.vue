@@ -5,7 +5,7 @@
                 <div class="col-md-2 px-0">
                     <friends-list></friends-list>
                 </div>
-                <div class="col-md-7 bg-light">
+                <div class="col-md-7 bg-light" id="video-component">
                     <twillio-video></twillio-video>
                     <div v-if="false" class="video-container shadow-sm">
                         <div  class="user-video-container">
@@ -254,5 +254,10 @@ video.my-video{
 video.user-video{
     width: 100%;
     height: 500px;
+}
+#video-component{
+    background-color: #e6e6e6;
+    height: 500px;
+    border: solid 2px #a2a2a2;
 }
 </style>

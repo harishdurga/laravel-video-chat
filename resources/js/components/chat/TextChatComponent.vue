@@ -1,7 +1,7 @@
 <template>
     <div>
         <div class="text-chat-outer-container">
-            <div class="chat-container p-2">
+            <div id="chat-container" class="chat-container p-2">
                 <ul class="list-unstyled">
                     <li class="" v-for="(message,index) in previous_messages" :key="index">
                         <div class="chat-bubble shadow-sm p-1 mb-2 rounded">
@@ -57,7 +57,6 @@ export default {
                 }
                 
             });
-            
     },
     data() {
         return {
@@ -77,6 +76,7 @@ export default {
                 this.previous_messages.push(response.data);
                 this.message = "";
                 this.waiting = false;
+                this.scrollToBottom();
             })
         },
         sendTypingSignal(){
@@ -91,6 +91,7 @@ export default {
         getPassMessages(){
             Vue.axios.get('/previous-messages/'+this.selected_user.id).then((response) => {
                 this.previous_messages = response.data.previous_messages;
+                this.scrollToBottom();
             })
         },
         setBlinkingIcon(userId){
@@ -101,6 +102,11 @@ export default {
                     return;
                 }
             });
+        },
+        scrollToBottom(){
+            var container = this.$el.querySelector("#chat-container");
+            var st = container.scrollHeight;
+            $("#chat-container").animate({ scrollTop: st+1000 }, "slow");
         }
     },
     watch: {
@@ -112,7 +118,7 @@ export default {
 </script>
 <style>
     .chat-container{
-        height: 472px;
+        height: 415px;
         overflow-y: auto;
     }
     .chat-bubble{

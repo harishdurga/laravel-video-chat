@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div>
+        <div class="p-2">
             <button title="Join Room" @click="joinRoom" class="btn btn-success rounded"><i class="fas fa-phone-alt"></i></button>
             <button class="btn btn-danger rounded" @click="disConnectFromRoom" title="Disconnect From Room"><i class="fas fa-video-slash"></i></button>
         </div>
@@ -65,6 +65,7 @@ export default {
 
                 room.on('participantConnected', participant => {
                     console.log(`Participant "${participant.identity}" connected`);
+                    
                     document.getElementById('remote-media').innerHTML = "";
                     participant.tracks.forEach(publication => {
                         if (publication.isSubscribed) {
