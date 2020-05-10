@@ -46,7 +46,7 @@ export default {
 
             const { connect, createLocalVideoTrack } = require('twilio-video');
             this.createLocalVideoTrack = createLocalVideoTrack;
-            connect( this.accessToken, { name:this.room_name,audio: true,maxAudioBitrate: 16000,video: { height: 720, frameRate: 24, width: 1280 } }).then(room => {
+            connect( this.accessToken, { name:this.room_name,audio: true,maxAudioBitrate: 16000,video: { height: 380, frameRate: 24, width: 600 } }).then(room => {
                 this.is_loading = false;
                 this.loading_message = "Successfully joined the room!";
                 this.room = room;
