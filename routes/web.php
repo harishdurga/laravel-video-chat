@@ -37,3 +37,4 @@ Route::post('accept-reject-request','HomeController@acceptRejectPost');
 Route::get('twillio_access_token', 'HomeController@generateTwillioAccessToken');
 Route::get('twillio-create-room', 'HomeController@createTwillioRoom');
 Route::get('twillio-complete-room/{room}', 'HomeController@completeTwillioRoom');
+Route::get('twilio-init-data','HomeController@getTwilioInitData');

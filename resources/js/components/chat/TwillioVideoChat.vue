@@ -21,7 +21,8 @@ export default {
             accessToken:'',
             room:null,
             is_loading:false,
-            loading_message:''
+            loading_message:'',
+            room_name:''
         }
     },
     methods:{
@@ -45,7 +46,7 @@ export default {
 
             const { connect, createLocalVideoTrack } = require('twilio-video');
             this.createLocalVideoTrack = createLocalVideoTrack;
-            connect( this.accessToken, { name:'OneToOne' }).then(room => {
+            connect( this.accessToken, { name:this.room_name,audio: true,maxAudioBitrate: 16000,video: { height: 720, frameRate: 24, width: 1280 } }).then(room => {
                 this.is_loading = false;
                 this.loading_message = "Successfully joined the room!";
                 this.room = room;
@@ -57,7 +58,10 @@ export default {
                 });
                 
                 const videoChatWindow = document.getElementById('video-chat-window');
-
+                // {
+                //     audio: true,
+                //     video: { height: 380,frameRate:30 },
+                // }
                 createLocalVideoTrack().then(track => {
                     const localMediaContainer = document.getElementById('local-media');
                     localMediaContainer.appendChild(track.attach());
@@ -131,11 +135,16 @@ export default {
         },
         detachTrack(track){
             track.detach();
+        },
+        getInitData(){
+            Vue.axios.get('/twilio-init-data').then((response)=>{
+                this.room_name = response.data.twilio_room_name;
+            });
         }
         
     },
     mounted : function () {
-        
+        this.getInitData();   
     }
 }
 </script>

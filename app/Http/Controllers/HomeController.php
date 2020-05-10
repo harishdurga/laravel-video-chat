@@ -4,15 +4,16 @@ namespace App\Http\Controllers;
 
 use App\User;
 use Pusher\Pusher;
+use App\SiteSetting;
 use App\UserMessage;
 use App\FriendRequest;
 use App\GoogleLanguage;
-use App\Events\NewMessage;
-use Illuminate\Http\Request;
-use Google\Cloud\Translate\V3\TranslationServiceClient;
 use Twilio\Rest\Client;
+use App\Events\NewMessage;
 use Twilio\Jwt\AccessToken;
+use Illuminate\Http\Request;
 use Twilio\Jwt\Grants\VideoGrant;
+use Google\Cloud\Translate\V3\TranslationServiceClient;
 
 
 class HomeController extends Controller
@@ -331,22 +332,34 @@ class HomeController extends Controller
     }
 
     public function createTwillioRoom(){
+        $roomName = SiteSetting::where('key','twillio_room_name')->first();
+        if($roomName){
+            $roomName = $roomName->value;
+        }else{
+            $roomName = "OneToOne";
+        }
+        $roomRegion = SiteSetting::where('key','twillio_room_region')->first();
+        if($roomRegion){
+            $roomRegion = $roomRegion->value;
+        }else{
+            $roomRegion = 'gll';
+        }
         $sid    = env('TWILLIO_ACCOUNT_ID','');
         $token  = env('TWILLIO_AUTH_TOKEN');
         $twilio = new Client($sid, $token);
         $room = null;
         try {
-            $room = $twilio->video->v1->rooms("OneToOne")->fetch();
+            $room = $twilio->video->v1->rooms($roomName)->fetch();
         } catch (\Throwable $th) {
             $room = null;
         }
         if(!$room){
             $room = $twilio->video->v1->rooms->create([
-                "uniqueName" => "OneToOne",
+                "uniqueName" => $roomName,
                 'maxParticipants'=>2,
                 'type'=>'peer-to-peer',
                 'recordParticipantsOnConnect'=>false,
-                'region'=>'in1',
+                'region'=>$roomRegion,
                 'enableTurn'=>true
                 ]);
         }
@@ -359,5 +372,18 @@ class HomeController extends Controller
         $twilio = new Client($sid, $token);
         $room = $twilio->video->v1->rooms($room)->update("completed");
         dd($room->uniqueName);
+    }
+
+    public function getTwilioInitData(){
+        $roomName = '';
+        $roomName = SiteSetting::where('key','twillio_room_name')->first();
+        if($roomName){
+            $roomName = $roomName->value;
+        }else{
+            $roomName = "OneToOne";
+        }
+        return response()->json([
+            'twilio_room_name'=>$roomName
+        ]);
     }
 }
