@@ -11,23 +11,23 @@
     },
     "devDependencies": {
         "axios": "^0.19.2",
-        "bootstrap": "^4.0.0",
+        "bootstrap": "^4.5.2",
         "cross-env": "^7.0",
-        "jquery": "^3.2",
-        "laravel-mix": "^5.0.1",
-        "lodash": "^4.17.13",
+        "jquery": "^3.5.1",
+        "laravel-mix": "^5.0.5",
+        "lodash": "^4.17.20",
         "popper.js": "^1.12",
         "resolve-url-loader": "^2.3.1",
-        "sass": "^1.20.1",
+        "sass": "^1.26.11",
         "sass-loader": "^8.0.0",
-        "vue": "^2.5.17",
-        "vue-template-compiler": "^2.6.10"
+        "vue": "^2.6.12",
+        "vue-template-compiler": "^2.6.12"
     },
     "dependencies": {
-        "laravel-echo": "^1.7.0",
+        "laravel-echo": "^1.8.1",
         "pusher-js": "^5.1.1",
-        "simple-peer": "^9.6.2",
-        "twilio-video": "^2.0.0",
+        "simple-peer": "^9.7.2",
+        "twilio-video": "^2.7.2",
         "vue-axios": "^2.1.5",
         "vue-toasted": "^1.1.28"
     }
