@@ -1,167 +1,236 @@
 <template>
-    <div>
-        <div class="p-2">
-            <button title="Join Room" @click="joinRoom" class="btn btn-success rounded"><i class="fas fa-phone-alt"></i></button>
-            <button class="btn btn-danger rounded" @click="disConnectFromRoom" title="Disconnect From Room"><i class="fas fa-video-slash"></i></button>
-        </div>
-        <div>
-            <span v-if="is_loading"><i class="fas fa-cog fa-spin"></i></span> <span>{{loading_message}}</span>
-        </div>
-        <div id="video-chat-window" class="grid grid-flow-row grid-cols-2 grid-rows-2 gap-4">
-            <div id="remote-media"></div>
-            <div id="local-media"></div>
-        </div>
+  <div>
+    <div class="p-2">
+      <button
+        title="Join Room"
+        @click="joinRoom"
+        class="btn btn-success rounded"
+      >
+        <i class="fas fa-phone-alt"></i>
+      </button>
+      <button
+        class="btn btn-danger rounded"
+        @click="disConnectFromRoom"
+        title="Disconnect From Room"
+      >
+        <i class="fas fa-video-slash"></i>
+      </button>
     </div>
+    <div>
+      <span v-if="is_loading"><i class="fas fa-cog fa-spin"></i></span>
+      <span>{{ loading_message }}</span>
+    </div>
+    <div
+      id="video-chat-window"
+      class="grid grid-flow-row grid-cols-2 grid-rows-2 gap-4"
+    >
+      <div id="remote-media"></div>
+      <div id="local-media"></div>
+    </div>
+  </div>
 </template>
 <script>
 export default {
-    name:"TwillioVideoChat",
-    data(){
-        return{
-            accessToken:'',
-            room:null,
-            is_loading:false,
-            loading_message:'',
-            room_name:''
-        }
+  name: "TwillioVideoChat",
+  data() {
+    return {
+      accessToken: "",
+      room: null,
+      is_loading: false,
+      loading_message: "",
+      room_name: "",
+      channel: null,
+    };
+  },
+  methods: {
+    getAccessToken: function () {
+      // Request a new token
+      this.is_loading = true;
+      this.loading_message = "Fetching credentials....";
+      Vue.axios
+        .post("/video-call/token", {
+          receiver_id: this.$parent.selected_user.id,
+        })
+        .then((response) => {
+          this.loading_message = "Credentials fetched. Now joining a room";
+          this.accessToken = response.data.token;
+          this.room_name = response.data.room_sid;
+        })
+        .catch(function (error) {
+          console.log(error);
+        })
+        .then(() => {
+          this.callRecipient();
+          // this.connectToRoom();
+        });
     },
-    methods:{
-        getAccessToken : function () {
-            // Request a new token
-            this.is_loading = true;
-            this.loading_message = "Fetching credentials...."
-            Vue.axios.get('/twillio_access_token')
-                .then( (response)=> {
-                    this.loading_message = "Credentials fetched. Now joining a room";
-                    this.accessToken = response.data
-                })
-                .catch(function (error) {
-                    console.log(error);
-                })
-                .then(()=> {
-                    this.connectToRoom()
-                });
-        },
-        connectToRoom : function () {
+    connectToRoom: function () {
+      const { connect, createLocalVideoTrack } = require("twilio-video");
+      this.createLocalVideoTrack = createLocalVideoTrack;
+      connect(this.accessToken, {
+        name: this.room_name,
+        audio: true,
+        maxAudioBitrate: 16000,
+        video: { height: 380, frameRate: 24, width: 600 },
+      }).then(
+        (room) => {
+          this.is_loading = false;
+          this.loading_message = "Successfully joined the room!";
+          this.room = room;
+          console.log(`Successfully joined a Room: ${room}`);
+          room.participants.forEach((participant) => {
+            console.log(
+              `Participant "${participant.identity}" is connected to the Room`
+            );
+            var previewContainer = document.getElementById("remote-media");
+            this.participantConnected(participant);
+          });
 
-            const { connect, createLocalVideoTrack } = require('twilio-video');
-            this.createLocalVideoTrack = createLocalVideoTrack;
-            connect( this.accessToken, { name:this.room_name,audio: true,maxAudioBitrate: 16000,video: { height: 380, frameRate: 24, width: 600 } }).then(room => {
-                this.is_loading = false;
-                this.loading_message = "Successfully joined the room!";
-                this.room = room;
-                console.log(`Successfully joined a Room: ${room}`);
-                room.participants.forEach(participant => {
-                    console.log(`Participant "${participant.identity}" is connected to the Room`);
-                    var previewContainer = document.getElementById('remote-media');
-                    this.participantConnected(participant);
-                });
-                
-                const videoChatWindow = document.getElementById('video-chat-window');
-                // {
-                //     audio: true,
-                //     video: { height: 380,frameRate:30 },
-                // }
-                createLocalVideoTrack().then(track => {
-                    const localMediaContainer = document.getElementById('local-media');
-                    localMediaContainer.appendChild(track.attach());
-                });
+          const videoChatWindow = document.getElementById("video-chat-window");
+          // {
+          //     audio: true,
+          //     video: { height: 380,frameRate:30 },
+          // }
+          createLocalVideoTrack().then((track) => {
+            const localMediaContainer = document.getElementById("local-media");
+            localMediaContainer.appendChild(track.attach());
+          });
 
-                room.on('participantConnected', participant => {
-                    console.log(`Participant "${participant.identity}" connected`);
-                    
-                    document.getElementById('remote-media').innerHTML = "";
-                    participant.tracks.forEach(publication => {
-                        if (publication.isSubscribed) {
-                            const track = publication.track;
-                            document.getElementById('remote-media').appendChild(track.attach());
-                        }
-                    });
-                    participant.on('trackSubscribed', track => {
-                        document.getElementById('remote-media').appendChild(track.attach());
-                    });
-                });
-                room.on('disconnected', room => {
-                    // Detach the local media elements
-                    room.localParticipant.tracks.forEach(publication => {
-                        const attachedElements = publication.track.detach();
-                        attachedElements.forEach(element => element.remove());
-                    });
-                });
-            }, error => {
-                console.error(`Unable to connect to Room: ${error.message}`);
-            });
-        },
-        disConnectFromRoom(){
-            if(confirm("Do you really want to disconnect from room?")){
-                this.room.disconnect();
-                alert("Disconnected From Room");
-            }
-            
-        },
-        joinRoom(){
-            if(confirm("Do you really want to join this room?")){
-                if(this.room == null){
-                    this.getAccessToken()
-                }else{
-                    alert("You already joined the room!")
-                }
-            }
-        },
-        participantConnected(participant){
-            participant.tracks.forEach(publication => {
-                this.trackPublished(publication, participant);
-            });
-        },
-        trackPublished(publication,participant){
-            if (publication.track) {
-                this.attachTrack(publication.track, participant);
-            }
+          room.on("participantConnected", (participant) => {
+            console.log(`Participant "${participant.identity}" connected`);
 
-            // Once the TrackPublication is subscribed to, attach the Track to the DOM.
-            publication.on('subscribed', track => {
-                this.attachTrack(track, participant);
+            document.getElementById("remote-media").innerHTML = "";
+            participant.tracks.forEach((publication) => {
+              if (publication.isSubscribed) {
+                const track = publication.track;
+                document
+                  .getElementById("remote-media")
+                  .appendChild(track.attach());
+              }
             });
-
-            // Once the TrackPublication is unsubscribed from, detach the Track from the DOM.
-            publication.on('unsubscribed', track => {
-                this.detachTrack(track, participant);
+            participant.on("trackSubscribed", (track) => {
+              document
+                .getElementById("remote-media")
+                .appendChild(track.attach());
             });
-        },
-        attachTrack(track,participant){
-            document.getElementById('remote-media').innerHTML = "";
-            document.getElementById('remote-media').appendChild(track.attach());
-            // track.attach();
-        },
-        detachTrack(track){
-            track.detach();
-        },
-        getInitData(){
-            Vue.axios.get('/twilio-init-data').then((response)=>{
-                this.room_name = response.data.twilio_room_name;
+          });
+          room.on("disconnected", (room) => {
+            // Detach the local media elements
+            room.localParticipant.tracks.forEach((publication) => {
+              const attachedElements = publication.track.detach();
+              attachedElements.forEach((element) => element.remove());
             });
+          });
+        },
+        (error) => {
+          console.error(`Unable to connect to Room: ${error.message}`);
         }
-        
+      );
     },
-    mounted : function () {
-        this.getInitData();   
-    }
-}
+    disConnectFromRoom() {
+      if (confirm("Do you really want to disconnect from room?")) {
+        this.room.disconnect();
+        alert("Disconnected From Room");
+      }
+    },
+    joinRoom() {
+      if (confirm("Do you really want to join this room?")) {
+        if (this.room == null) {
+          this.getAccessToken();
+        } else {
+          alert("You already joined the room!");
+        }
+      }
+    },
+    participantConnected(participant) {
+      participant.tracks.forEach((publication) => {
+        this.trackPublished(publication, participant);
+      });
+    },
+    trackPublished(publication, participant) {
+      if (publication.track) {
+        this.attachTrack(publication.track, participant);
+      }
+
+      // Once the TrackPublication is subscribed to, attach the Track to the DOM.
+      publication.on("subscribed", (track) => {
+        this.attachTrack(track, participant);
+      });
+
+      // Once the TrackPublication is unsubscribed from, detach the Track from the DOM.
+      publication.on("unsubscribed", (track) => {
+        this.detachTrack(track, participant);
+      });
+    },
+    attachTrack(track, participant) {
+      document.getElementById("remote-media").innerHTML = "";
+      document.getElementById("remote-media").appendChild(track.attach());
+      // track.attach();
+    },
+    detachTrack(track) {
+      track.detach();
+    },
+    getInitData() {
+      Vue.axios.get("/twilio-init-data").then((response) => {
+        this.room_name = response.data.twilio_room_name;
+      });
+    },
+    callRecipient() {
+      this.channel.whisper(
+        `incoming-call-signal-${this.$parent.selected_user.id}`,
+        {
+          type: "incoming-call",
+          caller_id: this.$parent.user.id,
+          caller_name: this.$parent.user.name,
+        }
+      );
+    },
+    showInComingCallModal(caller_id, caller_name) {
+      if (
+        confirm(
+          caller_name + " is calling you. Do you want to answer the call?"
+        )
+      ) {
+        this.channel.whisper(`call-answered-signal-${caller_id}`, {
+          type: "call-answered",
+        });
+      }
+    },
+  },
+  mounted: function () {
+    // this.getInitData();
+    this.channel = Echo.private("presence-video-channel");
+    this.channel.listenForWhisper(
+      `incoming-call-signal-${this.$parent.user.id}`,
+      (signal) => {
+        console.log("In coming call");
+        console.log(signal);
+      }
+    );
+    this.channel.listenForWhisper(
+      `call-answered-signal-${this.$parent.user.id}`,
+      (signal) => {
+        console.log("Call answered");
+        console.log(signal);
+      }
+    );
+  },
+};
 </script>
 <style>
-#local-media video{
-    width: 125px;
-    position: absolute;
-    right: 0;
+#local-media video {
+  width: 125px;
+  position: absolute;
+  right: 0;
 }
-#remote-media video{
-    height: 380px;
-    margin: auto;
-    display: block;
+#remote-media video {
+  height: 380px;
+  margin: auto;
+  display: block;
 }
-#local-media{
-    position: absolute;
-    top: 0;
-    right: 0;
+#local-media {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 </style>

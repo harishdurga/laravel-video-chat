@@ -5927,15 +5927,32 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "TwillioVideoChat",
   data: function data() {
     return {
-      accessToken: '',
+      accessToken: "",
       room: null,
       is_loading: false,
-      loading_message: '',
-      room_name: ''
+      loading_message: "",
+      room_name: "",
+      channel: null
     };
   },
   methods: {
@@ -5945,13 +5962,17 @@ __webpack_require__.r(__webpack_exports__);
       // Request a new token
       this.is_loading = true;
       this.loading_message = "Fetching credentials....";
-      Vue.axios.get('/twillio_access_token').then(function (response) {
+      Vue.axios.post("/video-call/token", {
+        receiver_id: this.$parent.selected_user.id
+      }).then(function (response) {
         _this.loading_message = "Credentials fetched. Now joining a room";
-        _this.accessToken = response.data;
+        _this.accessToken = response.data.token;
+        _this.room_name = response.data.room_sid;
       })["catch"](function (error) {
         console.log(error);
       }).then(function () {
-        _this.connectToRoom();
+        _this.callRecipient(); // this.connectToRoom();
+
       });
     },
     connectToRoom: function connectToRoom() {
@@ -5978,33 +5999,33 @@ __webpack_require__.r(__webpack_exports__);
         console.log("Successfully joined a Room: ".concat(room));
         room.participants.forEach(function (participant) {
           console.log("Participant \"".concat(participant.identity, "\" is connected to the Room"));
-          var previewContainer = document.getElementById('remote-media');
+          var previewContainer = document.getElementById("remote-media");
 
           _this2.participantConnected(participant);
         });
-        var videoChatWindow = document.getElementById('video-chat-window'); // {
+        var videoChatWindow = document.getElementById("video-chat-window"); // {
         //     audio: true,
         //     video: { height: 380,frameRate:30 },
         // }
 
         createLocalVideoTrack().then(function (track) {
-          var localMediaContainer = document.getElementById('local-media');
+          var localMediaContainer = document.getElementById("local-media");
           localMediaContainer.appendChild(track.attach());
         });
-        room.on('participantConnected', function (participant) {
+        room.on("participantConnected", function (participant) {
           console.log("Participant \"".concat(participant.identity, "\" connected"));
-          document.getElementById('remote-media').innerHTML = "";
+          document.getElementById("remote-media").innerHTML = "";
           participant.tracks.forEach(function (publication) {
             if (publication.isSubscribed) {
               var track = publication.track;
-              document.getElementById('remote-media').appendChild(track.attach());
+              document.getElementById("remote-media").appendChild(track.attach());
             }
           });
-          participant.on('trackSubscribed', function (track) {
-            document.getElementById('remote-media').appendChild(track.attach());
+          participant.on("trackSubscribed", function (track) {
+            document.getElementById("remote-media").appendChild(track.attach());
           });
         });
-        room.on('disconnected', function (room) {
+        room.on("disconnected", function (room) {
           // Detach the local media elements
           room.localParticipant.tracks.forEach(function (publication) {
             var attachedElements = publication.track.detach();
@@ -6047,17 +6068,17 @@ __webpack_require__.r(__webpack_exports__);
       } // Once the TrackPublication is subscribed to, attach the Track to the DOM.
 
 
-      publication.on('subscribed', function (track) {
+      publication.on("subscribed", function (track) {
         _this4.attachTrack(track, participant);
       }); // Once the TrackPublication is unsubscribed from, detach the Track from the DOM.
 
-      publication.on('unsubscribed', function (track) {
+      publication.on("unsubscribed", function (track) {
         _this4.detachTrack(track, participant);
       });
     },
     attachTrack: function attachTrack(track, participant) {
-      document.getElementById('remote-media').innerHTML = "";
-      document.getElementById('remote-media').appendChild(track.attach()); // track.attach();
+      document.getElementById("remote-media").innerHTML = "";
+      document.getElementById("remote-media").appendChild(track.attach()); // track.attach();
     },
     detachTrack: function detachTrack(track) {
       track.detach();
@@ -6065,13 +6086,36 @@ __webpack_require__.r(__webpack_exports__);
     getInitData: function getInitData() {
       var _this5 = this;
 
-      Vue.axios.get('/twilio-init-data').then(function (response) {
+      Vue.axios.get("/twilio-init-data").then(function (response) {
         _this5.room_name = response.data.twilio_room_name;
       });
+    },
+    callRecipient: function callRecipient() {
+      this.channel.whisper("incoming-call-signal-".concat(this.$parent.selected_user.id), {
+        type: "incoming-call",
+        caller_id: this.$parent.user.id,
+        caller_name: this.$parent.user.name
+      });
+    },
+    showInComingCallModal: function showInComingCallModal(caller_id, caller_name) {
+      if (confirm(caller_name + " is calling you. Do you want to answer the call?")) {
+        this.channel.whisper("call-answered-signal-".concat(caller_id), {
+          type: "call-answered"
+        });
+      }
     }
   },
   mounted: function mounted() {
-    this.getInitData();
+    // this.getInitData();
+    this.channel = Echo["private"]("presence-video-channel");
+    this.channel.listenForWhisper("incoming-call-signal-".concat(this.$parent.user.id), function (signal) {
+      console.log("In coming call");
+      console.log(signal);
+    });
+    this.channel.listenForWhisper("call-answered-signal-".concat(this.$parent.user.id), function (signal) {
+      console.log("Call answered");
+      console.log(signal);
+    });
   }
 });
 
@@ -13033,7 +13077,7 @@ exports = module.exports = __webpack_require__(/*! ../../../../node_modules/css-
 
 
 // module
-exports.push([module.i, "\n#local-media video{\n    width: 125px;\n    position: absolute;\n    right: 0;\n}\n#remote-media video{\n    height: 380px;\n    margin: auto;\n    display: block;\n}\n#local-media{\n    position: absolute;\n    top: 0;\n    right: 0;\n}\n", ""]);
+exports.push([module.i, "\n#local-media video {\n  width: 125px;\n  position: absolute;\n  right: 0;\n}\n#remote-media video {\n  height: 380px;\n  margin: auto;\n  display: block;\n}\n#local-media {\n  position: absolute;\n  top: 0;\n  right: 0;\n}\n", ""]);
 
 // exports
 
