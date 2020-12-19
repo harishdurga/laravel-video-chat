@@ -181,6 +181,9 @@ export default {
 .chat-bubble .sender {
   color: crimson;
 }
+.chat-bubble .sender.self {
+  color: #0094ff;
+}
 .chat-bubble .org-message {
   color: #626263;
 }

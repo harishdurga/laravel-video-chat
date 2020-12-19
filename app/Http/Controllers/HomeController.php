@@ -163,7 +163,7 @@ class HomeController extends Controller
                         'is_selected' => false,
                         'is_online' => false,
                         'new_message' => false,
-                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->sender->id)
+                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->sender->id, auth()->user()->id)
                     ];
                 } else {
                     $friends[] = [
@@ -172,7 +172,7 @@ class HomeController extends Controller
                         'is_selected' => false,
                         'is_online' => false,
                         'new_message' => false,
-                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->recipient->id)
+                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->recipient->id, auth()->user()->id)
                     ];
                 }
             }
@@ -422,7 +422,7 @@ class HomeController extends Controller
         $status = false;
         $message = '';
         try {
-            UserMessage::markMessagesAsRead($request->sender_id);
+            UserMessage::markMessagesAsRead($request->sender_id, auth()->user()->id);
             $status = true;
         } catch (\Throwable $th) {
             $message = $th->getMessage();

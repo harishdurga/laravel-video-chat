@@ -41,13 +41,13 @@ class UserMessage extends Model
         }
     }
 
-    public static function getUnreadMessageCount(int $senderID): int
+    public static function getUnreadMessageCount(int $senderID, int $recieverID): int
     {
-        return self::where('sender_id', $senderID)->where('status', 0)->count();
+        return self::where('sender_id', $senderID)->where('recipient_id', $recieverID)->where('status', 0)->count();
     }
 
-    public static function markMessagesAsRead(int $senderID): int
+    public static function markMessagesAsRead(int $senderID, int $recieverID): int
     {
-        return self::where('sender_id', $senderID)->update(['status' => 1]);
+        return self::where('sender_id', $senderID)->where('recipient_id', $recieverID)->update(['status' => 1]);
     }
 }
