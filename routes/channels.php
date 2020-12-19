@@ -20,10 +20,6 @@ Broadcast::channel('ClientMessages.{id}', function ($user, $id) {
     return \Auth::check();
 });
 
-Broadcast::channel('NewMessage.User.{id}', function ($user, $id) {
-    return (int) $user->id === (int) $id;
-});
-
 Broadcast::channel('presence-video-channel', function ($user) {
     return $user;
 });

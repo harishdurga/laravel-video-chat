@@ -32,6 +32,6 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return [new PrivateChannel('NewMessage.User.' . $this->data['recipient_id']), new PrivateChannel('App.User.' . $this->data['recipient_id'])];
+        return [new PrivateChannel('App.User.' . $this->data['recipient_id'])];
     }
 }
