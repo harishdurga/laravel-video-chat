@@ -397,4 +397,9 @@ class HomeController extends Controller
             'twilio_room_name' => $roomName
         ]);
     }
+
+    public function newHome()
+    {
+        return view('new-home');
+    }
 }

@@ -2,6 +2,7 @@
 
 use App\Events\NewMessage;
 use Illuminate\Support\Facades\Route;
+use BeyondCode\LaravelWebSockets\Facades\WebSocketsRouter;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +22,7 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', 'HomeController@index')->name('home');
+Route::get('/new-home', 'HomeController@newHome')->name('new-home');
 
 Route::post('/pusher/auth', 'HomeController@authenticate');
 
@@ -43,3 +45,10 @@ Route::get('twilio-init-data', 'HomeController@getTwilioInitData');
 Route::group(['prefix' => 'video-call'], function () {
     Route::post('token', 'VideoCallController@createAccessToken');
 });
+
+
+WebSocketsRouter::webSocket('/my-websocket', \App\Classes\MyCustomWebSocketHandler::class);
+Route::get('test-websockets', 'WebsocketsController@test');
+
+Route::post('call-user', 'WebsocketsController@incomingCall');
+Route::post('call-status', 'WebsocketsController@incomingCallStatus');

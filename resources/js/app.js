@@ -39,6 +39,7 @@ Vue.use(VueAxios, axios)
 // files.keys().map(key => Vue.component(key.split('/').pop().split('.')[0], files(key).default))
 
 Vue.component('chat-root-component', require('./components/ChatRootComponent.vue').default);
+Vue.component('chat-root-component-v2', require('./components/ChatRootComponentV2.vue').default);
 
 /**
  * Next, we will create a fresh Vue application instance and attach it to

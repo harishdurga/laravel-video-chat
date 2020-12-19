@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Broadcast;
 Broadcast::channel('App.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
+Broadcast::channel('ClientMessages.{id}', function ($user, $id) {
+    return \Auth::check();
+});
 
 Broadcast::channel('NewMessage.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;

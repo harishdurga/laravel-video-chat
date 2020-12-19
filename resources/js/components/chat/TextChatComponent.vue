@@ -133,14 +133,14 @@ export default {
     },
     sendTypingSignal() {
       if (this.message.length > 0) {
-        this.$parent.channel.whisper(`typing-signal-${this.selected_user.id}`, {
+        this.$parent.otherUserClientMessageChannel.whisper(`typing-signal`, {
           type: "signal",
           userId: this.$parent.user.id,
           data: {},
         });
       }
     },
-    getPassMessages() {
+    getPastMessages() {
       Vue.axios
         .get("/previous-messages/" + this.selected_user.id)
         .then((response) => {
@@ -165,7 +165,7 @@ export default {
   },
   watch: {
     selected_user() {
-      this.getPassMessages();
+      this.getPastMessages();
     },
   },
   components: {

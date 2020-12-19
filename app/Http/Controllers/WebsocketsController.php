@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Pusher\Pusher;
+use App\Events\NewMessage;
+use App\Events\IncomingCall;
+use Illuminate\Http\Request;
+use App\Events\IncomingCallStatus;
+
+class WebsocketsController extends Controller
+{
+    public function test()
+    {
+        // $pusher = new Pusher(env('PUSHER_APP_KEY'), env('PUSHER_APP_SECRET'), env('PUSHER_APP_ID'), array('cluster' => env('PUSHER_APP_CLUSTER')), 'videochat.test', 6001);
+        // $response = $pusher->get('/channels');
+        // if (is_array($response)) {
+        //     if ($response['status'] == 200) {
+        //         // convert to associative array for easier consumption
+        //         $channels = json_decode($response['body'], true);
+        //         dd($channels);
+        //     }
+        // }
+        NewMessage::dispatch(['recipient_id' => 4, 'message' => 'Hello']);
+    }
+
+    public function incomingCall(Request $request)
+    {
+        IncomingCall::dispatch(['recipient_id' => $request->recipient_id, 'caller' => ['name' => auth()->user()->name, 'id' => auth()->user()->id]]);
+        return response()->json(['status' => true, 'message' => '']);
+    }
+
+    public function incomingCallStatus(Request $request)
+    {
+        IncomingCallStatus::dispatch(['recipient_id' => $request->caller_id, 'call_status' => $request->call_status]);
+        return response()->json(['status' => true, 'message' => '']);
+    }
+}
