@@ -52,3 +52,5 @@ Route::get('test-websockets', 'WebsocketsController@test');
 
 Route::post('call-user', 'WebsocketsController@incomingCall');
 Route::post('call-status', 'WebsocketsController@incomingCallStatus');
+
+Route::post('mark-user-messages', 'HomeController@markUserMessagesAsRead');

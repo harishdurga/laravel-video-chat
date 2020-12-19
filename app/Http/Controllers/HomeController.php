@@ -157,13 +157,27 @@ class HomeController extends Controller
         if ($friendsQuery->count()) {
             foreach ($friendsQuery as $key => $value) {
                 if ($value->sender->id != auth()->user()->id) {
-                    $friends[] = ['id' => $value->sender->id, 'name' => $value->sender->name, 'is_selected' => false, 'is_online' => false, 'new_message' => false];
+                    $friends[] = [
+                        'id' => $value->sender->id,
+                        'name' => $value->sender->name,
+                        'is_selected' => false,
+                        'is_online' => false,
+                        'new_message' => false,
+                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->sender->id)
+                    ];
                 } else {
-                    $friends[] = ['id' => $value->recipient->id, 'name' => $value->recipient->name, 'is_selected' => false, 'is_online' => false, 'new_message' => false];
+                    $friends[] = [
+                        'id' => $value->recipient->id,
+                        'name' => $value->recipient->name,
+                        'is_selected' => false,
+                        'is_online' => false,
+                        'new_message' => false,
+                        'unread_message_count' => UserMessage::getUnreadMessageCount($value->recipient->id)
+                    ];
                 }
             }
         }
-        return response()->json(['friends' => $friends, 'iceServers' => []]);
+        return response()->json(['friends' => $friends]);
     }
 
     public function getPreviousMessages($id)
@@ -401,5 +415,19 @@ class HomeController extends Controller
     public function newHome()
     {
         return view('new-home');
+    }
+
+    public function markUserMessagesAsRead(Request $request)
+    {
+        $status = false;
+        $message = '';
+        try {
+            UserMessage::markMessagesAsRead($request->sender_id);
+            $status = true;
+        } catch (\Throwable $th) {
+            $message = $th->getMessage();
+            \Log::critical($th->getMessage());
+        }
+        return response()->json(['status' => $status, 'message' => $message]);
     }
 }

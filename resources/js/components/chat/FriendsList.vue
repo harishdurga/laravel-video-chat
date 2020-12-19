@@ -18,7 +18,9 @@
             <span v-if="val.is_online" class="text-success"
               ><i class="fas fa-globe"></i
             ></span>
-            <span v-if="val.new_message" class="newmessage-blink"
+            <span
+              v-if="val.new_message || val.unread_message_count > 0"
+              class="newmessage-blink"
               ><i class="fas fa-envelope-square"></i
             ></span>
           </li>
@@ -40,7 +42,16 @@ export default {
       });
       this.$parent.friends[index].is_selected = true;
       this.$parent.friends[index].new_message = false;
+      this.$parent.friends[index].unread_message_count = 0;
       this.$parent.selected_user = this.$parent.friends[index];
+      this.markMessagesAsRead(this.$parent.selected_user.id);
+    },
+    markMessagesAsRead(sender_id) {
+      Vue.axios
+        .post("/mark-user-messages", {
+          sender_id: sender_id,
+        })
+        .then((response) => {});
     },
   },
 };

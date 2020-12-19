@@ -8,7 +8,6 @@ class UserMessage extends Model
 {
     public function setMessageAttribute($value)
     {
-        \Log::debug($value);
         $this->attributes['message'] = \Crypt::encryptString($value);
     }
     public function setTranslatedMessageAttribute($value)
@@ -40,5 +39,15 @@ class UserMessage extends Model
             \Log::error($th->getMessage());
             return '';
         }
+    }
+
+    public static function getUnreadMessageCount(int $senderID): int
+    {
+        return self::where('sender_id', $senderID)->where('status', 0)->count();
+    }
+
+    public static function markMessagesAsRead(int $senderID): int
+    {
+        return self::where('sender_id', $senderID)->update(['status' => 1]);
     }
 }
