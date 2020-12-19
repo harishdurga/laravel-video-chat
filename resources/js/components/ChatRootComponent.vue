@@ -39,9 +39,10 @@ import Peer from "simple-peer";
 const APP_KEY = "ABCD123";
 const APP_CLUSTER = "mt1";
 export default {
-  created() {},
-  mounted() {
+  created() {
     this.setupPusher();
+  },
+  mounted() {
     this.getInitData();
     this.joinOnlineChannel();
     // this.getUserMedia();

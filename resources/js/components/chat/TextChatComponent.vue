@@ -79,20 +79,17 @@ export default {
   name: "TextChatComponent",
   props: ["selected_user"],
   mounted() {
-    Echo.private(`NewMessage.User.${this.$parent.user.id}`).listen(
-      "NewMessage",
-      (e) => {
-        if (this.selected_user != null) {
-          if (this.selected_user.id == e.data.sender_id) {
-            this.previous_messages.push(e.data);
-          } else {
-            this.setBlinkingIcon(e.data.sender_id);
-          }
+    this.$parent.channel.listen("NewMessage", (e) => {
+      if (this.selected_user != null) {
+        if (this.selected_user.id == e.data.sender_id) {
+          this.previous_messages.push(e.data);
         } else {
           this.setBlinkingIcon(e.data.sender_id);
         }
+      } else {
+        this.setBlinkingIcon(e.data.sender_id);
       }
-    );
+    });
   },
   data() {
     return {
