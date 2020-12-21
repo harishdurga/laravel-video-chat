@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use Twilio\Rest\Client;
+use App\Classes\VideoClient;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,7 +15,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->singleton(VideoClient::class, function ($app) {
+            return new Client(env('TWILLIO_ACCOUNT_ID', ''), env('TWILLIO_AUTH_TOKEN'));
+        });
     }
 
     /**

@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
+use App\VideoRoom;
 use Pusher\Pusher;
+use App\Classes\Helpers;
+use App\Classes\TwillioVideoActions;
 use App\Events\NewMessage;
 use App\Events\IncomingCall;
 use Illuminate\Http\Request;
@@ -26,12 +30,21 @@ class WebsocketsController extends Controller
 
     public function incomingCall(Request $request)
     {
+        $recipient = User::find($request->recipient_id);
+        $roomName = Helpers::getRoomName(auth()->user()->email, $recipient->email);
+        $videoRoom = VideoRoom::getRoomByName($roomName);
+        if (!$videoRoom) {
+            $twillioRoom = TwillioVideoActions::createRoom($roomName);
+            if ($twillioRoom) {
+            }
+        }
         IncomingCall::dispatch(['recipient_id' => $request->recipient_id, 'caller' => ['name' => auth()->user()->name, 'id' => auth()->user()->id]]);
         return response()->json(['status' => true, 'message' => '']);
     }
 
     public function incomingCallStatus(Request $request)
     {
+
         IncomingCallStatus::dispatch(['recipient_id' => $request->caller_id, 'call_status' => $request->call_status]);
         return response()->json(['status' => true, 'message' => '']);
     }

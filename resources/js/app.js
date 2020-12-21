@@ -27,6 +27,14 @@ Vue.use(Toasted)
  
 Vue.use(VueAxios, axios)
 
+import VuejsDialog from 'vuejs-dialog';
+
+// include the default style
+import 'vuejs-dialog/dist/vuejs-dialog.min.css';
+
+// Tell Vue to install the plugin.
+Vue.use(VuejsDialog);
+
 /**
  * The following block of code may be used to automatically register your
  * Vue components. It will recursively scan this directory for the Vue

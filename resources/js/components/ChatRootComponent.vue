@@ -89,17 +89,6 @@ export default {
         }, 1000);
       });
     },
-    callTo() {
-      if (this.selected_user == null) {
-        this.$toasted.show(
-          "Please select a user from the friends on the left side!",
-          { type: "error" }
-        );
-        return false;
-      }
-
-      var userId = this.selected_user.id;
-    },
     joinOnlineChannel() {
       Echo.join("online")
         .here((users) => {

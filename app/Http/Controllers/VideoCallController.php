@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
 use App\SiteSetting;
+use Twilio\Rest\Client;
 use Twilio\Jwt\AccessToken;
 use Illuminate\Http\Request;
 use Twilio\Jwt\Grants\VideoGrant;
-use Twilio\Rest\Client;
+use App\Classes\TwillioVideoActions;
 
 class VideoCallController extends Controller
 {
@@ -17,7 +19,14 @@ class VideoCallController extends Controller
         $apiKeySecret = env('TWILIO_API_KEY_SECRET');
         $identity = auth()->user()->email;
         $twillio_cache_key = 'twillio_access_token_' . $identity;
-        $room_sid = $this->createTwillioRoom();
+        $roomNameId = $identity;
+        if (!empty($request->caller_id)) {
+            $caller = User::find($request->caller_id);
+            if ($caller) {
+                $roomNameId = $caller->email;
+            }
+        }
+        $room_sid = $this->createTwillioRoom($roomNameId);
         if (!\Cache::has($twillio_cache_key)) {
             $token = new AccessToken(
                 $accountSid,
@@ -35,10 +44,10 @@ class VideoCallController extends Controller
         return response()->json(['room_sid' => $room_sid, 'token' => \Cache::get($twillio_cache_key)]);
     }
 
-    private function createTwillioRoom()
+    private function createTwillioRoom($email)
     {
         // $roomName = SiteSetting::where('key', 'twillio_room_name')->first();
-        $roomName = hash_hmac('sha256', auth()->user()->email, config('app.key'));
+        $roomName = hash_hmac('sha256', $email, config('app.key'));
         $roomRegion = SiteSetting::where('key', 'twillio_room_region')->first();
         if ($roomRegion) {
             $roomRegion = $roomRegion->value;
@@ -65,5 +74,13 @@ class VideoCallController extends Controller
             ]);
         }
         return $room->uniqueName;
+    }
+
+    public function test()
+    {
+        $email = 'durgaharish5@gmail.com';
+        $roomName = hash_hmac('sha256', $email, config('app.key'));
+        $room = TwillioVideoActions::fetchRoom('RM12beaa39b915b985c9fbed5448bd372a');
+        dd($room);
     }
 }
