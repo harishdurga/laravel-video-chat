@@ -41,6 +41,7 @@ export default {
       room_name: "",
       channel: null,
       outGoingCallStatus: 0,
+      localVideoTrack: null,
     };
   },
   methods: {
@@ -90,11 +91,8 @@ export default {
           });
 
           const videoChatWindow = document.getElementById("video-chat-window");
-          // {
-          //     audio: true,
-          //     video: { height: 380,frameRate:30 },
-          // }
           createLocalVideoTrack().then((track) => {
+            this.localVideoTrack = track;
             const localMediaContainer = document.getElementById("local-media");
             localMediaContainer.appendChild(track.attach());
           });
@@ -123,6 +121,7 @@ export default {
               const attachedElements = publication.track.detach();
               attachedElements.forEach((element) => element.remove());
             });
+            this.localVideoTrack.stop();
           });
         },
         (error) => {
@@ -134,6 +133,11 @@ export default {
       if (confirm("Do you really want to disconnect from room?")) {
         this.room.disconnect();
         alert("Disconnected From Room");
+        Vue.axios
+          .post("/video-call/complete", { room: this.room_name })
+          .then((response) => {
+            console.log(response.data);
+          });
       }
     },
     startVideoCall() {
@@ -143,6 +147,8 @@ export default {
             `Would you like to video call ${this.$parent.selected_user.name}?`
           )
           .then((dialog) => {
+            this.is_loading = true;
+            this.loading_message = `Calling ${this.$parent.selected_user.name} ...`;
             this.outGoingCallStatus = 1;
             Vue.axios
               .post("/call-user", {
@@ -189,21 +195,6 @@ export default {
     detachTrack(track) {
       track.detach();
     },
-    getInitData() {
-      Vue.axios.get("/twilio-init-data").then((response) => {
-        this.room_name = response.data.twilio_room_name;
-      });
-    },
-    callRecipient() {
-      this.channel.whisper(
-        `incoming-call-signal-${this.$parent.selected_user.id}`,
-        {
-          type: "incoming-call",
-          caller_id: this.$parent.user.id,
-          caller_name: this.$parent.user.name,
-        }
-      );
-    },
     postCallStatus(status, caller_id) {
       Vue.axios
         .post("/call-status", {
@@ -236,7 +227,7 @@ export default {
       console.log(data);
       if (data.call_status == "reject") {
         this.outGoingCallStatus = 0;
-        alert("User rejected to answer your call");
+        alert("User declined to answer your call");
       } else {
         this.getAccessToken(
           this.$parent.user.id,
@@ -246,22 +237,6 @@ export default {
     },
   },
   mounted: function () {
-    // this.getInitData();
-    // this.channel = Echo.private("presence-video-channel");
-    // this.channel.listenForWhisper(
-    //   `incoming-call-signal-${this.$parent.user.id}`,
-    //   (signal) => {
-    //     console.log("In coming call");
-    //     console.log(signal);
-    //   }
-    // );
-    // this.channel.listenForWhisper(
-    //   `call-answered-signal-${this.$parent.user.id}`,
-    //   (signal) => {
-    //     console.log("Call answered");
-    //     console.log(signal);
-    //   }
-    // );
     this.$parent.channel.listen("IncomingCall", (e) => {
       console.log("Incoming call");
       this.handleIncomingCall(e.data);

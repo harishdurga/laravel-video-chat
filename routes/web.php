@@ -44,6 +44,7 @@ Route::get('twilio-init-data', 'HomeController@getTwilioInitData');
 
 Route::group(['prefix' => 'video-call'], function () {
     Route::post('token', 'VideoCallController@createAccessToken');
+    Route::post('complete', 'VideoCallController@completeRoom');
 });
 
 
@@ -54,5 +55,3 @@ Route::post('call-user', 'WebsocketsController@incomingCall');
 Route::post('call-status', 'WebsocketsController@incomingCallStatus');
 
 Route::post('mark-user-messages', 'HomeController@markUserMessagesAsRead');
-
-Route::get('test-websockets', 'VideoCallController@test');

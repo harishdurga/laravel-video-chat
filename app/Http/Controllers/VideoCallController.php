@@ -25,11 +25,23 @@ class VideoCallController extends Controller
         return response()->json(['room_sid' => $videoRoom->external_id, 'token' => $accessToken]);
     }
 
-    public function test()
+    public function completeRoom(Request $request)
     {
-        $email = 'durgaharish5@gmail.com';
-        $roomName = hash_hmac('sha256', $email, config('app.key'));
-        $room = TwillioVideoActions::fetchRoom('RM12beaa39b915b985c9fbed5448bd372a');
-        dd($room);
+        $status = false;
+        $message = '';
+        $videoRoom = VideoRoom::getRoomByExternalIDAndParticipantID($request->room, auth()->user()->id);
+        if ($videoRoom) {
+            try {
+                TwillioVideoActions::completeRoom($videoRoom->external_id);
+                $status = true;
+                $message = 'success';
+            } catch (\Throwable $th) {
+                \Log::critical($th->getMessage());
+                $message = 'Error while trying call twillio: ' . $th->getMessage();
+            }
+        } else {
+            $message = 'No room found!';
+        }
+        return response()->json(['status' => $status, 'message' => $message]);
     }
 }
