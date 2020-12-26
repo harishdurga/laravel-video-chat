@@ -24,4 +24,11 @@ class VideoRoom extends Model
     {
         return VideoRoom::where('room_name', $roomName)->first();
     }
+
+    public static function updateRoomExternalID(string $roomName, string $externalID)
+    {
+        return VideoRoom::where('room_name', $roomName)->update([
+            'external_id' => $externalID
+        ]);
+    }
 }

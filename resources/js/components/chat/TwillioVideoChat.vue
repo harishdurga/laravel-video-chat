@@ -44,7 +44,7 @@ export default {
     };
   },
   methods: {
-    getAccessToken: function (caller_id = "") {
+    getAccessToken: function (caller_id = "", recipient_id = "") {
       console.log("getAccessToken " + caller_id);
       // Request a new token
       this.is_loading = true;
@@ -52,6 +52,7 @@ export default {
       Vue.axios
         .post("/video-call/token", {
           caller_id: caller_id,
+          recipient_id: recipient_id,
         })
         .then((response) => {
           this.loading_message = "Credentials fetched. Now joining a room";
@@ -224,19 +225,23 @@ export default {
         .then((dialog) => {
           console.log("Accepted Call From " + data.caller.id);
           this.postCallStatus("accept", data.caller.id);
-          this.getAccessToken(data.caller.id);
+          this.getAccessToken(data.caller.id, this.$parent.user.id);
         })
         .catch(() => {
           this.postCallStatus("reject", data.caller.id);
         });
     },
+    //When the other user accepts or rejects the call this method will be called
     handleIncomingCallStatus(data) {
       console.log(data);
       if (data.call_status == "reject") {
         this.outGoingCallStatus = 0;
         alert("User rejected to answer your call");
       } else {
-        this.getAccessToken();
+        this.getAccessToken(
+          this.$parent.user.id,
+          this.$parent.selected_user.id
+        );
       }
     },
   },

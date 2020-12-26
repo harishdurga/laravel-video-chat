@@ -2,7 +2,9 @@
 
 namespace App\Classes;
 
+use Twilio\Jwt\AccessToken;
 use App\Classes\VideoClient;
+use Twilio\Jwt\Grants\VideoGrant;
 use Twilio\Rest\Video\V1\RoomInstance;
 
 class TwillioVideoActions
@@ -45,5 +47,23 @@ class TwillioVideoActions
             \Log::critical($th->getMessage());
             return null;
         }
+    }
+
+    public static function createAccessToken(string $identity, string $roomSid, int $ttl = 3600): string
+    {
+        $accountSid = env('TWILIO_ACCOUNT_SID');
+        $apiKeySid = env('TWILIO_API_KEY_SID');
+        $apiKeySecret = env('TWILIO_API_KEY_SECRET');
+        $token = new AccessToken(
+            $accountSid,
+            $apiKeySid,
+            $apiKeySecret,
+            $ttl,
+            $identity
+        );
+        $grant = new VideoGrant();
+        $grant->setRoom($roomSid);
+        $token->addGrant($grant);
+        return $token->toJWT();
     }
 }

@@ -36,6 +36,13 @@ class WebsocketsController extends Controller
         if (!$videoRoom) {
             $twillioRoom = TwillioVideoActions::createRoom($roomName);
             if ($twillioRoom) {
+                VideoRoom::createVideoRoom($roomName, $twillioRoom->sid, auth()->user()->id, $recipient->id);
+            }
+        } else {
+            $twillioRoom = TwillioVideoActions::fetchRoom($videoRoom->external_id);
+            if ($twillioRoom->status == 'completed') {
+                $twillioRoom = TwillioVideoActions::createRoom($roomName, 'go');
+                VideoRoom::updateRoomExternalID($roomName, $twillioRoom->sid);
             }
         }
         IncomingCall::dispatch(['recipient_id' => $request->recipient_id, 'caller' => ['name' => auth()->user()->name, 'id' => auth()->user()->id]]);
