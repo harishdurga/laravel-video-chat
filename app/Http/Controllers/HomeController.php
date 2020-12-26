@@ -149,10 +149,7 @@ class HomeController extends Controller
 
     public function getInitData()
     {
-        $friendsQuery = FriendRequest::where(function ($query) {
-            $query->where('sender_id', auth()->user()->id);
-            $query->orWhere('recipient_id', auth()->user()->id);
-        })->where('accepted', 1)->with('sender')->with('recipient')->get();
+        $friendsQuery = FriendRequest::getUserFriends(auth()->user()->id);
         $friends = [];
         if ($friendsQuery->count()) {
             foreach ($friendsQuery as $key => $value) {
@@ -313,91 +310,6 @@ class HomeController extends Controller
         return response()->json(['status' => $status, 'message' => $message]);
     }
 
-    public function testTwillio()
-    {
-        $cachedIceServersKey = 'twillio_ice_servers';
-        $iceServers = [];
-        if (!\Cache::has($cachedIceServersKey)) {
-            $sid    = env('TWILLIO_ACCOUNT_ID', '');
-            $token  = env('TWILLIO_AUTH_TOKEN', '');
-            $twilio = new Client($sid, $token);
-            $token = $twilio->tokens->create();
-            \Cache::put($cachedIceServersKey, $token->iceServers, (24 * 60 * 60));
-        }
-        $iceServers = \Cache::get($cachedIceServersKey, []);
-        return $iceServers;
-    }
-
-    public function generateTwillioAccessToken()
-    {
-        $accountSid = env('TWILIO_ACCOUNT_SID');
-        $apiKeySid = env('TWILIO_API_KEY_SID');
-        $apiKeySecret = env('TWILIO_API_KEY_SECRET');
-        $identity = auth()->user()->email;
-        $twillio_cache_key = 'twillio_access_token_' . $identity;
-        if (!\Cache::has($twillio_cache_key)) {
-            $token = new AccessToken(
-                $accountSid,
-                $apiKeySid,
-                $apiKeySecret,
-                3600,
-                $identity
-            );
-            // Grant access to Video
-            $grant = new VideoGrant();
-            $room_sid = $this->createTwillioRoom();
-            $grant->setRoom($room_sid);
-            $token->addGrant($grant);
-            \Cache::put($twillio_cache_key, strval($token->toJWT()), 3600);
-        }
-        echo \Cache::get($twillio_cache_key);
-    }
-
-    public function createTwillioRoom()
-    {
-        $roomName = SiteSetting::where('key', 'twillio_room_name')->first();
-        if ($roomName) {
-            $roomName = $roomName->value;
-        } else {
-            $roomName = "OneToOne";
-        }
-        $roomRegion = SiteSetting::where('key', 'twillio_room_region')->first();
-        if ($roomRegion) {
-            $roomRegion = $roomRegion->value;
-        } else {
-            $roomRegion = 'gll';
-        }
-        $sid    = env('TWILLIO_ACCOUNT_ID', '');
-        $token  = env('TWILLIO_AUTH_TOKEN');
-        $twilio = new Client($sid, $token);
-        $room = null;
-        try {
-            $room = $twilio->video->v1->rooms($roomName)->fetch();
-        } catch (\Throwable $th) {
-            $room = null;
-        }
-        if (!$room) {
-            $room = $twilio->video->v1->rooms->create([
-                "uniqueName" => $roomName,
-                'maxParticipants' => 2,
-                'type' => 'peer-to-peer',
-                'recordParticipantsOnConnect' => false,
-                'region' => $roomRegion,
-                'enableTurn' => true
-            ]);
-        }
-        return $room->uniqueName;
-    }
-
-    public function completeTwillioRoom($room)
-    {
-        $sid    = env('TWILLIO_ACCOUNT_ID', '');
-        $token  = env('TWILLIO_AUTH_TOKEN');
-        $twilio = new Client($sid, $token);
-        $room = $twilio->video->v1->rooms($room)->update("completed");
-        dd($room->uniqueName);
-    }
-
     public function getTwilioInitData()
     {
         $roomName = '';
@@ -410,11 +322,6 @@ class HomeController extends Controller
         return response()->json([
             'twilio_room_name' => $roomName
         ]);
-    }
-
-    public function newHome()
-    {
-        return view('new-home');
     }
 
     public function markUserMessagesAsRead(Request $request)

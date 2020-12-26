@@ -6055,7 +6055,7 @@ __webpack_require__.r(__webpack_exports__);
           _this3.is_loading = true;
           _this3.loading_message = "Calling ".concat(_this3.$parent.selected_user.name, " ...");
           _this3.outGoingCallStatus = 1;
-          Vue.axios.post("/call-user", {
+          Vue.axios.post("/video-call/call-user", {
             recipient_id: _this3.$parent.selected_user.id
           }).then(function (response) {// console.log(response.data);
           });
@@ -6097,7 +6097,7 @@ __webpack_require__.r(__webpack_exports__);
       track.detach();
     },
     postCallStatus: function postCallStatus(status, caller_id) {
-      Vue.axios.post("/call-status", {
+      Vue.axios.post("/video-call/call-status", {
         caller_id: caller_id,
         call_status: status
       }).then(function (response) {

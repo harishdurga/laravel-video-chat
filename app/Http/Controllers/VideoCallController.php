@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Classes\Helpers;
 use App\User;
+use App\VideoRoom;
 use App\SiteSetting;
 use Twilio\Rest\Client;
+use App\Classes\Helpers;
 use Twilio\Jwt\AccessToken;
+use App\Events\IncomingCall;
 use Illuminate\Http\Request;
 use Twilio\Jwt\Grants\VideoGrant;
+use App\Events\IncomingCallStatus;
 use App\Classes\TwillioVideoActions;
-use App\VideoRoom;
 
 class VideoCallController extends Controller
 {
@@ -43,5 +45,33 @@ class VideoCallController extends Controller
             $message = 'No room found!';
         }
         return response()->json(['status' => $status, 'message' => $message]);
+    }
+
+    public function incomingCall(Request $request)
+    {
+        $recipient = User::find($request->recipient_id);
+        $roomName = Helpers::getRoomName(auth()->user()->email, $recipient->email);
+        $videoRoom = VideoRoom::getRoomByName($roomName);
+        if (!$videoRoom) {
+            $twillioRoom = TwillioVideoActions::createRoom($roomName);
+            if ($twillioRoom) {
+                VideoRoom::createVideoRoom($roomName, $twillioRoom->sid, auth()->user()->id, $recipient->id);
+            }
+        } else {
+            $twillioRoom = TwillioVideoActions::fetchRoom($videoRoom->external_id);
+            if ($twillioRoom->status == 'completed') {
+                $twillioRoom = TwillioVideoActions::createRoom($roomName, 'go');
+                VideoRoom::updateRoomExternalID($roomName, $twillioRoom->sid);
+            }
+        }
+        IncomingCall::dispatch(['recipient_id' => $request->recipient_id, 'caller' => ['name' => auth()->user()->name, 'id' => auth()->user()->id]]);
+        return response()->json(['status' => true, 'message' => '']);
+    }
+
+    public function incomingCallStatus(Request $request)
+    {
+
+        IncomingCallStatus::dispatch(['recipient_id' => $request->caller_id, 'call_status' => $request->call_status]);
+        return response()->json(['status' => true, 'message' => '']);
     }
 }

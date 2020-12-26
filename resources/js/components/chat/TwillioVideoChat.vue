@@ -151,7 +151,7 @@ export default {
             this.loading_message = `Calling ${this.$parent.selected_user.name} ...`;
             this.outGoingCallStatus = 1;
             Vue.axios
-              .post("/call-user", {
+              .post("/video-call/call-user", {
                 recipient_id: this.$parent.selected_user.id,
               })
               .then((response) => {
@@ -197,7 +197,7 @@ export default {
     },
     postCallStatus(status, caller_id) {
       Vue.axios
-        .post("/call-status", {
+        .post("/video-call/call-status", {
           caller_id: caller_id,
           call_status: status,
         })

@@ -22,7 +22,6 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', 'HomeController@index')->name('home');
-Route::get('/new-home', 'HomeController@newHome')->name('new-home');
 
 Route::post('/pusher/auth', 'HomeController@authenticate');
 
@@ -37,21 +36,17 @@ Route::post('add-friend', 'HomeController@addFriend');
 Route::get('friend-requests', 'HomeController@friendRequests');
 Route::post('accept-reject-request', 'HomeController@acceptRejectPost');
 
-Route::get('twillio_access_token', 'HomeController@generateTwillioAccessToken');
-Route::get('twillio-create-room', 'HomeController@createTwillioRoom');
-Route::get('twillio-complete-room/{room}', 'HomeController@completeTwillioRoom');
+
 Route::get('twilio-init-data', 'HomeController@getTwilioInitData');
 
 Route::group(['prefix' => 'video-call'], function () {
     Route::post('token', 'VideoCallController@createAccessToken');
     Route::post('complete', 'VideoCallController@completeRoom');
+    Route::post('call-user', 'VideoCallController@incomingCall');
+    Route::post('call-status', 'VideoCallController@incomingCallStatus');
 });
 
 
 WebSocketsRouter::webSocket('/my-websocket', \App\Classes\MyCustomWebSocketHandler::class);
-
-
-Route::post('call-user', 'WebsocketsController@incomingCall');
-Route::post('call-status', 'WebsocketsController@incomingCallStatus');
 
 Route::post('mark-user-messages', 'HomeController@markUserMessagesAsRead');
