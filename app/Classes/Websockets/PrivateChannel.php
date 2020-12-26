@@ -2,9 +2,10 @@
 
 namespace App\Classes\Websockets;
 
-use BeyondCode\LaravelWebSockets\WebSockets\Channels\PrivateChannel as BasePrivateChannel;
 use stdClass;
+use App\Jobs\UserOnlineStatus;
 use Ratchet\ConnectionInterface;
+use BeyondCode\LaravelWebSockets\WebSockets\Channels\PrivateChannel as BasePrivateChannel;
 
 class PrivateChannel extends BasePrivateChannel
 {
@@ -14,12 +15,13 @@ class PrivateChannel extends BasePrivateChannel
         parent::subscribe($connection, $payload);
         \Log::debug('Subscribed Private Channel Name' . $this->channelName);
         \Log::debug(json_encode($payload));
+        UserOnlineStatus::dispatch($this->channelName, 'subscribe');
     }
 
     public function unsubscribe(ConnectionInterface $connection)
     {
         if (isset($this->subscribedConnections[$connection->socketId])) {
-            \Log::debug('Unsunscribed Channel Name' . $this->channelName);
+            UserOnlineStatus::dispatch($this->channelName, 'unsubscribe');
         }
 
         parent::unsubscribe($connection);

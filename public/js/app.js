@@ -5204,8 +5204,8 @@ var APP_CLUSTER = "mt1";
     this.setupPusher();
   },
   mounted: function mounted() {
-    this.getInitData();
-    this.joinOnlineChannel(); // this.getUserMedia();
+    this.getInitData(); // this.joinOnlineChannel();
+    // this.getUserMedia();
   },
   data: function data() {
     return {

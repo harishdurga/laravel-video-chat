@@ -13,14 +13,14 @@ class PresenceChannel extends BasePresenceChannel
     public function subscribe(ConnectionInterface $connection, stdClass $payload)
     {
         parent::subscribe($connection, $payload);
-        \Log::debug('Subscribed Presence Channel Name' . $this->channelName);
-        \Log::debug(json_encode($payload));
+        // \Log::debug('Subscribed Presence Channel Name' . $this->channelName);
+        // \Log::debug(json_encode($payload));
     }
 
     public function unsubscribe(ConnectionInterface $connection)
     {
         if (isset($this->subscribedConnections[$connection->socketId])) {
-            \Log::debug('Unsunscribed Presence Channel Name' . $this->channelName);
+            // \Log::debug('Unsunscribed Presence Channel Name' . $this->channelName);
         }
 
         parent::unsubscribe($connection);

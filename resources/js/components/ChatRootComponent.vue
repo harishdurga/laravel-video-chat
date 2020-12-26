@@ -44,7 +44,7 @@ export default {
   },
   mounted() {
     this.getInitData();
-    this.joinOnlineChannel();
+    // this.joinOnlineChannel();
     // this.getUserMedia();
   },
   data() {
