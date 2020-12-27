@@ -10,7 +10,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewMessage implements ShouldBroadcast
+class IncomingCall implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -20,7 +20,7 @@ class NewMessage implements ShouldBroadcast
      * @return void
      */
     public $data;
-    public function __construct($data)
+    public function __construct(array $data)
     {
         $this->data = $data;
     }
@@ -32,6 +32,6 @@ class NewMessage implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return [new PrivateChannel('App.User.' . $this->data['recipient_id'])];
+        return new PrivateChannel('App.User.' . $this->data['recipient_id']);
     }
 }

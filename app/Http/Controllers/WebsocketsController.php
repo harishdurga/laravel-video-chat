@@ -4,47 +4,28 @@ namespace App\Http\Controllers;
 
 use App\User;
 use App\VideoRoom;
-use App\SiteSetting;
-use Twilio\Rest\Client;
+use Pusher\Pusher;
 use App\Classes\Helpers;
-use Twilio\Jwt\AccessToken;
+use App\Classes\TwillioVideoActions;
+use App\Events\NewMessage;
 use App\Events\IncomingCall;
 use Illuminate\Http\Request;
-use Twilio\Jwt\Grants\VideoGrant;
 use App\Events\IncomingCallStatus;
-use App\Classes\TwillioVideoActions;
 
-class VideoCallController extends Controller
+class WebsocketsController extends Controller
 {
-    public function createAccessToken(Request $request)
+    public function test()
     {
-        $identity = auth()->user()->email;
-        $caller = User::find($request->caller_id);
-        $recipient = User::find($request->recipient_id);
-        $roomName = Helpers::getRoomName($caller->email, $recipient->email);
-        $videoRoom = VideoRoom::getRoomByName($roomName);
-        $accessToken = TwillioVideoActions::createAccessToken($identity, $videoRoom->external_id, 3600);
-        return response()->json(['room_sid' => $videoRoom->external_id, 'token' => $accessToken]);
-    }
-
-    public function completeRoom(Request $request)
-    {
-        $status = false;
-        $message = '';
-        $videoRoom = VideoRoom::getRoomByExternalIDAndParticipantID($request->room, auth()->user()->id);
-        if ($videoRoom) {
-            try {
-                TwillioVideoActions::completeRoom($videoRoom->external_id);
-                $status = true;
-                $message = 'success';
-            } catch (\Throwable $th) {
-                \Log::critical($th->getMessage());
-                $message = 'Error while trying call twillio: ' . $th->getMessage();
-            }
-        } else {
-            $message = 'No room found!';
-        }
-        return response()->json(['status' => $status, 'message' => $message]);
+        // $pusher = new Pusher(env('PUSHER_APP_KEY'), env('PUSHER_APP_SECRET'), env('PUSHER_APP_ID'), array('cluster' => env('PUSHER_APP_CLUSTER')), 'videochat.test', 6001);
+        // $response = $pusher->get('/channels');
+        // if (is_array($response)) {
+        //     if ($response['status'] == 200) {
+        //         // convert to associative array for easier consumption
+        //         $channels = json_decode($response['body'], true);
+        //         dd($channels);
+        //     }
+        // }
+        NewMessage::dispatch(['recipient_id' => 4, 'message' => 'Hello']);
     }
 
     public function incomingCall(Request $request)

@@ -21,6 +21,16 @@ class EventServiceProvider extends ServiceProvider
         'App\Events\NewMessage' => [
             'App\Listeners\SendNewMessageNotification',
         ],
+        'App\Events\IncomingCall' => [
+            'App\Listeners\IncomingCallNotification',
+        ],
+        'App\Events\IncomingCallStatus' => [
+            'App\Listeners\IncomingCallStatusNotification',
+        ],
+        'App\Events\UserOnlineStatusUpdate' => [
+            'App\Listeners\UserOnlineStatusUpdateNotification',
+        ]
+
     ];
 
     /**

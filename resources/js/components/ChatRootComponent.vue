@@ -7,43 +7,6 @@
         </div>
         <div class="col-md-7 bg-light" id="video-component">
           <twillio-video></twillio-video>
-          <div v-if="false" class="video-container shadow-sm">
-            <div class="user-video-container">
-              <video
-                :srcObject.prop="userVideoSrc"
-                ref="userVideo"
-                autoplay="autoplay"
-                class="user-video w-100"
-              ></video>
-            </div>
-            <div class="my-video-container">
-              <video
-                :srcObject.prop="myVideoSrc"
-                ref="myVideo"
-                class="my-video"
-                autoplay="autoplay"
-              ></video>
-            </div>
-            <div class="bottom-action-bar p-2 bg-white text-center">
-              <button
-                class="btn btn-danger rounded"
-                @click="stopMedia"
-                title="Stop Media"
-              >
-                <i class="fas fa-video-slash"></i>
-              </button>
-              <button
-                :disabled="!is_online"
-                @click="callTo"
-                class="btn btn-success rounded"
-              >
-                <i class="fas fa-phone-alt"></i>
-              </button>
-              <button class="btn btn-danger rounded">
-                <i class="fa fa-phone-slash"></i>
-              </button>
-            </div>
-          </div>
         </div>
         <div class="col-md-3 px-0">
           <text-chat :selected_user="selected_user"></text-chat>
@@ -67,7 +30,6 @@
 </template>
 
 <script>
-import MediaHandler from "../MediaHandler";
 import TextChatComponent from "./chat/TextChatComponent";
 import FriendsList from "./chat/FriendsList";
 import SearchUser from "./chat/SearchUser";
@@ -77,131 +39,54 @@ import Peer from "simple-peer";
 const APP_KEY = "ABCD123";
 const APP_CLUSTER = "mt1";
 export default {
-  created() {},
-  mounted() {
+  created() {
     this.setupPusher();
+  },
+  mounted() {
     this.getInitData();
-    this.joinOnlineChannel();
+    // this.joinOnlineChannel();
     // this.getUserMedia();
   },
   data() {
     return {
-      hasMedia: false,
       otherUserId: null,
-      mediaHandler: new MediaHandler(),
-      myVideoSrc: null,
-      userVideoSrc: null,
       pusher: null,
       user: window.user,
       channel: null,
-      peers: {},
+      clientMessageChannel: null,
+      otherUserClientMessageChannel: null,
       online_users: [],
       friends: [],
       typing_timeout: null,
       is_typing: false,
       selected_user: null,
       is_online: false,
-      iceServers: [],
       room: null,
     };
   },
   methods: {
     setupPusher() {
-      this.channel = Echo.private("presence-video-channel");
-      this.channel.listenForWhisper(
-        `client-signal-${this.user.id}`,
-        (signal) => {
-          //confirm(`Do you want to accept call this call from ${signal.userName}?`)
-          if (true) {
-            let peer = this.peers[signal.userId];
-            //If peer is empty, means we got incoming call
-            if (peer === undefined) {
-              this.otherUserId = signal.userId;
-              peer = this.startPeer(signal.userId, false);
-            }
-            peer.signal(signal.data);
-          } else {
-            this.channel.whisper(`callreject-signal-${signal.userId}`, {
-              type: "signal",
-              data: {},
-            });
+      this.channel = Echo.private(`App.User.${this.user.id}`);
+      this.clientMessageChannel = Echo.private(
+        `ClientMessages.${this.user.id}`
+      );
+      this.clientMessageChannel.listenForWhisper(`typing-signal`, (signal) => {
+        if (this.selected_user) {
+          if (this.selected_user.id != signal.userId) {
+            //As the signal is not from the currently selected user
+            return false;
           }
+        } else {
+          //As no user is selected no need to show the typing signal
+          return false;
         }
-      );
-      this.channel.listenForWhisper(
-        `typing-signal-${this.user.id}`,
-        (signal) => {
-          clearTimeout(this.typing_timeout);
-          this.is_typing = true;
-          var thiss = this;
-          this.typing_timeout = setTimeout(function () {
-            thiss.is_typing = false;
-          }, 1000);
-        }
-      );
-      this.channel.listenForWhisper(
-        `callreject-signal-${this.user.id}`,
-        (signal) => {
-          this.$toasted.show("User rejected you call!", { type: "error" });
-        }
-      );
-    },
-    startPeer(userId, initiator = true) {
-      console.log("Starting peer");
-      if (!this.myVideoSrc) {
-        this.getUserMedia();
-      }
-      const peer = new Peer({
-        initiator,
-        stream: this.myVideoSrc,
-        trickle: true,
-        config: { iceServers: this.iceServers },
-      });
-      peer.on("signal", (data) => {
-        console.log("Peer On Signal");
-        this.channel.whisper(`client-signal-${userId}`, {
-          type: "signal",
-          userId: this.user.id,
-          userName: this.user.name,
-          data: data,
-        });
-      });
-      peer.on("stream", (stream) => {
-        console.log("Peer On Stream");
-        try {
-          this.userVideoSrc = stream;
-        } catch (error) {
-          this.userVideoSrc = URL.createObjectURL(stream);
-        }
-      });
-      peer.on("close", () => {
-        let peer = this.peers[userId];
-        if (peer !== undefined) {
-          peer.destroy();
-        }
-        this.peers[userId] = undefined;
-      });
-      return peer;
-    },
-    callTo() {
-      if (this.selected_user == null) {
-        this.$toasted.show(
-          "Please select a user from the friends on the left side!",
-          { type: "error" }
-        );
-        return false;
-      }
-      if (this.iceServers.length == 0) {
-        this.$toasted.show("Sorry! No ice servers found!", { type: "error" });
-        return false;
-      }
 
-      var userId = this.selected_user.id;
-      this.peers[userId] = this.startPeer(userId, true);
-    },
-    stopMedia() {
-      this.myVideoSrc.getTracks().forEach(function (track) {
-        track.stop();
+        clearTimeout(this.typing_timeout);
+        this.is_typing = true;
+        var thiss = this;
+        this.typing_timeout = setTimeout(function () {
+          thiss.is_typing = false;
+        }, 1000);
       });
     },
     joinOnlineChannel() {
@@ -219,16 +104,6 @@ export default {
           this.checkForFriendsOnline();
         });
     },
-    getUserMedia() {
-      this.mediaHandler.getPermissions().then((stream) => {
-        this.hasMedia = true;
-        try {
-          this.myVideoSrc = stream;
-        } catch (error) {
-          this.myVideoSrc = URL.createObjectURL(stream);
-        }
-      });
-    },
     checkIfUserOnline(userId) {
       var thiss = this;
       this.is_online = false;
@@ -242,7 +117,6 @@ export default {
     getInitData() {
       Vue.axios.get("/get-init-data").then((response) => {
         this.friends = response.data.friends;
-        this.iceServers = response.data.iceServers;
         this.checkForFriendsOnline();
       });
     },
@@ -268,6 +142,9 @@ export default {
   },
   watch: {
     selected_user() {
+      this.otherUserClientMessageChannel = Echo.private(
+        `ClientMessages.${this.selected_user.id}`
+      );
       this.checkIfUserOnline(this.selected_user.id);
     },
   },

@@ -79,20 +79,17 @@ export default {
   name: "TextChatComponent",
   props: ["selected_user"],
   mounted() {
-    Echo.private(`NewMessage.User.${this.$parent.user.id}`).listen(
-      "NewMessage",
-      (e) => {
-        if (this.selected_user != null) {
-          if (this.selected_user.id == e.data.sender_id) {
-            this.previous_messages.push(e.data);
-          } else {
-            this.setBlinkingIcon(e.data.sender_id);
-          }
+    this.$parent.channel.listen("NewMessage", (e) => {
+      if (this.selected_user != null) {
+        if (this.selected_user.id == e.data.sender_id) {
+          this.previous_messages.push(e.data);
         } else {
           this.setBlinkingIcon(e.data.sender_id);
         }
+      } else {
+        this.setBlinkingIcon(e.data.sender_id);
       }
-    );
+    });
   },
   data() {
     return {
@@ -133,14 +130,14 @@ export default {
     },
     sendTypingSignal() {
       if (this.message.length > 0) {
-        this.$parent.channel.whisper(`typing-signal-${this.selected_user.id}`, {
+        this.$parent.otherUserClientMessageChannel.whisper(`typing-signal`, {
           type: "signal",
           userId: this.$parent.user.id,
           data: {},
         });
       }
     },
-    getPassMessages() {
+    getPastMessages() {
       Vue.axios
         .get("/previous-messages/" + this.selected_user.id)
         .then((response) => {
@@ -165,7 +162,7 @@ export default {
   },
   watch: {
     selected_user() {
-      this.getPassMessages();
+      this.getPastMessages();
     },
   },
   components: {
@@ -183,6 +180,9 @@ export default {
 }
 .chat-bubble .sender {
   color: crimson;
+}
+.chat-bubble .sender.self {
+  color: #0094ff;
 }
 .chat-bubble .org-message {
   color: #626263;

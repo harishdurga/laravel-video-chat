@@ -2,7 +2,10 @@
   <div>
     <div class="chat-bubble shadow-sm p-1 mb-2 rounded">
       <div class="d-flex">
-        <div class="sender pr-2">
+        <div
+          class="sender pr-2"
+          :class="{ self: $parent.$parent.user.id == message.sender_id }"
+        >
           <b>{{ message.sender }}:</b>
         </div>
         <div class="message">

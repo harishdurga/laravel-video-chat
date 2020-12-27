@@ -2,6 +2,7 @@
 
 use App\Events\NewMessage;
 use Illuminate\Support\Facades\Route;
+use BeyondCode\LaravelWebSockets\Facades\WebSocketsRouter;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,11 +36,17 @@ Route::post('add-friend', 'HomeController@addFriend');
 Route::get('friend-requests', 'HomeController@friendRequests');
 Route::post('accept-reject-request', 'HomeController@acceptRejectPost');
 
-Route::get('twillio_access_token', 'HomeController@generateTwillioAccessToken');
-Route::get('twillio-create-room', 'HomeController@createTwillioRoom');
-Route::get('twillio-complete-room/{room}', 'HomeController@completeTwillioRoom');
+
 Route::get('twilio-init-data', 'HomeController@getTwilioInitData');
 
 Route::group(['prefix' => 'video-call'], function () {
     Route::post('token', 'VideoCallController@createAccessToken');
+    Route::post('complete', 'VideoCallController@completeRoom');
+    Route::post('call-user', 'VideoCallController@incomingCall');
+    Route::post('call-status', 'VideoCallController@incomingCallStatus');
 });
+
+
+WebSocketsRouter::webSocket('/my-websocket', \App\Classes\MyCustomWebSocketHandler::class);
+
+Route::post('mark-user-messages', 'HomeController@markUserMessagesAsRead');

@@ -2,8 +2,8 @@
   <div>
     <div class="p-2">
       <button
-        title="Join Room"
-        @click="joinRoom"
+        title="Start Video Call"
+        @click="startVideoCall"
         class="btn btn-success rounded"
       >
         <i class="fas fa-phone-alt"></i>
@@ -11,7 +11,7 @@
       <button
         class="btn btn-danger rounded"
         @click="disConnectFromRoom"
-        title="Disconnect From Room"
+        title="End Video Call"
       >
         <i class="fas fa-video-slash"></i>
       </button>
@@ -40,16 +40,20 @@ export default {
       loading_message: "",
       room_name: "",
       channel: null,
+      outGoingCallStatus: 0,
+      localVideoTrack: null,
     };
   },
   methods: {
-    getAccessToken: function () {
+    getAccessToken: function (caller_id = "", recipient_id = "") {
+      console.log("getAccessToken " + caller_id);
       // Request a new token
       this.is_loading = true;
       this.loading_message = "Fetching credentials....";
       Vue.axios
         .post("/video-call/token", {
-          receiver_id: this.$parent.selected_user.id,
+          caller_id: caller_id,
+          recipient_id: recipient_id,
         })
         .then((response) => {
           this.loading_message = "Credentials fetched. Now joining a room";
@@ -60,8 +64,8 @@ export default {
           console.log(error);
         })
         .then(() => {
-          this.callRecipient();
-          // this.connectToRoom();
+          // this.callRecipient();
+          this.connectToRoom();
         });
     },
     connectToRoom: function () {
@@ -87,11 +91,8 @@ export default {
           });
 
           const videoChatWindow = document.getElementById("video-chat-window");
-          // {
-          //     audio: true,
-          //     video: { height: 380,frameRate:30 },
-          // }
           createLocalVideoTrack().then((track) => {
+            this.localVideoTrack = track;
             const localMediaContainer = document.getElementById("local-media");
             localMediaContainer.appendChild(track.attach());
           });
@@ -120,6 +121,7 @@ export default {
               const attachedElements = publication.track.detach();
               attachedElements.forEach((element) => element.remove());
             });
+            this.localVideoTrack.stop();
           });
         },
         (error) => {
@@ -131,15 +133,38 @@ export default {
       if (confirm("Do you really want to disconnect from room?")) {
         this.room.disconnect();
         alert("Disconnected From Room");
+        Vue.axios
+          .post("/video-call/complete", { room: this.room_name })
+          .then((response) => {
+            console.log(response.data);
+          });
       }
     },
-    joinRoom() {
-      if (confirm("Do you really want to join this room?")) {
-        if (this.room == null) {
-          this.getAccessToken();
-        } else {
-          alert("You already joined the room!");
-        }
+    startVideoCall() {
+      if (this.$parent.selected_user) {
+        this.$dialog
+          .confirm(
+            `Would you like to video call ${this.$parent.selected_user.name}?`
+          )
+          .then((dialog) => {
+            this.is_loading = true;
+            this.loading_message = `Calling ${this.$parent.selected_user.name} ...`;
+            this.outGoingCallStatus = 1;
+            Vue.axios
+              .post("/video-call/call-user", {
+                recipient_id: this.$parent.selected_user.id,
+              })
+              .then((response) => {
+                // console.log(response.data);
+              });
+          })
+          .catch(() => {
+            console.log("Clicked on cancel");
+          });
+      } else {
+        alert(
+          "Please a select a friend from the friends list on the left side to make a video call!"
+        );
       }
     },
     participantConnected(participant) {
@@ -170,50 +195,56 @@ export default {
     detachTrack(track) {
       track.detach();
     },
-    getInitData() {
-      Vue.axios.get("/twilio-init-data").then((response) => {
-        this.room_name = response.data.twilio_room_name;
-      });
-    },
-    callRecipient() {
-      this.channel.whisper(
-        `incoming-call-signal-${this.$parent.selected_user.id}`,
-        {
-          type: "incoming-call",
-          caller_id: this.$parent.user.id,
-          caller_name: this.$parent.user.name,
-        }
-      );
-    },
-    showInComingCallModal(caller_id, caller_name) {
-      if (
-        confirm(
-          caller_name + " is calling you. Do you want to answer the call?"
-        )
-      ) {
-        this.channel.whisper(`call-answered-signal-${caller_id}`, {
-          type: "call-answered",
+    postCallStatus(status, caller_id) {
+      Vue.axios
+        .post("/video-call/call-status", {
+          caller_id: caller_id,
+          call_status: status,
+        })
+        .then((response) => {
+          console.log(response.data);
         });
+    },
+    handleIncomingCall(data) {
+      console.log("handleIncomingCall");
+      console.log(data);
+      this.$dialog
+        .confirm(
+          data.caller.name +
+            " is calling you. Would you like to answer the call?"
+        )
+        .then((dialog) => {
+          console.log("Accepted Call From " + data.caller.id);
+          this.postCallStatus("accept", data.caller.id);
+          this.getAccessToken(data.caller.id, this.$parent.user.id);
+        })
+        .catch(() => {
+          this.postCallStatus("reject", data.caller.id);
+        });
+    },
+    //When the other user accepts or rejects the call this method will be called
+    handleIncomingCallStatus(data) {
+      console.log(data);
+      if (data.call_status == "reject") {
+        this.outGoingCallStatus = 0;
+        alert("User declined to answer your call");
+      } else {
+        this.getAccessToken(
+          this.$parent.user.id,
+          this.$parent.selected_user.id
+        );
       }
     },
   },
   mounted: function () {
-    // this.getInitData();
-    this.channel = Echo.private("presence-video-channel");
-    this.channel.listenForWhisper(
-      `incoming-call-signal-${this.$parent.user.id}`,
-      (signal) => {
-        console.log("In coming call");
-        console.log(signal);
-      }
-    );
-    this.channel.listenForWhisper(
-      `call-answered-signal-${this.$parent.user.id}`,
-      (signal) => {
-        console.log("Call answered");
-        console.log(signal);
-      }
-    );
+    this.$parent.channel.listen("IncomingCall", (e) => {
+      console.log("Incoming call");
+      this.handleIncomingCall(e.data);
+    });
+    this.$parent.channel.listen("IncomingCallStatus", (e) => {
+      console.log("IncomingCallStatus");
+      this.handleIncomingCallStatus(e.data);
+    });
   },
 };
 </script>

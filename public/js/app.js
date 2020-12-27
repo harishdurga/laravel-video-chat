@@ -5153,14 +5153,13 @@ module.exports = {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _MediaHandler__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../MediaHandler */ "./resources/js/MediaHandler.js");
-/* harmony import */ var _chat_TextChatComponent__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./chat/TextChatComponent */ "./resources/js/components/chat/TextChatComponent.vue");
-/* harmony import */ var _chat_FriendsList__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./chat/FriendsList */ "./resources/js/components/chat/FriendsList.vue");
-/* harmony import */ var _chat_SearchUser__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./chat/SearchUser */ "./resources/js/components/chat/SearchUser.vue");
-/* harmony import */ var _chat_FriendRequests__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./chat/FriendRequests */ "./resources/js/components/chat/FriendRequests.vue");
-/* harmony import */ var _chat_TwillioVideoChat__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./chat/TwillioVideoChat */ "./resources/js/components/chat/TwillioVideoChat.vue");
-/* harmony import */ var simple_peer__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! simple-peer */ "./node_modules/simple-peer/index.js");
-/* harmony import */ var simple_peer__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__webpack_require__.n(simple_peer__WEBPACK_IMPORTED_MODULE_6__);
+/* harmony import */ var _chat_TextChatComponent__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./chat/TextChatComponent */ "./resources/js/components/chat/TextChatComponent.vue");
+/* harmony import */ var _chat_FriendsList__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./chat/FriendsList */ "./resources/js/components/chat/FriendsList.vue");
+/* harmony import */ var _chat_SearchUser__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./chat/SearchUser */ "./resources/js/components/chat/SearchUser.vue");
+/* harmony import */ var _chat_FriendRequests__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./chat/FriendRequests */ "./resources/js/components/chat/FriendRequests.vue");
+/* harmony import */ var _chat_TwillioVideoChat__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./chat/TwillioVideoChat */ "./resources/js/components/chat/TwillioVideoChat.vue");
+/* harmony import */ var simple_peer__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! simple-peer */ "./node_modules/simple-peer/index.js");
+/* harmony import */ var simple_peer__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(simple_peer__WEBPACK_IMPORTED_MODULE_5__);
 //
 //
 //
@@ -5192,44 +5191,6 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-
 
 
 
@@ -5239,30 +5200,27 @@ __webpack_require__.r(__webpack_exports__);
 var APP_KEY = "ABCD123";
 var APP_CLUSTER = "mt1";
 /* harmony default export */ __webpack_exports__["default"] = ({
-  created: function created() {},
-  mounted: function mounted() {
+  created: function created() {
     this.setupPusher();
-    this.getInitData();
-    this.joinOnlineChannel(); // this.getUserMedia();
+  },
+  mounted: function mounted() {
+    this.getInitData(); // this.joinOnlineChannel();
+    // this.getUserMedia();
   },
   data: function data() {
     return {
-      hasMedia: false,
       otherUserId: null,
-      mediaHandler: new _MediaHandler__WEBPACK_IMPORTED_MODULE_0__["default"](),
-      myVideoSrc: null,
-      userVideoSrc: null,
       pusher: null,
       user: window.user,
       channel: null,
-      peers: {},
+      clientMessageChannel: null,
+      otherUserClientMessageChannel: null,
       online_users: [],
       friends: [],
       typing_timeout: null,
       is_typing: false,
       selected_user: null,
       is_online: false,
-      iceServers: [],
       room: null
     };
   },
@@ -5270,21 +5228,19 @@ var APP_CLUSTER = "mt1";
     setupPusher: function setupPusher() {
       var _this = this;
 
-      this.channel = Echo["private"]("presence-video-channel");
-      this.channel.listenForWhisper("client-signal-".concat(this.user.id), function (signal) {
-        //confirm(`Do you want to accept call this call from ${signal.userName}?`)
-        if (true) {
-          var peer = _this.peers[signal.userId]; //If peer is empty, means we got incoming call
-
-          if (peer === undefined) {
-            _this.otherUserId = signal.userId;
-            peer = _this.startPeer(signal.userId, false);
+      this.channel = Echo["private"]("App.User.".concat(this.user.id));
+      this.clientMessageChannel = Echo["private"]("ClientMessages.".concat(this.user.id));
+      this.clientMessageChannel.listenForWhisper("typing-signal", function (signal) {
+        if (_this.selected_user) {
+          if (_this.selected_user.id != signal.userId) {
+            //As the signal is not from the currently selected user
+            return false;
           }
+        } else {
+          //As no user is selected no need to show the typing signal
+          return false;
+        }
 
-          peer.signal(signal.data);
-        } else {}
-      });
-      this.channel.listenForWhisper("typing-signal-".concat(this.user.id), function (signal) {
         clearTimeout(_this.typing_timeout);
         _this.is_typing = true;
         var thiss = _this;
@@ -5292,113 +5248,24 @@ var APP_CLUSTER = "mt1";
           thiss.is_typing = false;
         }, 1000);
       });
-      this.channel.listenForWhisper("callreject-signal-".concat(this.user.id), function (signal) {
-        _this.$toasted.show("User rejected you call!", {
-          type: "error"
-        });
-      });
-    },
-    startPeer: function startPeer(userId) {
-      var _this2 = this;
-
-      var initiator = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-      console.log("Starting peer");
-
-      if (!this.myVideoSrc) {
-        this.getUserMedia();
-      }
-
-      var peer = new simple_peer__WEBPACK_IMPORTED_MODULE_6___default.a({
-        initiator: initiator,
-        stream: this.myVideoSrc,
-        trickle: true,
-        config: {
-          iceServers: this.iceServers
-        }
-      });
-      peer.on("signal", function (data) {
-        console.log("Peer On Signal");
-
-        _this2.channel.whisper("client-signal-".concat(userId), {
-          type: "signal",
-          userId: _this2.user.id,
-          userName: _this2.user.name,
-          data: data
-        });
-      });
-      peer.on("stream", function (stream) {
-        console.log("Peer On Stream");
-
-        try {
-          _this2.userVideoSrc = stream;
-        } catch (error) {
-          _this2.userVideoSrc = URL.createObjectURL(stream);
-        }
-      });
-      peer.on("close", function () {
-        var peer = _this2.peers[userId];
-
-        if (peer !== undefined) {
-          peer.destroy();
-        }
-
-        _this2.peers[userId] = undefined;
-      });
-      return peer;
-    },
-    callTo: function callTo() {
-      if (this.selected_user == null) {
-        this.$toasted.show("Please select a user from the friends on the left side!", {
-          type: "error"
-        });
-        return false;
-      }
-
-      if (this.iceServers.length == 0) {
-        this.$toasted.show("Sorry! No ice servers found!", {
-          type: "error"
-        });
-        return false;
-      }
-
-      var userId = this.selected_user.id;
-      this.peers[userId] = this.startPeer(userId, true);
-    },
-    stopMedia: function stopMedia() {
-      this.myVideoSrc.getTracks().forEach(function (track) {
-        track.stop();
-      });
     },
     joinOnlineChannel: function joinOnlineChannel() {
-      var _this3 = this;
+      var _this2 = this;
 
       Echo.join("online").here(function (users) {
-        _this3.online_users = users;
+        _this2.online_users = users;
 
-        _this3.checkForFriendsOnline();
+        _this2.checkForFriendsOnline();
       }).joining(function (user) {
-        _this3.online_users.push(user);
+        _this2.online_users.push(user);
 
-        _this3.checkForFriendsOnline();
+        _this2.checkForFriendsOnline();
       }).leaving(function (user) {
-        _this3.online_users = _this3.online_users.filter(function (u) {
+        _this2.online_users = _this2.online_users.filter(function (u) {
           return u.id !== user.id;
         });
 
-        _this3.checkForFriendsOnline();
-      });
-    },
-    getUserMedia: function getUserMedia() {
-      var _this4 = this;
-
-      this.mediaHandler.getPermissions().then(function (stream) {
-        _this4.hasMedia = true;
-
-        try {
-          _this4.myVideoSrc = stream;
-        } catch (error) {
-          _this4.myVideoSrc = URL.createObjectURL(stream);
-        }
+        _this2.checkForFriendsOnline();
       });
     },
     checkIfUserOnline: function checkIfUserOnline(userId) {
@@ -5412,13 +5279,12 @@ var APP_CLUSTER = "mt1";
       });
     },
     getInitData: function getInitData() {
-      var _this5 = this;
+      var _this3 = this;
 
       Vue.axios.get("/get-init-data").then(function (response) {
-        _this5.friends = response.data.friends;
-        _this5.iceServers = response.data.iceServers;
+        _this3.friends = response.data.friends;
 
-        _this5.checkForFriendsOnline();
+        _this3.checkForFriendsOnline();
       });
     },
     checkForFriendsOnline: function checkForFriendsOnline() {
@@ -5436,15 +5302,116 @@ var APP_CLUSTER = "mt1";
     }
   },
   components: {
-    "text-chat": _chat_TextChatComponent__WEBPACK_IMPORTED_MODULE_1__["default"],
-    "friends-list": _chat_FriendsList__WEBPACK_IMPORTED_MODULE_2__["default"],
-    "search-user": _chat_SearchUser__WEBPACK_IMPORTED_MODULE_3__["default"],
-    "friend-requests": _chat_FriendRequests__WEBPACK_IMPORTED_MODULE_4__["default"],
-    "twillio-video": _chat_TwillioVideoChat__WEBPACK_IMPORTED_MODULE_5__["default"]
+    "text-chat": _chat_TextChatComponent__WEBPACK_IMPORTED_MODULE_0__["default"],
+    "friends-list": _chat_FriendsList__WEBPACK_IMPORTED_MODULE_1__["default"],
+    "search-user": _chat_SearchUser__WEBPACK_IMPORTED_MODULE_2__["default"],
+    "friend-requests": _chat_FriendRequests__WEBPACK_IMPORTED_MODULE_3__["default"],
+    "twillio-video": _chat_TwillioVideoChat__WEBPACK_IMPORTED_MODULE_4__["default"]
   },
   watch: {
     selected_user: function selected_user() {
+      this.otherUserClientMessageChannel = Echo["private"]("ClientMessages.".concat(this.selected_user.id));
       this.checkIfUserOnline(this.selected_user.id);
+    }
+  }
+});
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js&":
+/*!******************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib??ref--4-0!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js& ***!
+  \******************************************************************************************************************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+/* harmony default export */ __webpack_exports__["default"] = ({
+  name: "ChatRootComponentV2",
+  data: function data() {
+    return {
+      user: window.user,
+      privateChannel: null,
+      outGoingCallStatus: 0
+    };
+  },
+  mounted: function mounted() {
+    this.setupChannel();
+  },
+  methods: {
+    setupChannel: function setupChannel() {
+      var _this = this;
+
+      this.privateChannel = Echo["private"]("App.User.".concat(this.user.id));
+      this.privateChannel.listen("IncomingCall", function (e) {
+        console.log("Incoming call");
+
+        _this.handleIncomingCall(e.data);
+      });
+      this.privateChannel.listen("IncomingCallStatus", function (e) {
+        console.log("IncomingCallStatus");
+
+        _this.handleIncomingCallStatus(e.data);
+      });
+      this.privateChannel.listen("NewMessage", function (e) {
+        console.log("NewMessage");
+        console.log(e);
+      });
+    },
+    startCall: function startCall() {
+      this.outGoingCallStatus = 1;
+      Vue.axios.post("/call-user", {
+        recipient_id: 4
+      }).then(function (response) {// console.log(response.data);
+      });
+    },
+    handleIncomingCall: function handleIncomingCall(data) {
+      console.log("handleIncomingCall");
+      console.log(data);
+
+      if (confirm(data.caller.name + " is calling you. Would you like to answer the call?")) {
+        //
+        Vue.axios.post("/call-status", {
+          caller_id: data.caller.id,
+          call_status: "accept"
+        }).then(function (response) {
+          console.log(response.data);
+        });
+      } else {
+        console.log("Incoming call rejected");
+        Vue.axios.post("/call-status", {
+          caller_id: data.caller.id,
+          call_status: "reject"
+        }).then(function (response) {
+          console.log(response.data);
+        });
+      }
+    },
+    handleIncomingCallStatus: function handleIncomingCallStatus(data) {
+      console.log(data);
+
+      if (data.call_status == "reject") {
+        this.outGoingCallStatus = 0;
+        alert("User rejected to answer your call");
+      } else {
+        alert("User accepted to answer your call");
+      }
     }
   }
 });
@@ -5550,6 +5517,22 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "FriendsList",
   data: function data() {
@@ -5562,8 +5545,33 @@ __webpack_require__.r(__webpack_exports__);
       });
       this.$parent.friends[index].is_selected = true;
       this.$parent.friends[index].new_message = false;
+      this.$parent.friends[index].unread_message_count = 0;
       this.$parent.selected_user = this.$parent.friends[index];
+      this.markMessagesAsRead(this.$parent.selected_user.id);
+    },
+    markMessagesAsRead: function markMessagesAsRead(sender_id) {
+      Vue.axios.post("/mark-user-messages", {
+        sender_id: sender_id
+      }).then(function (response) {});
+    },
+    setUserOnlineStatus: function setUserOnlineStatus(data) {
+      this.$parent.friends.forEach(function (friend) {
+        if (friend.id == data.user_id) {
+          friend.is_online = data.is_online;
+          return;
+        }
+      });
     }
+  },
+  mounted: function mounted() {
+    var _this = this;
+
+    this.$parent.channel.listen("UserOnlineStatusUpdate", function (e) {
+      console.log("UserOnlineStatusUpdate");
+      console.log(e.data);
+
+      _this.setUserOnlineStatus(e.data);
+    });
   }
 });
 
@@ -5661,6 +5669,9 @@ __webpack_require__.r(__webpack_exports__);
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
+//
+//
+//
 //
 //
 //
@@ -5804,7 +5815,7 @@ __webpack_require__.r(__webpack_exports__);
   mounted: function mounted() {
     var _this = this;
 
-    Echo["private"]("NewMessage.User.".concat(this.$parent.user.id)).listen("NewMessage", function (e) {
+    this.$parent.channel.listen("NewMessage", function (e) {
       if (_this.selected_user != null) {
         if (_this.selected_user.id == e.data.sender_id) {
           _this.previous_messages.push(e.data);
@@ -5858,14 +5869,14 @@ __webpack_require__.r(__webpack_exports__);
     },
     sendTypingSignal: function sendTypingSignal() {
       if (this.message.length > 0) {
-        this.$parent.channel.whisper("typing-signal-".concat(this.selected_user.id), {
+        this.$parent.otherUserClientMessageChannel.whisper("typing-signal", {
           type: "signal",
           userId: this.$parent.user.id,
           data: {}
         });
       }
     },
-    getPassMessages: function getPassMessages() {
+    getPastMessages: function getPastMessages() {
       var _this3 = this;
 
       Vue.axios.get("/previous-messages/" + this.selected_user.id).then(function (response) {
@@ -5893,7 +5904,7 @@ __webpack_require__.r(__webpack_exports__);
   },
   watch: {
     selected_user: function selected_user() {
-      this.getPassMessages();
+      this.getPastMessages();
     }
   },
   components: {
@@ -5952,18 +5963,24 @@ __webpack_require__.r(__webpack_exports__);
       is_loading: false,
       loading_message: "",
       room_name: "",
-      channel: null
+      channel: null,
+      outGoingCallStatus: 0,
+      localVideoTrack: null
     };
   },
   methods: {
     getAccessToken: function getAccessToken() {
       var _this = this;
 
-      // Request a new token
+      var caller_id = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "";
+      var recipient_id = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "";
+      console.log("getAccessToken " + caller_id); // Request a new token
+
       this.is_loading = true;
       this.loading_message = "Fetching credentials....";
       Vue.axios.post("/video-call/token", {
-        receiver_id: this.$parent.selected_user.id
+        caller_id: caller_id,
+        recipient_id: recipient_id
       }).then(function (response) {
         _this.loading_message = "Credentials fetched. Now joining a room";
         _this.accessToken = response.data.token;
@@ -5971,8 +5988,8 @@ __webpack_require__.r(__webpack_exports__);
       })["catch"](function (error) {
         console.log(error);
       }).then(function () {
-        _this.callRecipient(); // this.connectToRoom();
-
+        // this.callRecipient();
+        _this.connectToRoom();
       });
     },
     connectToRoom: function connectToRoom() {
@@ -6003,12 +6020,9 @@ __webpack_require__.r(__webpack_exports__);
 
           _this2.participantConnected(participant);
         });
-        var videoChatWindow = document.getElementById("video-chat-window"); // {
-        //     audio: true,
-        //     video: { height: 380,frameRate:30 },
-        // }
-
+        var videoChatWindow = document.getElementById("video-chat-window");
         createLocalVideoTrack().then(function (track) {
+          _this2.localVideoTrack = track;
           var localMediaContainer = document.getElementById("local-media");
           localMediaContainer.appendChild(track.attach());
         });
@@ -6033,6 +6047,8 @@ __webpack_require__.r(__webpack_exports__);
               return element.remove();
             });
           });
+
+          _this2.localVideoTrack.stop();
         });
       }, function (error) {
         console.error("Unable to connect to Room: ".concat(error.message));
@@ -6042,26 +6058,41 @@ __webpack_require__.r(__webpack_exports__);
       if (confirm("Do you really want to disconnect from room?")) {
         this.room.disconnect();
         alert("Disconnected From Room");
+        Vue.axios.post("/video-call/complete", {
+          room: this.room_name
+        }).then(function (response) {
+          console.log(response.data);
+        });
       }
     },
-    joinRoom: function joinRoom() {
-      if (confirm("Do you really want to join this room?")) {
-        if (this.room == null) {
-          this.getAccessToken();
-        } else {
-          alert("You already joined the room!");
-        }
+    startVideoCall: function startVideoCall() {
+      var _this3 = this;
+
+      if (this.$parent.selected_user) {
+        this.$dialog.confirm("Would you like to video call ".concat(this.$parent.selected_user.name, "?")).then(function (dialog) {
+          _this3.is_loading = true;
+          _this3.loading_message = "Calling ".concat(_this3.$parent.selected_user.name, " ...");
+          _this3.outGoingCallStatus = 1;
+          Vue.axios.post("/video-call/call-user", {
+            recipient_id: _this3.$parent.selected_user.id
+          }).then(function (response) {// console.log(response.data);
+          });
+        })["catch"](function () {
+          console.log("Clicked on cancel");
+        });
+      } else {
+        alert("Please a select a friend from the friends list on the left side to make a video call!");
       }
     },
     participantConnected: function participantConnected(participant) {
-      var _this3 = this;
+      var _this4 = this;
 
       participant.tracks.forEach(function (publication) {
-        _this3.trackPublished(publication, participant);
+        _this4.trackPublished(publication, participant);
       });
     },
     trackPublished: function trackPublished(publication, participant) {
-      var _this4 = this;
+      var _this5 = this;
 
       if (publication.track) {
         this.attachTrack(publication.track, participant);
@@ -6069,11 +6100,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
       publication.on("subscribed", function (track) {
-        _this4.attachTrack(track, participant);
+        _this5.attachTrack(track, participant);
       }); // Once the TrackPublication is unsubscribed from, detach the Track from the DOM.
 
       publication.on("unsubscribed", function (track) {
-        _this4.detachTrack(track, participant);
+        _this5.detachTrack(track, participant);
       });
     },
     attachTrack: function attachTrack(track, participant) {
@@ -6083,38 +6114,53 @@ __webpack_require__.r(__webpack_exports__);
     detachTrack: function detachTrack(track) {
       track.detach();
     },
-    getInitData: function getInitData() {
-      var _this5 = this;
+    postCallStatus: function postCallStatus(status, caller_id) {
+      Vue.axios.post("/video-call/call-status", {
+        caller_id: caller_id,
+        call_status: status
+      }).then(function (response) {
+        console.log(response.data);
+      });
+    },
+    handleIncomingCall: function handleIncomingCall(data) {
+      var _this6 = this;
 
-      Vue.axios.get("/twilio-init-data").then(function (response) {
-        _this5.room_name = response.data.twilio_room_name;
+      console.log("handleIncomingCall");
+      console.log(data);
+      this.$dialog.confirm(data.caller.name + " is calling you. Would you like to answer the call?").then(function (dialog) {
+        console.log("Accepted Call From " + data.caller.id);
+
+        _this6.postCallStatus("accept", data.caller.id);
+
+        _this6.getAccessToken(data.caller.id, _this6.$parent.user.id);
+      })["catch"](function () {
+        _this6.postCallStatus("reject", data.caller.id);
       });
     },
-    callRecipient: function callRecipient() {
-      this.channel.whisper("incoming-call-signal-".concat(this.$parent.selected_user.id), {
-        type: "incoming-call",
-        caller_id: this.$parent.user.id,
-        caller_name: this.$parent.user.name
-      });
-    },
-    showInComingCallModal: function showInComingCallModal(caller_id, caller_name) {
-      if (confirm(caller_name + " is calling you. Do you want to answer the call?")) {
-        this.channel.whisper("call-answered-signal-".concat(caller_id), {
-          type: "call-answered"
-        });
+    //When the other user accepts or rejects the call this method will be called
+    handleIncomingCallStatus: function handleIncomingCallStatus(data) {
+      console.log(data);
+
+      if (data.call_status == "reject") {
+        this.outGoingCallStatus = 0;
+        alert("User declined to answer your call");
+      } else {
+        this.getAccessToken(this.$parent.user.id, this.$parent.selected_user.id);
       }
     }
   },
   mounted: function mounted() {
-    // this.getInitData();
-    this.channel = Echo["private"]("presence-video-channel");
-    this.channel.listenForWhisper("incoming-call-signal-".concat(this.$parent.user.id), function (signal) {
-      console.log("In coming call");
-      console.log(signal);
+    var _this7 = this;
+
+    this.$parent.channel.listen("IncomingCall", function (e) {
+      console.log("Incoming call");
+
+      _this7.handleIncomingCall(e.data);
     });
-    this.channel.listenForWhisper("call-answered-signal-".concat(this.$parent.user.id), function (signal) {
-      console.log("Call answered");
-      console.log(signal);
+    this.$parent.channel.listen("IncomingCallStatus", function (e) {
+      console.log("IncomingCallStatus");
+
+      _this7.handleIncomingCallStatus(e.data);
     });
   }
 });
@@ -6757,9 +6803,7 @@ function fromByteArray (uint8) {
 
   // go through the array every three bytes, we'll deal with trailing stuff later
   for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
-    parts.push(encodeChunk(
-      uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)
-    ))
+    parts.push(encodeChunk(uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)))
   }
 
   // pad the end with zeros, but make sure to not forget the extra bytes
@@ -6794,7 +6838,7 @@ function fromByteArray (uint8) {
 /***/ (function(module, exports, __webpack_require__) {
 
 /*!
-  * Bootstrap v4.5.2 (https://getbootstrap.com/)
+  * Bootstrap v4.5.3 (https://getbootstrap.com/)
   * Copyright 2011-2020 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
   */
@@ -6803,8 +6847,10 @@ function fromByteArray (uint8) {
   undefined;
 }(this, (function (exports, $, Popper) { 'use strict';
 
-  $ = $ && Object.prototype.hasOwnProperty.call($, 'default') ? $['default'] : $;
-  Popper = Popper && Object.prototype.hasOwnProperty.call(Popper, 'default') ? Popper['default'] : Popper;
+  function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+  var $__default = /*#__PURE__*/_interopDefaultLegacy($);
+  var Popper__default = /*#__PURE__*/_interopDefaultLegacy(Popper);
 
   function _defineProperties(target, props) {
     for (var i = 0; i < props.length; i++) {
@@ -6848,7 +6894,7 @@ function fromByteArray (uint8) {
 
   /**
    * --------------------------------------------------------------------------
-   * Bootstrap (v4.5.2): util.js
+   * Bootstrap (v4.5.3): util.js
    * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
    * --------------------------------------------------------------------------
    */
@@ -6875,7 +6921,7 @@ function fromByteArray (uint8) {
       bindType: TRANSITION_END,
       delegateType: TRANSITION_END,
       handle: function handle(event) {
-        if ($(event.target).is(this)) {
+        if ($__default['default'](event.target).is(this)) {
           return event.handleObj.handler.apply(this, arguments); // eslint-disable-line prefer-rest-params
         }
 
@@ -6888,7 +6934,7 @@ function fromByteArray (uint8) {
     var _this = this;
 
     var called = false;
-    $(this).one(Util.TRANSITION_END, function () {
+    $__default['default'](this).one(Util.TRANSITION_END, function () {
       called = true;
     });
     setTimeout(function () {
@@ -6900,8 +6946,8 @@ function fromByteArray (uint8) {
   }
 
   function setTransitionEndSupport() {
-    $.fn.emulateTransitionEnd = transitionEndEmulator;
-    $.event.special[Util.TRANSITION_END] = getSpecialTransitionEndEvent();
+    $__default['default'].fn.emulateTransitionEnd = transitionEndEmulator;
+    $__default['default'].event.special[Util.TRANSITION_END] = getSpecialTransitionEndEvent();
   }
   /**
    * --------------------------------------------------------------------------
@@ -6914,7 +6960,6 @@ function fromByteArray (uint8) {
     TRANSITION_END: 'bsTransitionEnd',
     getUID: function getUID(prefix) {
       do {
-        // eslint-disable-next-line no-bitwise
         prefix += ~~(Math.random() * MAX_UID); // "~~" acts like a faster Math.floor() here
       } while (document.getElementById(prefix));
 
@@ -6930,7 +6975,7 @@ function fromByteArray (uint8) {
 
       try {
         return document.querySelector(selector) ? selector : null;
-      } catch (err) {
+      } catch (_) {
         return null;
       }
     },
@@ -6940,8 +6985,8 @@ function fromByteArray (uint8) {
       } // Get transition-duration of the element
 
 
-      var transitionDuration = $(element).css('transition-duration');
-      var transitionDelay = $(element).css('transition-delay');
+      var transitionDuration = $__default['default'](element).css('transition-duration');
+      var transitionDelay = $__default['default'](element).css('transition-delay');
       var floatTransitionDuration = parseFloat(transitionDuration);
       var floatTransitionDelay = parseFloat(transitionDelay); // Return 0 if element or transition duration is not found
 
@@ -6958,9 +7003,8 @@ function fromByteArray (uint8) {
       return element.offsetHeight;
     },
     triggerTransitionEnd: function triggerTransitionEnd(element) {
-      $(element).trigger(TRANSITION_END);
+      $__default['default'](element).trigger(TRANSITION_END);
     },
-    // TODO: Remove in v5
     supportsTransitionEnd: function supportsTransitionEnd() {
       return Boolean(TRANSITION_END);
     },
@@ -7003,11 +7047,11 @@ function fromByteArray (uint8) {
       return Util.findShadowRoot(element.parentNode);
     },
     jQueryDetection: function jQueryDetection() {
-      if (typeof $ === 'undefined') {
+      if (typeof $__default['default'] === 'undefined') {
         throw new TypeError('Bootstrap\'s JavaScript requires jQuery. jQuery must be included before Bootstrap\'s JavaScript.');
       }
 
-      var version = $.fn.jquery.split(' ')[0].split('.');
+      var version = $__default['default'].fn.jquery.split(' ')[0].split('.');
       var minMajor = 1;
       var ltMajor = 2;
       var minMinor = 9;
@@ -7029,11 +7073,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME = 'alert';
-  var VERSION = '4.5.2';
+  var VERSION = '4.5.3';
   var DATA_KEY = 'bs.alert';
   var EVENT_KEY = "." + DATA_KEY;
   var DATA_API_KEY = '.data-api';
-  var JQUERY_NO_CONFLICT = $.fn[NAME];
+  var JQUERY_NO_CONFLICT = $__default['default'].fn[NAME];
   var SELECTOR_DISMISS = '[data-dismiss="alert"]';
   var EVENT_CLOSE = "close" + EVENT_KEY;
   var EVENT_CLOSED = "closed" + EVENT_KEY;
@@ -7073,7 +7117,7 @@ function fromByteArray (uint8) {
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY);
+      $__default['default'].removeData(this._element, DATA_KEY);
       this._element = null;
     } // Private
     ;
@@ -7087,43 +7131,43 @@ function fromByteArray (uint8) {
       }
 
       if (!parent) {
-        parent = $(element).closest("." + CLASS_NAME_ALERT)[0];
+        parent = $__default['default'](element).closest("." + CLASS_NAME_ALERT)[0];
       }
 
       return parent;
     };
 
     _proto._triggerCloseEvent = function _triggerCloseEvent(element) {
-      var closeEvent = $.Event(EVENT_CLOSE);
-      $(element).trigger(closeEvent);
+      var closeEvent = $__default['default'].Event(EVENT_CLOSE);
+      $__default['default'](element).trigger(closeEvent);
       return closeEvent;
     };
 
     _proto._removeElement = function _removeElement(element) {
       var _this = this;
 
-      $(element).removeClass(CLASS_NAME_SHOW);
+      $__default['default'](element).removeClass(CLASS_NAME_SHOW);
 
-      if (!$(element).hasClass(CLASS_NAME_FADE)) {
+      if (!$__default['default'](element).hasClass(CLASS_NAME_FADE)) {
         this._destroyElement(element);
 
         return;
       }
 
       var transitionDuration = Util.getTransitionDurationFromElement(element);
-      $(element).one(Util.TRANSITION_END, function (event) {
+      $__default['default'](element).one(Util.TRANSITION_END, function (event) {
         return _this._destroyElement(element, event);
       }).emulateTransitionEnd(transitionDuration);
     };
 
     _proto._destroyElement = function _destroyElement(element) {
-      $(element).detach().trigger(EVENT_CLOSED).remove();
+      $__default['default'](element).detach().trigger(EVENT_CLOSED).remove();
     } // Static
     ;
 
     Alert._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var $element = $(this);
+        var $element = $__default['default'](this);
         var data = $element.data(DATA_KEY);
 
         if (!data) {
@@ -7163,18 +7207,18 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API, SELECTOR_DISMISS, Alert._handleDismiss(new Alert()));
+  $__default['default'](document).on(EVENT_CLICK_DATA_API, SELECTOR_DISMISS, Alert._handleDismiss(new Alert()));
   /**
    * ------------------------------------------------------------------------
    * jQuery
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME] = Alert._jQueryInterface;
-  $.fn[NAME].Constructor = Alert;
+  $__default['default'].fn[NAME] = Alert._jQueryInterface;
+  $__default['default'].fn[NAME].Constructor = Alert;
 
-  $.fn[NAME].noConflict = function () {
-    $.fn[NAME] = JQUERY_NO_CONFLICT;
+  $__default['default'].fn[NAME].noConflict = function () {
+    $__default['default'].fn[NAME] = JQUERY_NO_CONFLICT;
     return Alert._jQueryInterface;
   };
 
@@ -7185,11 +7229,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$1 = 'button';
-  var VERSION$1 = '4.5.2';
+  var VERSION$1 = '4.5.3';
   var DATA_KEY$1 = 'bs.button';
   var EVENT_KEY$1 = "." + DATA_KEY$1;
   var DATA_API_KEY$1 = '.data-api';
-  var JQUERY_NO_CONFLICT$1 = $.fn[NAME$1];
+  var JQUERY_NO_CONFLICT$1 = $__default['default'].fn[NAME$1];
   var CLASS_NAME_ACTIVE = 'active';
   var CLASS_NAME_BUTTON = 'btn';
   var CLASS_NAME_FOCUS = 'focus';
@@ -7212,6 +7256,7 @@ function fromByteArray (uint8) {
   var Button = /*#__PURE__*/function () {
     function Button(element) {
       this._element = element;
+      this.shouldAvoidTriggerChange = false;
     } // Getters
 
 
@@ -7221,7 +7266,7 @@ function fromByteArray (uint8) {
     _proto.toggle = function toggle() {
       var triggerChangeEvent = true;
       var addAriaPressed = true;
-      var rootElement = $(this._element).closest(SELECTOR_DATA_TOGGLES)[0];
+      var rootElement = $__default['default'](this._element).closest(SELECTOR_DATA_TOGGLES)[0];
 
       if (rootElement) {
         var input = this._element.querySelector(SELECTOR_INPUT);
@@ -7234,7 +7279,7 @@ function fromByteArray (uint8) {
               var activeElement = rootElement.querySelector(SELECTOR_ACTIVE);
 
               if (activeElement) {
-                $(activeElement).removeClass(CLASS_NAME_ACTIVE);
+                $__default['default'](activeElement).removeClass(CLASS_NAME_ACTIVE);
               }
             }
           }
@@ -7245,7 +7290,9 @@ function fromByteArray (uint8) {
               input.checked = !this._element.classList.contains(CLASS_NAME_ACTIVE);
             }
 
-            $(input).trigger('change');
+            if (!this.shouldAvoidTriggerChange) {
+              $__default['default'](input).trigger('change');
+            }
           }
 
           input.focus();
@@ -7259,25 +7306,28 @@ function fromByteArray (uint8) {
         }
 
         if (triggerChangeEvent) {
-          $(this._element).toggleClass(CLASS_NAME_ACTIVE);
+          $__default['default'](this._element).toggleClass(CLASS_NAME_ACTIVE);
         }
       }
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY$1);
+      $__default['default'].removeData(this._element, DATA_KEY$1);
       this._element = null;
     } // Static
     ;
 
-    Button._jQueryInterface = function _jQueryInterface(config) {
+    Button._jQueryInterface = function _jQueryInterface(config, avoidTriggerChange) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$1);
+        var $element = $__default['default'](this);
+        var data = $element.data(DATA_KEY$1);
 
         if (!data) {
           data = new Button(this);
-          $(this).data(DATA_KEY$1, data);
+          $element.data(DATA_KEY$1, data);
         }
+
+        data.shouldAvoidTriggerChange = avoidTriggerChange;
 
         if (config === 'toggle') {
           data[config]();
@@ -7301,12 +7351,12 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API$1, SELECTOR_DATA_TOGGLE_CARROT, function (event) {
+  $__default['default'](document).on(EVENT_CLICK_DATA_API$1, SELECTOR_DATA_TOGGLE_CARROT, function (event) {
     var button = event.target;
     var initialButton = button;
 
-    if (!$(button).hasClass(CLASS_NAME_BUTTON)) {
-      button = $(button).closest(SELECTOR_BUTTON)[0];
+    if (!$__default['default'](button).hasClass(CLASS_NAME_BUTTON)) {
+      button = $__default['default'](button).closest(SELECTOR_BUTTON)[0];
     }
 
     if (!button || button.hasAttribute('disabled') || button.classList.contains('disabled')) {
@@ -7320,15 +7370,15 @@ function fromByteArray (uint8) {
         return;
       }
 
-      if (initialButton.tagName !== 'LABEL' || inputBtn && inputBtn.type !== 'checkbox') {
-        Button._jQueryInterface.call($(button), 'toggle');
+      if (initialButton.tagName === 'INPUT' || button.tagName !== 'LABEL') {
+        Button._jQueryInterface.call($__default['default'](button), 'toggle', initialButton.tagName === 'INPUT');
       }
     }
   }).on(EVENT_FOCUS_BLUR_DATA_API, SELECTOR_DATA_TOGGLE_CARROT, function (event) {
-    var button = $(event.target).closest(SELECTOR_BUTTON)[0];
-    $(button).toggleClass(CLASS_NAME_FOCUS, /^focus(in)?$/.test(event.type));
+    var button = $__default['default'](event.target).closest(SELECTOR_BUTTON)[0];
+    $__default['default'](button).toggleClass(CLASS_NAME_FOCUS, /^focus(in)?$/.test(event.type));
   });
-  $(window).on(EVENT_LOAD_DATA_API, function () {
+  $__default['default'](window).on(EVENT_LOAD_DATA_API, function () {
     // ensure correct active class is set to match the controls' actual values/states
     // find all checkboxes/readio buttons inside data-toggle groups
     var buttons = [].slice.call(document.querySelectorAll(SELECTOR_DATA_TOGGLES_BUTTONS));
@@ -7363,11 +7413,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$1] = Button._jQueryInterface;
-  $.fn[NAME$1].Constructor = Button;
+  $__default['default'].fn[NAME$1] = Button._jQueryInterface;
+  $__default['default'].fn[NAME$1].Constructor = Button;
 
-  $.fn[NAME$1].noConflict = function () {
-    $.fn[NAME$1] = JQUERY_NO_CONFLICT$1;
+  $__default['default'].fn[NAME$1].noConflict = function () {
+    $__default['default'].fn[NAME$1] = JQUERY_NO_CONFLICT$1;
     return Button._jQueryInterface;
   };
 
@@ -7378,11 +7428,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$2 = 'carousel';
-  var VERSION$2 = '4.5.2';
+  var VERSION$2 = '4.5.3';
   var DATA_KEY$2 = 'bs.carousel';
   var EVENT_KEY$2 = "." + DATA_KEY$2;
   var DATA_API_KEY$2 = '.data-api';
-  var JQUERY_NO_CONFLICT$2 = $.fn[NAME$2];
+  var JQUERY_NO_CONFLICT$2 = $__default['default'].fn[NAME$2];
   var ARROW_LEFT_KEYCODE = 37; // KeyboardEvent.which value for left arrow key
 
   var ARROW_RIGHT_KEYCODE = 39; // KeyboardEvent.which value for right arrow key
@@ -7479,9 +7529,10 @@ function fromByteArray (uint8) {
     };
 
     _proto.nextWhenVisible = function nextWhenVisible() {
-      // Don't call next when the page isn't visible
+      var $element = $__default['default'](this._element); // Don't call next when the page isn't visible
       // or the carousel or its parent isn't visible
-      if (!document.hidden && $(this._element).is(':visible') && $(this._element).css('visibility') !== 'hidden') {
+
+      if (!document.hidden && $element.is(':visible') && $element.css('visibility') !== 'hidden') {
         this.next();
       }
     };
@@ -7533,7 +7584,7 @@ function fromByteArray (uint8) {
       }
 
       if (this._isSliding) {
-        $(this._element).one(EVENT_SLID, function () {
+        $__default['default'](this._element).one(EVENT_SLID, function () {
           return _this.to(index);
         });
         return;
@@ -7551,8 +7602,8 @@ function fromByteArray (uint8) {
     };
 
     _proto.dispose = function dispose() {
-      $(this._element).off(EVENT_KEY$2);
-      $.removeData(this._element, DATA_KEY$2);
+      $__default['default'](this._element).off(EVENT_KEY$2);
+      $__default['default'].removeData(this._element, DATA_KEY$2);
       this._items = null;
       this._config = null;
       this._element = null;
@@ -7594,13 +7645,13 @@ function fromByteArray (uint8) {
       var _this2 = this;
 
       if (this._config.keyboard) {
-        $(this._element).on(EVENT_KEYDOWN, function (event) {
+        $__default['default'](this._element).on(EVENT_KEYDOWN, function (event) {
           return _this2._keydown(event);
         });
       }
 
       if (this._config.pause === 'hover') {
-        $(this._element).on(EVENT_MOUSEENTER, function (event) {
+        $__default['default'](this._element).on(EVENT_MOUSEENTER, function (event) {
           return _this2.pause(event);
         }).on(EVENT_MOUSELEAVE, function (event) {
           return _this2.cycle(event);
@@ -7663,27 +7714,27 @@ function fromByteArray (uint8) {
         }
       };
 
-      $(this._element.querySelectorAll(SELECTOR_ITEM_IMG)).on(EVENT_DRAG_START, function (e) {
+      $__default['default'](this._element.querySelectorAll(SELECTOR_ITEM_IMG)).on(EVENT_DRAG_START, function (e) {
         return e.preventDefault();
       });
 
       if (this._pointerEvent) {
-        $(this._element).on(EVENT_POINTERDOWN, function (event) {
+        $__default['default'](this._element).on(EVENT_POINTERDOWN, function (event) {
           return start(event);
         });
-        $(this._element).on(EVENT_POINTERUP, function (event) {
+        $__default['default'](this._element).on(EVENT_POINTERUP, function (event) {
           return end(event);
         });
 
         this._element.classList.add(CLASS_NAME_POINTER_EVENT);
       } else {
-        $(this._element).on(EVENT_TOUCHSTART, function (event) {
+        $__default['default'](this._element).on(EVENT_TOUCHSTART, function (event) {
           return start(event);
         });
-        $(this._element).on(EVENT_TOUCHMOVE, function (event) {
+        $__default['default'](this._element).on(EVENT_TOUCHMOVE, function (event) {
           return move(event);
         });
-        $(this._element).on(EVENT_TOUCHEND, function (event) {
+        $__default['default'](this._element).on(EVENT_TOUCHEND, function (event) {
           return end(event);
         });
       }
@@ -7735,25 +7786,25 @@ function fromByteArray (uint8) {
 
       var fromIndex = this._getItemIndex(this._element.querySelector(SELECTOR_ACTIVE_ITEM));
 
-      var slideEvent = $.Event(EVENT_SLIDE, {
+      var slideEvent = $__default['default'].Event(EVENT_SLIDE, {
         relatedTarget: relatedTarget,
         direction: eventDirectionName,
         from: fromIndex,
         to: targetIndex
       });
-      $(this._element).trigger(slideEvent);
+      $__default['default'](this._element).trigger(slideEvent);
       return slideEvent;
     };
 
     _proto._setActiveIndicatorElement = function _setActiveIndicatorElement(element) {
       if (this._indicatorsElement) {
         var indicators = [].slice.call(this._indicatorsElement.querySelectorAll(SELECTOR_ACTIVE$1));
-        $(indicators).removeClass(CLASS_NAME_ACTIVE$1);
+        $__default['default'](indicators).removeClass(CLASS_NAME_ACTIVE$1);
 
         var nextIndicator = this._indicatorsElement.children[this._getItemIndex(element)];
 
         if (nextIndicator) {
-          $(nextIndicator).addClass(CLASS_NAME_ACTIVE$1);
+          $__default['default'](nextIndicator).addClass(CLASS_NAME_ACTIVE$1);
         }
       }
     };
@@ -7784,7 +7835,7 @@ function fromByteArray (uint8) {
         eventDirectionName = DIRECTION_RIGHT;
       }
 
-      if (nextElement && $(nextElement).hasClass(CLASS_NAME_ACTIVE$1)) {
+      if (nextElement && $__default['default'](nextElement).hasClass(CLASS_NAME_ACTIVE$1)) {
         this._isSliding = false;
         return;
       }
@@ -7808,18 +7859,18 @@ function fromByteArray (uint8) {
 
       this._setActiveIndicatorElement(nextElement);
 
-      var slidEvent = $.Event(EVENT_SLID, {
+      var slidEvent = $__default['default'].Event(EVENT_SLID, {
         relatedTarget: nextElement,
         direction: eventDirectionName,
         from: activeElementIndex,
         to: nextElementIndex
       });
 
-      if ($(this._element).hasClass(CLASS_NAME_SLIDE)) {
-        $(nextElement).addClass(orderClassName);
+      if ($__default['default'](this._element).hasClass(CLASS_NAME_SLIDE)) {
+        $__default['default'](nextElement).addClass(orderClassName);
         Util.reflow(nextElement);
-        $(activeElement).addClass(directionalClassName);
-        $(nextElement).addClass(directionalClassName);
+        $__default['default'](activeElement).addClass(directionalClassName);
+        $__default['default'](nextElement).addClass(directionalClassName);
         var nextElementInterval = parseInt(nextElement.getAttribute('data-interval'), 10);
 
         if (nextElementInterval) {
@@ -7830,19 +7881,19 @@ function fromByteArray (uint8) {
         }
 
         var transitionDuration = Util.getTransitionDurationFromElement(activeElement);
-        $(activeElement).one(Util.TRANSITION_END, function () {
-          $(nextElement).removeClass(directionalClassName + " " + orderClassName).addClass(CLASS_NAME_ACTIVE$1);
-          $(activeElement).removeClass(CLASS_NAME_ACTIVE$1 + " " + orderClassName + " " + directionalClassName);
+        $__default['default'](activeElement).one(Util.TRANSITION_END, function () {
+          $__default['default'](nextElement).removeClass(directionalClassName + " " + orderClassName).addClass(CLASS_NAME_ACTIVE$1);
+          $__default['default'](activeElement).removeClass(CLASS_NAME_ACTIVE$1 + " " + orderClassName + " " + directionalClassName);
           _this4._isSliding = false;
           setTimeout(function () {
-            return $(_this4._element).trigger(slidEvent);
+            return $__default['default'](_this4._element).trigger(slidEvent);
           }, 0);
         }).emulateTransitionEnd(transitionDuration);
       } else {
-        $(activeElement).removeClass(CLASS_NAME_ACTIVE$1);
-        $(nextElement).addClass(CLASS_NAME_ACTIVE$1);
+        $__default['default'](activeElement).removeClass(CLASS_NAME_ACTIVE$1);
+        $__default['default'](nextElement).addClass(CLASS_NAME_ACTIVE$1);
         this._isSliding = false;
-        $(this._element).trigger(slidEvent);
+        $__default['default'](this._element).trigger(slidEvent);
       }
 
       if (isCycling) {
@@ -7853,9 +7904,9 @@ function fromByteArray (uint8) {
 
     Carousel._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$2);
+        var data = $__default['default'](this).data(DATA_KEY$2);
 
-        var _config = _extends({}, Default, $(this).data());
+        var _config = _extends({}, Default, $__default['default'](this).data());
 
         if (typeof config === 'object') {
           _config = _extends({}, _config, config);
@@ -7865,7 +7916,7 @@ function fromByteArray (uint8) {
 
         if (!data) {
           data = new Carousel(this, _config);
-          $(this).data(DATA_KEY$2, data);
+          $__default['default'](this).data(DATA_KEY$2, data);
         }
 
         if (typeof config === 'number') {
@@ -7890,13 +7941,13 @@ function fromByteArray (uint8) {
         return;
       }
 
-      var target = $(selector)[0];
+      var target = $__default['default'](selector)[0];
 
-      if (!target || !$(target).hasClass(CLASS_NAME_CAROUSEL)) {
+      if (!target || !$__default['default'](target).hasClass(CLASS_NAME_CAROUSEL)) {
         return;
       }
 
-      var config = _extends({}, $(target).data(), $(this).data());
+      var config = _extends({}, $__default['default'](target).data(), $__default['default'](this).data());
 
       var slideIndex = this.getAttribute('data-slide-to');
 
@@ -7904,10 +7955,10 @@ function fromByteArray (uint8) {
         config.interval = false;
       }
 
-      Carousel._jQueryInterface.call($(target), config);
+      Carousel._jQueryInterface.call($__default['default'](target), config);
 
       if (slideIndex) {
-        $(target).data(DATA_KEY$2).to(slideIndex);
+        $__default['default'](target).data(DATA_KEY$2).to(slideIndex);
       }
 
       event.preventDefault();
@@ -7934,12 +7985,12 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API$2, SELECTOR_DATA_SLIDE, Carousel._dataApiClickHandler);
-  $(window).on(EVENT_LOAD_DATA_API$1, function () {
+  $__default['default'](document).on(EVENT_CLICK_DATA_API$2, SELECTOR_DATA_SLIDE, Carousel._dataApiClickHandler);
+  $__default['default'](window).on(EVENT_LOAD_DATA_API$1, function () {
     var carousels = [].slice.call(document.querySelectorAll(SELECTOR_DATA_RIDE));
 
     for (var i = 0, len = carousels.length; i < len; i++) {
-      var $carousel = $(carousels[i]);
+      var $carousel = $__default['default'](carousels[i]);
 
       Carousel._jQueryInterface.call($carousel, $carousel.data());
     }
@@ -7950,11 +8001,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$2] = Carousel._jQueryInterface;
-  $.fn[NAME$2].Constructor = Carousel;
+  $__default['default'].fn[NAME$2] = Carousel._jQueryInterface;
+  $__default['default'].fn[NAME$2].Constructor = Carousel;
 
-  $.fn[NAME$2].noConflict = function () {
-    $.fn[NAME$2] = JQUERY_NO_CONFLICT$2;
+  $__default['default'].fn[NAME$2].noConflict = function () {
+    $__default['default'].fn[NAME$2] = JQUERY_NO_CONFLICT$2;
     return Carousel._jQueryInterface;
   };
 
@@ -7965,11 +8016,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$3 = 'collapse';
-  var VERSION$3 = '4.5.2';
+  var VERSION$3 = '4.5.3';
   var DATA_KEY$3 = 'bs.collapse';
   var EVENT_KEY$3 = "." + DATA_KEY$3;
   var DATA_API_KEY$3 = '.data-api';
-  var JQUERY_NO_CONFLICT$3 = $.fn[NAME$3];
+  var JQUERY_NO_CONFLICT$3 = $__default['default'].fn[NAME$3];
   var Default$1 = {
     toggle: true,
     parent: ''
@@ -8035,7 +8086,7 @@ function fromByteArray (uint8) {
 
     // Public
     _proto.toggle = function toggle() {
-      if ($(this._element).hasClass(CLASS_NAME_SHOW$1)) {
+      if ($__default['default'](this._element).hasClass(CLASS_NAME_SHOW$1)) {
         this.hide();
       } else {
         this.show();
@@ -8045,7 +8096,7 @@ function fromByteArray (uint8) {
     _proto.show = function show() {
       var _this = this;
 
-      if (this._isTransitioning || $(this._element).hasClass(CLASS_NAME_SHOW$1)) {
+      if (this._isTransitioning || $__default['default'](this._element).hasClass(CLASS_NAME_SHOW$1)) {
         return;
       }
 
@@ -8067,64 +8118,64 @@ function fromByteArray (uint8) {
       }
 
       if (actives) {
-        activesData = $(actives).not(this._selector).data(DATA_KEY$3);
+        activesData = $__default['default'](actives).not(this._selector).data(DATA_KEY$3);
 
         if (activesData && activesData._isTransitioning) {
           return;
         }
       }
 
-      var startEvent = $.Event(EVENT_SHOW);
-      $(this._element).trigger(startEvent);
+      var startEvent = $__default['default'].Event(EVENT_SHOW);
+      $__default['default'](this._element).trigger(startEvent);
 
       if (startEvent.isDefaultPrevented()) {
         return;
       }
 
       if (actives) {
-        Collapse._jQueryInterface.call($(actives).not(this._selector), 'hide');
+        Collapse._jQueryInterface.call($__default['default'](actives).not(this._selector), 'hide');
 
         if (!activesData) {
-          $(actives).data(DATA_KEY$3, null);
+          $__default['default'](actives).data(DATA_KEY$3, null);
         }
       }
 
       var dimension = this._getDimension();
 
-      $(this._element).removeClass(CLASS_NAME_COLLAPSE).addClass(CLASS_NAME_COLLAPSING);
+      $__default['default'](this._element).removeClass(CLASS_NAME_COLLAPSE).addClass(CLASS_NAME_COLLAPSING);
       this._element.style[dimension] = 0;
 
       if (this._triggerArray.length) {
-        $(this._triggerArray).removeClass(CLASS_NAME_COLLAPSED).attr('aria-expanded', true);
+        $__default['default'](this._triggerArray).removeClass(CLASS_NAME_COLLAPSED).attr('aria-expanded', true);
       }
 
       this.setTransitioning(true);
 
       var complete = function complete() {
-        $(_this._element).removeClass(CLASS_NAME_COLLAPSING).addClass(CLASS_NAME_COLLAPSE + " " + CLASS_NAME_SHOW$1);
+        $__default['default'](_this._element).removeClass(CLASS_NAME_COLLAPSING).addClass(CLASS_NAME_COLLAPSE + " " + CLASS_NAME_SHOW$1);
         _this._element.style[dimension] = '';
 
         _this.setTransitioning(false);
 
-        $(_this._element).trigger(EVENT_SHOWN);
+        $__default['default'](_this._element).trigger(EVENT_SHOWN);
       };
 
       var capitalizedDimension = dimension[0].toUpperCase() + dimension.slice(1);
       var scrollSize = "scroll" + capitalizedDimension;
       var transitionDuration = Util.getTransitionDurationFromElement(this._element);
-      $(this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+      $__default['default'](this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
       this._element.style[dimension] = this._element[scrollSize] + "px";
     };
 
     _proto.hide = function hide() {
       var _this2 = this;
 
-      if (this._isTransitioning || !$(this._element).hasClass(CLASS_NAME_SHOW$1)) {
+      if (this._isTransitioning || !$__default['default'](this._element).hasClass(CLASS_NAME_SHOW$1)) {
         return;
       }
 
-      var startEvent = $.Event(EVENT_HIDE);
-      $(this._element).trigger(startEvent);
+      var startEvent = $__default['default'].Event(EVENT_HIDE);
+      $__default['default'](this._element).trigger(startEvent);
 
       if (startEvent.isDefaultPrevented()) {
         return;
@@ -8134,7 +8185,7 @@ function fromByteArray (uint8) {
 
       this._element.style[dimension] = this._element.getBoundingClientRect()[dimension] + "px";
       Util.reflow(this._element);
-      $(this._element).addClass(CLASS_NAME_COLLAPSING).removeClass(CLASS_NAME_COLLAPSE + " " + CLASS_NAME_SHOW$1);
+      $__default['default'](this._element).addClass(CLASS_NAME_COLLAPSING).removeClass(CLASS_NAME_COLLAPSE + " " + CLASS_NAME_SHOW$1);
       var triggerArrayLength = this._triggerArray.length;
 
       if (triggerArrayLength > 0) {
@@ -8143,10 +8194,10 @@ function fromByteArray (uint8) {
           var selector = Util.getSelectorFromElement(trigger);
 
           if (selector !== null) {
-            var $elem = $([].slice.call(document.querySelectorAll(selector)));
+            var $elem = $__default['default']([].slice.call(document.querySelectorAll(selector)));
 
             if (!$elem.hasClass(CLASS_NAME_SHOW$1)) {
-              $(trigger).addClass(CLASS_NAME_COLLAPSED).attr('aria-expanded', false);
+              $__default['default'](trigger).addClass(CLASS_NAME_COLLAPSED).attr('aria-expanded', false);
             }
           }
         }
@@ -8157,12 +8208,12 @@ function fromByteArray (uint8) {
       var complete = function complete() {
         _this2.setTransitioning(false);
 
-        $(_this2._element).removeClass(CLASS_NAME_COLLAPSING).addClass(CLASS_NAME_COLLAPSE).trigger(EVENT_HIDDEN);
+        $__default['default'](_this2._element).removeClass(CLASS_NAME_COLLAPSING).addClass(CLASS_NAME_COLLAPSE).trigger(EVENT_HIDDEN);
       };
 
       this._element.style[dimension] = '';
       var transitionDuration = Util.getTransitionDurationFromElement(this._element);
-      $(this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+      $__default['default'](this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
     };
 
     _proto.setTransitioning = function setTransitioning(isTransitioning) {
@@ -8170,7 +8221,7 @@ function fromByteArray (uint8) {
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY$3);
+      $__default['default'].removeData(this._element, DATA_KEY$3);
       this._config = null;
       this._parent = null;
       this._element = null;
@@ -8188,7 +8239,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._getDimension = function _getDimension() {
-      var hasWidth = $(this._element).hasClass(DIMENSION_WIDTH);
+      var hasWidth = $__default['default'](this._element).hasClass(DIMENSION_WIDTH);
       return hasWidth ? DIMENSION_WIDTH : DIMENSION_HEIGHT;
     };
 
@@ -8209,17 +8260,17 @@ function fromByteArray (uint8) {
 
       var selector = "[data-toggle=\"collapse\"][data-parent=\"" + this._config.parent + "\"]";
       var children = [].slice.call(parent.querySelectorAll(selector));
-      $(children).each(function (i, element) {
+      $__default['default'](children).each(function (i, element) {
         _this3._addAriaAndCollapsedClass(Collapse._getTargetFromElement(element), [element]);
       });
       return parent;
     };
 
     _proto._addAriaAndCollapsedClass = function _addAriaAndCollapsedClass(element, triggerArray) {
-      var isOpen = $(element).hasClass(CLASS_NAME_SHOW$1);
+      var isOpen = $__default['default'](element).hasClass(CLASS_NAME_SHOW$1);
 
       if (triggerArray.length) {
-        $(triggerArray).toggleClass(CLASS_NAME_COLLAPSED, !isOpen).attr('aria-expanded', isOpen);
+        $__default['default'](triggerArray).toggleClass(CLASS_NAME_COLLAPSED, !isOpen).attr('aria-expanded', isOpen);
       }
     } // Static
     ;
@@ -8231,10 +8282,10 @@ function fromByteArray (uint8) {
 
     Collapse._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var $this = $(this);
-        var data = $this.data(DATA_KEY$3);
+        var $element = $__default['default'](this);
+        var data = $element.data(DATA_KEY$3);
 
-        var _config = _extends({}, Default$1, $this.data(), typeof config === 'object' && config ? config : {});
+        var _config = _extends({}, Default$1, $element.data(), typeof config === 'object' && config ? config : {});
 
         if (!data && _config.toggle && typeof config === 'string' && /show|hide/.test(config)) {
           _config.toggle = false;
@@ -8242,7 +8293,7 @@ function fromByteArray (uint8) {
 
         if (!data) {
           data = new Collapse(this, _config);
-          $this.data(DATA_KEY$3, data);
+          $element.data(DATA_KEY$3, data);
         }
 
         if (typeof config === 'string') {
@@ -8276,17 +8327,17 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API$3, SELECTOR_DATA_TOGGLE$1, function (event) {
+  $__default['default'](document).on(EVENT_CLICK_DATA_API$3, SELECTOR_DATA_TOGGLE$1, function (event) {
     // preventDefault only for <a> elements (which change the URL) not inside the collapsible element
     if (event.currentTarget.tagName === 'A') {
       event.preventDefault();
     }
 
-    var $trigger = $(this);
+    var $trigger = $__default['default'](this);
     var selector = Util.getSelectorFromElement(this);
     var selectors = [].slice.call(document.querySelectorAll(selector));
-    $(selectors).each(function () {
-      var $target = $(this);
+    $__default['default'](selectors).each(function () {
+      var $target = $__default['default'](this);
       var data = $target.data(DATA_KEY$3);
       var config = data ? 'toggle' : $trigger.data();
 
@@ -8299,11 +8350,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$3] = Collapse._jQueryInterface;
-  $.fn[NAME$3].Constructor = Collapse;
+  $__default['default'].fn[NAME$3] = Collapse._jQueryInterface;
+  $__default['default'].fn[NAME$3].Constructor = Collapse;
 
-  $.fn[NAME$3].noConflict = function () {
-    $.fn[NAME$3] = JQUERY_NO_CONFLICT$3;
+  $__default['default'].fn[NAME$3].noConflict = function () {
+    $__default['default'].fn[NAME$3] = JQUERY_NO_CONFLICT$3;
     return Collapse._jQueryInterface;
   };
 
@@ -8314,11 +8365,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$4 = 'dropdown';
-  var VERSION$4 = '4.5.2';
+  var VERSION$4 = '4.5.3';
   var DATA_KEY$4 = 'bs.dropdown';
   var EVENT_KEY$4 = "." + DATA_KEY$4;
   var DATA_API_KEY$4 = '.data-api';
-  var JQUERY_NO_CONFLICT$4 = $.fn[NAME$4];
+  var JQUERY_NO_CONFLICT$4 = $__default['default'].fn[NAME$4];
   var ESCAPE_KEYCODE = 27; // KeyboardEvent.which value for Escape (Esc) key
 
   var SPACE_KEYCODE = 32; // KeyboardEvent.which value for space key
@@ -8396,11 +8447,11 @@ function fromByteArray (uint8) {
 
     // Public
     _proto.toggle = function toggle() {
-      if (this._element.disabled || $(this._element).hasClass(CLASS_NAME_DISABLED)) {
+      if (this._element.disabled || $__default['default'](this._element).hasClass(CLASS_NAME_DISABLED)) {
         return;
       }
 
-      var isActive = $(this._menu).hasClass(CLASS_NAME_SHOW$2);
+      var isActive = $__default['default'](this._menu).hasClass(CLASS_NAME_SHOW$2);
 
       Dropdown._clearMenus();
 
@@ -8416,18 +8467,18 @@ function fromByteArray (uint8) {
         usePopper = false;
       }
 
-      if (this._element.disabled || $(this._element).hasClass(CLASS_NAME_DISABLED) || $(this._menu).hasClass(CLASS_NAME_SHOW$2)) {
+      if (this._element.disabled || $__default['default'](this._element).hasClass(CLASS_NAME_DISABLED) || $__default['default'](this._menu).hasClass(CLASS_NAME_SHOW$2)) {
         return;
       }
 
       var relatedTarget = {
         relatedTarget: this._element
       };
-      var showEvent = $.Event(EVENT_SHOW$1, relatedTarget);
+      var showEvent = $__default['default'].Event(EVENT_SHOW$1, relatedTarget);
 
       var parent = Dropdown._getParentFromElement(this._element);
 
-      $(parent).trigger(showEvent);
+      $__default['default'](parent).trigger(showEvent);
 
       if (showEvent.isDefaultPrevented()) {
         return;
@@ -8439,7 +8490,7 @@ function fromByteArray (uint8) {
          * Check for Popper dependency
          * Popper - https://popper.js.org
          */
-        if (typeof Popper === 'undefined') {
+        if (typeof Popper__default['default'] === 'undefined') {
           throw new TypeError('Bootstrap\'s dropdowns require Popper.js (https://popper.js.org/)');
         }
 
@@ -8459,41 +8510,41 @@ function fromByteArray (uint8) {
 
 
         if (this._config.boundary !== 'scrollParent') {
-          $(parent).addClass(CLASS_NAME_POSITION_STATIC);
+          $__default['default'](parent).addClass(CLASS_NAME_POSITION_STATIC);
         }
 
-        this._popper = new Popper(referenceElement, this._menu, this._getPopperConfig());
+        this._popper = new Popper__default['default'](referenceElement, this._menu, this._getPopperConfig());
       } // If this is a touch-enabled device we add extra
       // empty mouseover listeners to the body's immediate children;
       // only needed because of broken event delegation on iOS
       // https://www.quirksmode.org/blog/archives/2014/02/mouse_event_bub.html
 
 
-      if ('ontouchstart' in document.documentElement && $(parent).closest(SELECTOR_NAVBAR_NAV).length === 0) {
-        $(document.body).children().on('mouseover', null, $.noop);
+      if ('ontouchstart' in document.documentElement && $__default['default'](parent).closest(SELECTOR_NAVBAR_NAV).length === 0) {
+        $__default['default'](document.body).children().on('mouseover', null, $__default['default'].noop);
       }
 
       this._element.focus();
 
       this._element.setAttribute('aria-expanded', true);
 
-      $(this._menu).toggleClass(CLASS_NAME_SHOW$2);
-      $(parent).toggleClass(CLASS_NAME_SHOW$2).trigger($.Event(EVENT_SHOWN$1, relatedTarget));
+      $__default['default'](this._menu).toggleClass(CLASS_NAME_SHOW$2);
+      $__default['default'](parent).toggleClass(CLASS_NAME_SHOW$2).trigger($__default['default'].Event(EVENT_SHOWN$1, relatedTarget));
     };
 
     _proto.hide = function hide() {
-      if (this._element.disabled || $(this._element).hasClass(CLASS_NAME_DISABLED) || !$(this._menu).hasClass(CLASS_NAME_SHOW$2)) {
+      if (this._element.disabled || $__default['default'](this._element).hasClass(CLASS_NAME_DISABLED) || !$__default['default'](this._menu).hasClass(CLASS_NAME_SHOW$2)) {
         return;
       }
 
       var relatedTarget = {
         relatedTarget: this._element
       };
-      var hideEvent = $.Event(EVENT_HIDE$1, relatedTarget);
+      var hideEvent = $__default['default'].Event(EVENT_HIDE$1, relatedTarget);
 
       var parent = Dropdown._getParentFromElement(this._element);
 
-      $(parent).trigger(hideEvent);
+      $__default['default'](parent).trigger(hideEvent);
 
       if (hideEvent.isDefaultPrevented()) {
         return;
@@ -8503,13 +8554,13 @@ function fromByteArray (uint8) {
         this._popper.destroy();
       }
 
-      $(this._menu).toggleClass(CLASS_NAME_SHOW$2);
-      $(parent).toggleClass(CLASS_NAME_SHOW$2).trigger($.Event(EVENT_HIDDEN$1, relatedTarget));
+      $__default['default'](this._menu).toggleClass(CLASS_NAME_SHOW$2);
+      $__default['default'](parent).toggleClass(CLASS_NAME_SHOW$2).trigger($__default['default'].Event(EVENT_HIDDEN$1, relatedTarget));
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY$4);
-      $(this._element).off(EVENT_KEY$4);
+      $__default['default'].removeData(this._element, DATA_KEY$4);
+      $__default['default'](this._element).off(EVENT_KEY$4);
       this._element = null;
       this._menu = null;
 
@@ -8532,7 +8583,7 @@ function fromByteArray (uint8) {
     _proto._addEventListeners = function _addEventListeners() {
       var _this = this;
 
-      $(this._element).on(EVENT_CLICK, function (event) {
+      $__default['default'](this._element).on(EVENT_CLICK, function (event) {
         event.preventDefault();
         event.stopPropagation();
 
@@ -8541,7 +8592,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._getConfig = function _getConfig(config) {
-      config = _extends({}, this.constructor.Default, $(this._element).data(), config);
+      config = _extends({}, this.constructor.Default, $__default['default'](this._element).data(), config);
       Util.typeCheckConfig(NAME$4, config, this.constructor.DefaultType);
       return config;
     };
@@ -8559,16 +8610,16 @@ function fromByteArray (uint8) {
     };
 
     _proto._getPlacement = function _getPlacement() {
-      var $parentDropdown = $(this._element.parentNode);
+      var $parentDropdown = $__default['default'](this._element.parentNode);
       var placement = PLACEMENT_BOTTOM; // Handle dropup
 
       if ($parentDropdown.hasClass(CLASS_NAME_DROPUP)) {
-        placement = $(this._menu).hasClass(CLASS_NAME_MENURIGHT) ? PLACEMENT_TOPEND : PLACEMENT_TOP;
+        placement = $__default['default'](this._menu).hasClass(CLASS_NAME_MENURIGHT) ? PLACEMENT_TOPEND : PLACEMENT_TOP;
       } else if ($parentDropdown.hasClass(CLASS_NAME_DROPRIGHT)) {
         placement = PLACEMENT_RIGHT;
       } else if ($parentDropdown.hasClass(CLASS_NAME_DROPLEFT)) {
         placement = PLACEMENT_LEFT;
-      } else if ($(this._menu).hasClass(CLASS_NAME_MENURIGHT)) {
+      } else if ($__default['default'](this._menu).hasClass(CLASS_NAME_MENURIGHT)) {
         placement = PLACEMENT_BOTTOMEND;
       }
 
@@ -8576,7 +8627,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._detectNavbar = function _detectNavbar() {
-      return $(this._element).closest('.navbar').length > 0;
+      return $__default['default'](this._element).closest('.navbar').length > 0;
     };
 
     _proto._getOffset = function _getOffset() {
@@ -8622,13 +8673,13 @@ function fromByteArray (uint8) {
 
     Dropdown._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$4);
+        var data = $__default['default'](this).data(DATA_KEY$4);
 
         var _config = typeof config === 'object' ? config : null;
 
         if (!data) {
           data = new Dropdown(this, _config);
-          $(this).data(DATA_KEY$4, data);
+          $__default['default'](this).data(DATA_KEY$4, data);
         }
 
         if (typeof config === 'string') {
@@ -8651,7 +8702,7 @@ function fromByteArray (uint8) {
       for (var i = 0, len = toggles.length; i < len; i++) {
         var parent = Dropdown._getParentFromElement(toggles[i]);
 
-        var context = $(toggles[i]).data(DATA_KEY$4);
+        var context = $__default['default'](toggles[i]).data(DATA_KEY$4);
         var relatedTarget = {
           relatedTarget: toggles[i]
         };
@@ -8666,16 +8717,16 @@ function fromByteArray (uint8) {
 
         var dropdownMenu = context._menu;
 
-        if (!$(parent).hasClass(CLASS_NAME_SHOW$2)) {
+        if (!$__default['default'](parent).hasClass(CLASS_NAME_SHOW$2)) {
           continue;
         }
 
-        if (event && (event.type === 'click' && /input|textarea/i.test(event.target.tagName) || event.type === 'keyup' && event.which === TAB_KEYCODE) && $.contains(parent, event.target)) {
+        if (event && (event.type === 'click' && /input|textarea/i.test(event.target.tagName) || event.type === 'keyup' && event.which === TAB_KEYCODE) && $__default['default'].contains(parent, event.target)) {
           continue;
         }
 
-        var hideEvent = $.Event(EVENT_HIDE$1, relatedTarget);
-        $(parent).trigger(hideEvent);
+        var hideEvent = $__default['default'].Event(EVENT_HIDE$1, relatedTarget);
+        $__default['default'](parent).trigger(hideEvent);
 
         if (hideEvent.isDefaultPrevented()) {
           continue;
@@ -8684,7 +8735,7 @@ function fromByteArray (uint8) {
 
 
         if ('ontouchstart' in document.documentElement) {
-          $(document.body).children().off('mouseover', null, $.noop);
+          $__default['default'](document.body).children().off('mouseover', null, $__default['default'].noop);
         }
 
         toggles[i].setAttribute('aria-expanded', 'false');
@@ -8693,8 +8744,8 @@ function fromByteArray (uint8) {
           context._popper.destroy();
         }
 
-        $(dropdownMenu).removeClass(CLASS_NAME_SHOW$2);
-        $(parent).removeClass(CLASS_NAME_SHOW$2).trigger($.Event(EVENT_HIDDEN$1, relatedTarget));
+        $__default['default'](dropdownMenu).removeClass(CLASS_NAME_SHOW$2);
+        $__default['default'](parent).removeClass(CLASS_NAME_SHOW$2).trigger($__default['default'].Event(EVENT_HIDDEN$1, relatedTarget));
       }
     };
 
@@ -8718,17 +8769,17 @@ function fromByteArray (uint8) {
       //  - If key is other than escape
       //    - If key is not up or down => not a dropdown command
       //    - If trigger inside the menu => not a dropdown command
-      if (/input|textarea/i.test(event.target.tagName) ? event.which === SPACE_KEYCODE || event.which !== ESCAPE_KEYCODE && (event.which !== ARROW_DOWN_KEYCODE && event.which !== ARROW_UP_KEYCODE || $(event.target).closest(SELECTOR_MENU).length) : !REGEXP_KEYDOWN.test(event.which)) {
+      if (/input|textarea/i.test(event.target.tagName) ? event.which === SPACE_KEYCODE || event.which !== ESCAPE_KEYCODE && (event.which !== ARROW_DOWN_KEYCODE && event.which !== ARROW_UP_KEYCODE || $__default['default'](event.target).closest(SELECTOR_MENU).length) : !REGEXP_KEYDOWN.test(event.which)) {
         return;
       }
 
-      if (this.disabled || $(this).hasClass(CLASS_NAME_DISABLED)) {
+      if (this.disabled || $__default['default'](this).hasClass(CLASS_NAME_DISABLED)) {
         return;
       }
 
       var parent = Dropdown._getParentFromElement(this);
 
-      var isActive = $(parent).hasClass(CLASS_NAME_SHOW$2);
+      var isActive = $__default['default'](parent).hasClass(CLASS_NAME_SHOW$2);
 
       if (!isActive && event.which === ESCAPE_KEYCODE) {
         return;
@@ -8737,17 +8788,17 @@ function fromByteArray (uint8) {
       event.preventDefault();
       event.stopPropagation();
 
-      if (!isActive || isActive && (event.which === ESCAPE_KEYCODE || event.which === SPACE_KEYCODE)) {
+      if (!isActive || event.which === ESCAPE_KEYCODE || event.which === SPACE_KEYCODE) {
         if (event.which === ESCAPE_KEYCODE) {
-          $(parent.querySelector(SELECTOR_DATA_TOGGLE$2)).trigger('focus');
+          $__default['default'](parent.querySelector(SELECTOR_DATA_TOGGLE$2)).trigger('focus');
         }
 
-        $(this).trigger('click');
+        $__default['default'](this).trigger('click');
         return;
       }
 
       var items = [].slice.call(parent.querySelectorAll(SELECTOR_VISIBLE_ITEMS)).filter(function (item) {
-        return $(item).is(':visible');
+        return $__default['default'](item).is(':visible');
       });
 
       if (items.length === 0) {
@@ -8799,11 +8850,11 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_KEYDOWN_DATA_API, SELECTOR_DATA_TOGGLE$2, Dropdown._dataApiKeydownHandler).on(EVENT_KEYDOWN_DATA_API, SELECTOR_MENU, Dropdown._dataApiKeydownHandler).on(EVENT_CLICK_DATA_API$4 + " " + EVENT_KEYUP_DATA_API, Dropdown._clearMenus).on(EVENT_CLICK_DATA_API$4, SELECTOR_DATA_TOGGLE$2, function (event) {
+  $__default['default'](document).on(EVENT_KEYDOWN_DATA_API, SELECTOR_DATA_TOGGLE$2, Dropdown._dataApiKeydownHandler).on(EVENT_KEYDOWN_DATA_API, SELECTOR_MENU, Dropdown._dataApiKeydownHandler).on(EVENT_CLICK_DATA_API$4 + " " + EVENT_KEYUP_DATA_API, Dropdown._clearMenus).on(EVENT_CLICK_DATA_API$4, SELECTOR_DATA_TOGGLE$2, function (event) {
     event.preventDefault();
     event.stopPropagation();
 
-    Dropdown._jQueryInterface.call($(this), 'toggle');
+    Dropdown._jQueryInterface.call($__default['default'](this), 'toggle');
   }).on(EVENT_CLICK_DATA_API$4, SELECTOR_FORM_CHILD, function (e) {
     e.stopPropagation();
   });
@@ -8813,11 +8864,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$4] = Dropdown._jQueryInterface;
-  $.fn[NAME$4].Constructor = Dropdown;
+  $__default['default'].fn[NAME$4] = Dropdown._jQueryInterface;
+  $__default['default'].fn[NAME$4].Constructor = Dropdown;
 
-  $.fn[NAME$4].noConflict = function () {
-    $.fn[NAME$4] = JQUERY_NO_CONFLICT$4;
+  $__default['default'].fn[NAME$4].noConflict = function () {
+    $__default['default'].fn[NAME$4] = JQUERY_NO_CONFLICT$4;
     return Dropdown._jQueryInterface;
   };
 
@@ -8828,11 +8879,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$5 = 'modal';
-  var VERSION$5 = '4.5.2';
+  var VERSION$5 = '4.5.3';
   var DATA_KEY$5 = 'bs.modal';
   var EVENT_KEY$5 = "." + DATA_KEY$5;
   var DATA_API_KEY$5 = '.data-api';
-  var JQUERY_NO_CONFLICT$5 = $.fn[NAME$5];
+  var JQUERY_NO_CONFLICT$5 = $__default['default'].fn[NAME$5];
   var ESCAPE_KEYCODE$1 = 27; // KeyboardEvent.which value for Escape (Esc) key
 
   var Default$3 = {
@@ -8906,14 +8957,14 @@ function fromByteArray (uint8) {
         return;
       }
 
-      if ($(this._element).hasClass(CLASS_NAME_FADE$1)) {
+      if ($__default['default'](this._element).hasClass(CLASS_NAME_FADE$1)) {
         this._isTransitioning = true;
       }
 
-      var showEvent = $.Event(EVENT_SHOW$2, {
+      var showEvent = $__default['default'].Event(EVENT_SHOW$2, {
         relatedTarget: relatedTarget
       });
-      $(this._element).trigger(showEvent);
+      $__default['default'](this._element).trigger(showEvent);
 
       if (this._isShown || showEvent.isDefaultPrevented()) {
         return;
@@ -8931,12 +8982,12 @@ function fromByteArray (uint8) {
 
       this._setResizeEvent();
 
-      $(this._element).on(EVENT_CLICK_DISMISS, SELECTOR_DATA_DISMISS, function (event) {
+      $__default['default'](this._element).on(EVENT_CLICK_DISMISS, SELECTOR_DATA_DISMISS, function (event) {
         return _this.hide(event);
       });
-      $(this._dialog).on(EVENT_MOUSEDOWN_DISMISS, function () {
-        $(_this._element).one(EVENT_MOUSEUP_DISMISS, function (event) {
-          if ($(event.target).is(_this._element)) {
+      $__default['default'](this._dialog).on(EVENT_MOUSEDOWN_DISMISS, function () {
+        $__default['default'](_this._element).one(EVENT_MOUSEUP_DISMISS, function (event) {
+          if ($__default['default'](event.target).is(_this._element)) {
             _this._ignoreBackdropClick = true;
           }
         });
@@ -8958,15 +9009,15 @@ function fromByteArray (uint8) {
         return;
       }
 
-      var hideEvent = $.Event(EVENT_HIDE$2);
-      $(this._element).trigger(hideEvent);
+      var hideEvent = $__default['default'].Event(EVENT_HIDE$2);
+      $__default['default'](this._element).trigger(hideEvent);
 
       if (!this._isShown || hideEvent.isDefaultPrevented()) {
         return;
       }
 
       this._isShown = false;
-      var transition = $(this._element).hasClass(CLASS_NAME_FADE$1);
+      var transition = $__default['default'](this._element).hasClass(CLASS_NAME_FADE$1);
 
       if (transition) {
         this._isTransitioning = true;
@@ -8976,14 +9027,14 @@ function fromByteArray (uint8) {
 
       this._setResizeEvent();
 
-      $(document).off(EVENT_FOCUSIN);
-      $(this._element).removeClass(CLASS_NAME_SHOW$3);
-      $(this._element).off(EVENT_CLICK_DISMISS);
-      $(this._dialog).off(EVENT_MOUSEDOWN_DISMISS);
+      $__default['default'](document).off(EVENT_FOCUSIN);
+      $__default['default'](this._element).removeClass(CLASS_NAME_SHOW$3);
+      $__default['default'](this._element).off(EVENT_CLICK_DISMISS);
+      $__default['default'](this._dialog).off(EVENT_MOUSEDOWN_DISMISS);
 
       if (transition) {
         var transitionDuration = Util.getTransitionDurationFromElement(this._element);
-        $(this._element).one(Util.TRANSITION_END, function (event) {
+        $__default['default'](this._element).one(Util.TRANSITION_END, function (event) {
           return _this2._hideModal(event);
         }).emulateTransitionEnd(transitionDuration);
       } else {
@@ -8993,7 +9044,7 @@ function fromByteArray (uint8) {
 
     _proto.dispose = function dispose() {
       [window, this._element, this._dialog].forEach(function (htmlElement) {
-        return $(htmlElement).off(EVENT_KEY$5);
+        return $__default['default'](htmlElement).off(EVENT_KEY$5);
       });
       /**
        * `document` has 2 events `EVENT_FOCUSIN` and `EVENT_CLICK_DATA_API`
@@ -9001,8 +9052,8 @@ function fromByteArray (uint8) {
        * It will remove `EVENT_CLICK_DATA_API` event that should remain
        */
 
-      $(document).off(EVENT_FOCUSIN);
-      $.removeData(this._element, DATA_KEY$5);
+      $__default['default'](document).off(EVENT_FOCUSIN);
+      $__default['default'].removeData(this._element, DATA_KEY$5);
       this._config = null;
       this._element = null;
       this._dialog = null;
@@ -9029,10 +9080,10 @@ function fromByteArray (uint8) {
       var _this3 = this;
 
       if (this._config.backdrop === 'static') {
-        var hideEventPrevented = $.Event(EVENT_HIDE_PREVENTED);
-        $(this._element).trigger(hideEventPrevented);
+        var hideEventPrevented = $__default['default'].Event(EVENT_HIDE_PREVENTED);
+        $__default['default'](this._element).trigger(hideEventPrevented);
 
-        if (hideEventPrevented.defaultPrevented) {
+        if (hideEventPrevented.isDefaultPrevented()) {
           return;
         }
 
@@ -9045,12 +9096,12 @@ function fromByteArray (uint8) {
         this._element.classList.add(CLASS_NAME_STATIC);
 
         var modalTransitionDuration = Util.getTransitionDurationFromElement(this._dialog);
-        $(this._element).off(Util.TRANSITION_END);
-        $(this._element).one(Util.TRANSITION_END, function () {
+        $__default['default'](this._element).off(Util.TRANSITION_END);
+        $__default['default'](this._element).one(Util.TRANSITION_END, function () {
           _this3._element.classList.remove(CLASS_NAME_STATIC);
 
           if (!isModalOverflowing) {
-            $(_this3._element).one(Util.TRANSITION_END, function () {
+            $__default['default'](_this3._element).one(Util.TRANSITION_END, function () {
               _this3._element.style.overflowY = '';
             }).emulateTransitionEnd(_this3._element, modalTransitionDuration);
           }
@@ -9065,7 +9116,7 @@ function fromByteArray (uint8) {
     _proto._showElement = function _showElement(relatedTarget) {
       var _this4 = this;
 
-      var transition = $(this._element).hasClass(CLASS_NAME_FADE$1);
+      var transition = $__default['default'](this._element).hasClass(CLASS_NAME_FADE$1);
       var modalBody = this._dialog ? this._dialog.querySelector(SELECTOR_MODAL_BODY) : null;
 
       if (!this._element.parentNode || this._element.parentNode.nodeType !== Node.ELEMENT_NODE) {
@@ -9081,7 +9132,7 @@ function fromByteArray (uint8) {
 
       this._element.setAttribute('role', 'dialog');
 
-      if ($(this._dialog).hasClass(CLASS_NAME_SCROLLABLE) && modalBody) {
+      if ($__default['default'](this._dialog).hasClass(CLASS_NAME_SCROLLABLE) && modalBody) {
         modalBody.scrollTop = 0;
       } else {
         this._element.scrollTop = 0;
@@ -9091,13 +9142,13 @@ function fromByteArray (uint8) {
         Util.reflow(this._element);
       }
 
-      $(this._element).addClass(CLASS_NAME_SHOW$3);
+      $__default['default'](this._element).addClass(CLASS_NAME_SHOW$3);
 
       if (this._config.focus) {
         this._enforceFocus();
       }
 
-      var shownEvent = $.Event(EVENT_SHOWN$2, {
+      var shownEvent = $__default['default'].Event(EVENT_SHOWN$2, {
         relatedTarget: relatedTarget
       });
 
@@ -9107,12 +9158,12 @@ function fromByteArray (uint8) {
         }
 
         _this4._isTransitioning = false;
-        $(_this4._element).trigger(shownEvent);
+        $__default['default'](_this4._element).trigger(shownEvent);
       };
 
       if (transition) {
         var transitionDuration = Util.getTransitionDurationFromElement(this._dialog);
-        $(this._dialog).one(Util.TRANSITION_END, transitionComplete).emulateTransitionEnd(transitionDuration);
+        $__default['default'](this._dialog).one(Util.TRANSITION_END, transitionComplete).emulateTransitionEnd(transitionDuration);
       } else {
         transitionComplete();
       }
@@ -9121,9 +9172,9 @@ function fromByteArray (uint8) {
     _proto._enforceFocus = function _enforceFocus() {
       var _this5 = this;
 
-      $(document).off(EVENT_FOCUSIN) // Guard against infinite focus loop
+      $__default['default'](document).off(EVENT_FOCUSIN) // Guard against infinite focus loop
       .on(EVENT_FOCUSIN, function (event) {
-        if (document !== event.target && _this5._element !== event.target && $(_this5._element).has(event.target).length === 0) {
+        if (document !== event.target && _this5._element !== event.target && $__default['default'](_this5._element).has(event.target).length === 0) {
           _this5._element.focus();
         }
       });
@@ -9133,7 +9184,7 @@ function fromByteArray (uint8) {
       var _this6 = this;
 
       if (this._isShown) {
-        $(this._element).on(EVENT_KEYDOWN_DISMISS, function (event) {
+        $__default['default'](this._element).on(EVENT_KEYDOWN_DISMISS, function (event) {
           if (_this6._config.keyboard && event.which === ESCAPE_KEYCODE$1) {
             event.preventDefault();
 
@@ -9143,7 +9194,7 @@ function fromByteArray (uint8) {
           }
         });
       } else if (!this._isShown) {
-        $(this._element).off(EVENT_KEYDOWN_DISMISS);
+        $__default['default'](this._element).off(EVENT_KEYDOWN_DISMISS);
       }
     };
 
@@ -9151,11 +9202,11 @@ function fromByteArray (uint8) {
       var _this7 = this;
 
       if (this._isShown) {
-        $(window).on(EVENT_RESIZE, function (event) {
+        $__default['default'](window).on(EVENT_RESIZE, function (event) {
           return _this7.handleUpdate(event);
         });
       } else {
-        $(window).off(EVENT_RESIZE);
+        $__default['default'](window).off(EVENT_RESIZE);
       }
     };
 
@@ -9173,19 +9224,19 @@ function fromByteArray (uint8) {
       this._isTransitioning = false;
 
       this._showBackdrop(function () {
-        $(document.body).removeClass(CLASS_NAME_OPEN);
+        $__default['default'](document.body).removeClass(CLASS_NAME_OPEN);
 
         _this8._resetAdjustments();
 
         _this8._resetScrollbar();
 
-        $(_this8._element).trigger(EVENT_HIDDEN$2);
+        $__default['default'](_this8._element).trigger(EVENT_HIDDEN$2);
       });
     };
 
     _proto._removeBackdrop = function _removeBackdrop() {
       if (this._backdrop) {
-        $(this._backdrop).remove();
+        $__default['default'](this._backdrop).remove();
         this._backdrop = null;
       }
     };
@@ -9193,7 +9244,7 @@ function fromByteArray (uint8) {
     _proto._showBackdrop = function _showBackdrop(callback) {
       var _this9 = this;
 
-      var animate = $(this._element).hasClass(CLASS_NAME_FADE$1) ? CLASS_NAME_FADE$1 : '';
+      var animate = $__default['default'](this._element).hasClass(CLASS_NAME_FADE$1) ? CLASS_NAME_FADE$1 : '';
 
       if (this._isShown && this._config.backdrop) {
         this._backdrop = document.createElement('div');
@@ -9203,8 +9254,8 @@ function fromByteArray (uint8) {
           this._backdrop.classList.add(animate);
         }
 
-        $(this._backdrop).appendTo(document.body);
-        $(this._element).on(EVENT_CLICK_DISMISS, function (event) {
+        $__default['default'](this._backdrop).appendTo(document.body);
+        $__default['default'](this._element).on(EVENT_CLICK_DISMISS, function (event) {
           if (_this9._ignoreBackdropClick) {
             _this9._ignoreBackdropClick = false;
             return;
@@ -9221,7 +9272,7 @@ function fromByteArray (uint8) {
           Util.reflow(this._backdrop);
         }
 
-        $(this._backdrop).addClass(CLASS_NAME_SHOW$3);
+        $__default['default'](this._backdrop).addClass(CLASS_NAME_SHOW$3);
 
         if (!callback) {
           return;
@@ -9233,9 +9284,9 @@ function fromByteArray (uint8) {
         }
 
         var backdropTransitionDuration = Util.getTransitionDurationFromElement(this._backdrop);
-        $(this._backdrop).one(Util.TRANSITION_END, callback).emulateTransitionEnd(backdropTransitionDuration);
+        $__default['default'](this._backdrop).one(Util.TRANSITION_END, callback).emulateTransitionEnd(backdropTransitionDuration);
       } else if (!this._isShown && this._backdrop) {
-        $(this._backdrop).removeClass(CLASS_NAME_SHOW$3);
+        $__default['default'](this._backdrop).removeClass(CLASS_NAME_SHOW$3);
 
         var callbackRemove = function callbackRemove() {
           _this9._removeBackdrop();
@@ -9245,10 +9296,10 @@ function fromByteArray (uint8) {
           }
         };
 
-        if ($(this._element).hasClass(CLASS_NAME_FADE$1)) {
+        if ($__default['default'](this._element).hasClass(CLASS_NAME_FADE$1)) {
           var _backdropTransitionDuration = Util.getTransitionDurationFromElement(this._backdrop);
 
-          $(this._backdrop).one(Util.TRANSITION_END, callbackRemove).emulateTransitionEnd(_backdropTransitionDuration);
+          $__default['default'](this._backdrop).one(Util.TRANSITION_END, callbackRemove).emulateTransitionEnd(_backdropTransitionDuration);
         } else {
           callbackRemove();
         }
@@ -9293,46 +9344,46 @@ function fromByteArray (uint8) {
         var fixedContent = [].slice.call(document.querySelectorAll(SELECTOR_FIXED_CONTENT));
         var stickyContent = [].slice.call(document.querySelectorAll(SELECTOR_STICKY_CONTENT)); // Adjust fixed content padding
 
-        $(fixedContent).each(function (index, element) {
+        $__default['default'](fixedContent).each(function (index, element) {
           var actualPadding = element.style.paddingRight;
-          var calculatedPadding = $(element).css('padding-right');
-          $(element).data('padding-right', actualPadding).css('padding-right', parseFloat(calculatedPadding) + _this10._scrollbarWidth + "px");
+          var calculatedPadding = $__default['default'](element).css('padding-right');
+          $__default['default'](element).data('padding-right', actualPadding).css('padding-right', parseFloat(calculatedPadding) + _this10._scrollbarWidth + "px");
         }); // Adjust sticky content margin
 
-        $(stickyContent).each(function (index, element) {
+        $__default['default'](stickyContent).each(function (index, element) {
           var actualMargin = element.style.marginRight;
-          var calculatedMargin = $(element).css('margin-right');
-          $(element).data('margin-right', actualMargin).css('margin-right', parseFloat(calculatedMargin) - _this10._scrollbarWidth + "px");
+          var calculatedMargin = $__default['default'](element).css('margin-right');
+          $__default['default'](element).data('margin-right', actualMargin).css('margin-right', parseFloat(calculatedMargin) - _this10._scrollbarWidth + "px");
         }); // Adjust body padding
 
         var actualPadding = document.body.style.paddingRight;
-        var calculatedPadding = $(document.body).css('padding-right');
-        $(document.body).data('padding-right', actualPadding).css('padding-right', parseFloat(calculatedPadding) + this._scrollbarWidth + "px");
+        var calculatedPadding = $__default['default'](document.body).css('padding-right');
+        $__default['default'](document.body).data('padding-right', actualPadding).css('padding-right', parseFloat(calculatedPadding) + this._scrollbarWidth + "px");
       }
 
-      $(document.body).addClass(CLASS_NAME_OPEN);
+      $__default['default'](document.body).addClass(CLASS_NAME_OPEN);
     };
 
     _proto._resetScrollbar = function _resetScrollbar() {
       // Restore fixed content padding
       var fixedContent = [].slice.call(document.querySelectorAll(SELECTOR_FIXED_CONTENT));
-      $(fixedContent).each(function (index, element) {
-        var padding = $(element).data('padding-right');
-        $(element).removeData('padding-right');
+      $__default['default'](fixedContent).each(function (index, element) {
+        var padding = $__default['default'](element).data('padding-right');
+        $__default['default'](element).removeData('padding-right');
         element.style.paddingRight = padding ? padding : '';
       }); // Restore sticky content
 
       var elements = [].slice.call(document.querySelectorAll("" + SELECTOR_STICKY_CONTENT));
-      $(elements).each(function (index, element) {
-        var margin = $(element).data('margin-right');
+      $__default['default'](elements).each(function (index, element) {
+        var margin = $__default['default'](element).data('margin-right');
 
         if (typeof margin !== 'undefined') {
-          $(element).css('margin-right', margin).removeData('margin-right');
+          $__default['default'](element).css('margin-right', margin).removeData('margin-right');
         }
       }); // Restore body padding
 
-      var padding = $(document.body).data('padding-right');
-      $(document.body).removeData('padding-right');
+      var padding = $__default['default'](document.body).data('padding-right');
+      $__default['default'](document.body).removeData('padding-right');
       document.body.style.paddingRight = padding ? padding : '';
     };
 
@@ -9349,13 +9400,13 @@ function fromByteArray (uint8) {
 
     Modal._jQueryInterface = function _jQueryInterface(config, relatedTarget) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$5);
+        var data = $__default['default'](this).data(DATA_KEY$5);
 
-        var _config = _extends({}, Default$3, $(this).data(), typeof config === 'object' && config ? config : {});
+        var _config = _extends({}, Default$3, $__default['default'](this).data(), typeof config === 'object' && config ? config : {});
 
         if (!data) {
           data = new Modal(this, _config);
-          $(this).data(DATA_KEY$5, data);
+          $__default['default'](this).data(DATA_KEY$5, data);
         }
 
         if (typeof config === 'string') {
@@ -9391,7 +9442,7 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API$5, SELECTOR_DATA_TOGGLE$3, function (event) {
+  $__default['default'](document).on(EVENT_CLICK_DATA_API$5, SELECTOR_DATA_TOGGLE$3, function (event) {
     var _this11 = this;
 
     var target;
@@ -9401,26 +9452,26 @@ function fromByteArray (uint8) {
       target = document.querySelector(selector);
     }
 
-    var config = $(target).data(DATA_KEY$5) ? 'toggle' : _extends({}, $(target).data(), $(this).data());
+    var config = $__default['default'](target).data(DATA_KEY$5) ? 'toggle' : _extends({}, $__default['default'](target).data(), $__default['default'](this).data());
 
     if (this.tagName === 'A' || this.tagName === 'AREA') {
       event.preventDefault();
     }
 
-    var $target = $(target).one(EVENT_SHOW$2, function (showEvent) {
+    var $target = $__default['default'](target).one(EVENT_SHOW$2, function (showEvent) {
       if (showEvent.isDefaultPrevented()) {
         // Only register focus restorer if modal will actually get shown
         return;
       }
 
       $target.one(EVENT_HIDDEN$2, function () {
-        if ($(_this11).is(':visible')) {
+        if ($__default['default'](_this11).is(':visible')) {
           _this11.focus();
         }
       });
     });
 
-    Modal._jQueryInterface.call($(target), config, this);
+    Modal._jQueryInterface.call($__default['default'](target), config, this);
   });
   /**
    * ------------------------------------------------------------------------
@@ -9428,17 +9479,17 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$5] = Modal._jQueryInterface;
-  $.fn[NAME$5].Constructor = Modal;
+  $__default['default'].fn[NAME$5] = Modal._jQueryInterface;
+  $__default['default'].fn[NAME$5].Constructor = Modal;
 
-  $.fn[NAME$5].noConflict = function () {
-    $.fn[NAME$5] = JQUERY_NO_CONFLICT$5;
+  $__default['default'].fn[NAME$5].noConflict = function () {
+    $__default['default'].fn[NAME$5] = JQUERY_NO_CONFLICT$5;
     return Modal._jQueryInterface;
   };
 
   /**
    * --------------------------------------------------------------------------
-   * Bootstrap (v4.5.2): tools/sanitizer.js
+   * Bootstrap (v4.5.3): tools/sanitizer.js
    * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
    * --------------------------------------------------------------------------
    */
@@ -9564,10 +9615,10 @@ function fromByteArray (uint8) {
    */
 
   var NAME$6 = 'tooltip';
-  var VERSION$6 = '4.5.2';
+  var VERSION$6 = '4.5.3';
   var DATA_KEY$6 = 'bs.tooltip';
   var EVENT_KEY$6 = "." + DATA_KEY$6;
-  var JQUERY_NO_CONFLICT$6 = $.fn[NAME$6];
+  var JQUERY_NO_CONFLICT$6 = $__default['default'].fn[NAME$6];
   var CLASS_PREFIX = 'bs-tooltip';
   var BSCLS_PREFIX_REGEX = new RegExp("(^|\\s)" + CLASS_PREFIX + "\\S+", 'g');
   var DISALLOWED_ATTRIBUTES = ['sanitize', 'whiteList', 'sanitizeFn'];
@@ -9644,7 +9695,7 @@ function fromByteArray (uint8) {
 
   var Tooltip = /*#__PURE__*/function () {
     function Tooltip(element, config) {
-      if (typeof Popper === 'undefined') {
+      if (typeof Popper__default['default'] === 'undefined') {
         throw new TypeError('Bootstrap\'s tooltips require Popper.js (https://popper.js.org/)');
       } // private
 
@@ -9685,11 +9736,11 @@ function fromByteArray (uint8) {
 
       if (event) {
         var dataKey = this.constructor.DATA_KEY;
-        var context = $(event.currentTarget).data(dataKey);
+        var context = $__default['default'](event.currentTarget).data(dataKey);
 
         if (!context) {
           context = new this.constructor(event.currentTarget, this._getDelegateConfig());
-          $(event.currentTarget).data(dataKey, context);
+          $__default['default'](event.currentTarget).data(dataKey, context);
         }
 
         context._activeTrigger.click = !context._activeTrigger.click;
@@ -9700,7 +9751,7 @@ function fromByteArray (uint8) {
           context._leave(null, context);
         }
       } else {
-        if ($(this.getTipElement()).hasClass(CLASS_NAME_SHOW$4)) {
+        if ($__default['default'](this.getTipElement()).hasClass(CLASS_NAME_SHOW$4)) {
           this._leave(null, this);
 
           return;
@@ -9712,12 +9763,12 @@ function fromByteArray (uint8) {
 
     _proto.dispose = function dispose() {
       clearTimeout(this._timeout);
-      $.removeData(this.element, this.constructor.DATA_KEY);
-      $(this.element).off(this.constructor.EVENT_KEY);
-      $(this.element).closest('.modal').off('hide.bs.modal', this._hideModalHandler);
+      $__default['default'].removeData(this.element, this.constructor.DATA_KEY);
+      $__default['default'](this.element).off(this.constructor.EVENT_KEY);
+      $__default['default'](this.element).closest('.modal').off('hide.bs.modal', this._hideModalHandler);
 
       if (this.tip) {
-        $(this.tip).remove();
+        $__default['default'](this.tip).remove();
       }
 
       this._isEnabled = null;
@@ -9738,16 +9789,16 @@ function fromByteArray (uint8) {
     _proto.show = function show() {
       var _this = this;
 
-      if ($(this.element).css('display') === 'none') {
+      if ($__default['default'](this.element).css('display') === 'none') {
         throw new Error('Please use show on visible elements');
       }
 
-      var showEvent = $.Event(this.constructor.Event.SHOW);
+      var showEvent = $__default['default'].Event(this.constructor.Event.SHOW);
 
       if (this.isWithContent() && this._isEnabled) {
-        $(this.element).trigger(showEvent);
+        $__default['default'](this.element).trigger(showEvent);
         var shadowRoot = Util.findShadowRoot(this.element);
-        var isInTheDom = $.contains(shadowRoot !== null ? shadowRoot : this.element.ownerDocument.documentElement, this.element);
+        var isInTheDom = $__default['default'].contains(shadowRoot !== null ? shadowRoot : this.element.ownerDocument.documentElement, this.element);
 
         if (showEvent.isDefaultPrevented() || !isInTheDom) {
           return;
@@ -9760,7 +9811,7 @@ function fromByteArray (uint8) {
         this.setContent();
 
         if (this.config.animation) {
-          $(tip).addClass(CLASS_NAME_FADE$2);
+          $__default['default'](tip).addClass(CLASS_NAME_FADE$2);
         }
 
         var placement = typeof this.config.placement === 'function' ? this.config.placement.call(this, tip, this.element) : this.config.placement;
@@ -9771,21 +9822,21 @@ function fromByteArray (uint8) {
 
         var container = this._getContainer();
 
-        $(tip).data(this.constructor.DATA_KEY, this);
+        $__default['default'](tip).data(this.constructor.DATA_KEY, this);
 
-        if (!$.contains(this.element.ownerDocument.documentElement, this.tip)) {
-          $(tip).appendTo(container);
+        if (!$__default['default'].contains(this.element.ownerDocument.documentElement, this.tip)) {
+          $__default['default'](tip).appendTo(container);
         }
 
-        $(this.element).trigger(this.constructor.Event.INSERTED);
-        this._popper = new Popper(this.element, tip, this._getPopperConfig(attachment));
-        $(tip).addClass(CLASS_NAME_SHOW$4); // If this is a touch-enabled device we add extra
+        $__default['default'](this.element).trigger(this.constructor.Event.INSERTED);
+        this._popper = new Popper__default['default'](this.element, tip, this._getPopperConfig(attachment));
+        $__default['default'](tip).addClass(CLASS_NAME_SHOW$4); // If this is a touch-enabled device we add extra
         // empty mouseover listeners to the body's immediate children;
         // only needed because of broken event delegation on iOS
         // https://www.quirksmode.org/blog/archives/2014/02/mouse_event_bub.html
 
         if ('ontouchstart' in document.documentElement) {
-          $(document.body).children().on('mouseover', null, $.noop);
+          $__default['default'](document.body).children().on('mouseover', null, $__default['default'].noop);
         }
 
         var complete = function complete() {
@@ -9795,16 +9846,16 @@ function fromByteArray (uint8) {
 
           var prevHoverState = _this._hoverState;
           _this._hoverState = null;
-          $(_this.element).trigger(_this.constructor.Event.SHOWN);
+          $__default['default'](_this.element).trigger(_this.constructor.Event.SHOWN);
 
           if (prevHoverState === HOVER_STATE_OUT) {
             _this._leave(null, _this);
           }
         };
 
-        if ($(this.tip).hasClass(CLASS_NAME_FADE$2)) {
+        if ($__default['default'](this.tip).hasClass(CLASS_NAME_FADE$2)) {
           var transitionDuration = Util.getTransitionDurationFromElement(this.tip);
-          $(this.tip).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+          $__default['default'](this.tip).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
         } else {
           complete();
         }
@@ -9815,7 +9866,7 @@ function fromByteArray (uint8) {
       var _this2 = this;
 
       var tip = this.getTipElement();
-      var hideEvent = $.Event(this.constructor.Event.HIDE);
+      var hideEvent = $__default['default'].Event(this.constructor.Event.HIDE);
 
       var complete = function complete() {
         if (_this2._hoverState !== HOVER_STATE_SHOW && tip.parentNode) {
@@ -9826,7 +9877,7 @@ function fromByteArray (uint8) {
 
         _this2.element.removeAttribute('aria-describedby');
 
-        $(_this2.element).trigger(_this2.constructor.Event.HIDDEN);
+        $__default['default'](_this2.element).trigger(_this2.constructor.Event.HIDDEN);
 
         if (_this2._popper !== null) {
           _this2._popper.destroy();
@@ -9837,26 +9888,26 @@ function fromByteArray (uint8) {
         }
       };
 
-      $(this.element).trigger(hideEvent);
+      $__default['default'](this.element).trigger(hideEvent);
 
       if (hideEvent.isDefaultPrevented()) {
         return;
       }
 
-      $(tip).removeClass(CLASS_NAME_SHOW$4); // If this is a touch-enabled device we remove the extra
+      $__default['default'](tip).removeClass(CLASS_NAME_SHOW$4); // If this is a touch-enabled device we remove the extra
       // empty mouseover listeners we added for iOS support
 
       if ('ontouchstart' in document.documentElement) {
-        $(document.body).children().off('mouseover', null, $.noop);
+        $__default['default'](document.body).children().off('mouseover', null, $__default['default'].noop);
       }
 
       this._activeTrigger[TRIGGER_CLICK] = false;
       this._activeTrigger[TRIGGER_FOCUS] = false;
       this._activeTrigger[TRIGGER_HOVER] = false;
 
-      if ($(this.tip).hasClass(CLASS_NAME_FADE$2)) {
+      if ($__default['default'](this.tip).hasClass(CLASS_NAME_FADE$2)) {
         var transitionDuration = Util.getTransitionDurationFromElement(tip);
-        $(tip).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+        $__default['default'](tip).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
       } else {
         complete();
       }
@@ -9876,29 +9927,29 @@ function fromByteArray (uint8) {
     };
 
     _proto.addAttachmentClass = function addAttachmentClass(attachment) {
-      $(this.getTipElement()).addClass(CLASS_PREFIX + "-" + attachment);
+      $__default['default'](this.getTipElement()).addClass(CLASS_PREFIX + "-" + attachment);
     };
 
     _proto.getTipElement = function getTipElement() {
-      this.tip = this.tip || $(this.config.template)[0];
+      this.tip = this.tip || $__default['default'](this.config.template)[0];
       return this.tip;
     };
 
     _proto.setContent = function setContent() {
       var tip = this.getTipElement();
-      this.setElementContent($(tip.querySelectorAll(SELECTOR_TOOLTIP_INNER)), this.getTitle());
-      $(tip).removeClass(CLASS_NAME_FADE$2 + " " + CLASS_NAME_SHOW$4);
+      this.setElementContent($__default['default'](tip.querySelectorAll(SELECTOR_TOOLTIP_INNER)), this.getTitle());
+      $__default['default'](tip).removeClass(CLASS_NAME_FADE$2 + " " + CLASS_NAME_SHOW$4);
     };
 
     _proto.setElementContent = function setElementContent($element, content) {
       if (typeof content === 'object' && (content.nodeType || content.jquery)) {
         // Content is a DOM node or a jQuery
         if (this.config.html) {
-          if (!$(content).parent().is($element)) {
+          if (!$__default['default'](content).parent().is($element)) {
             $element.empty().append(content);
           }
         } else {
-          $element.text($(content).text());
+          $element.text($__default['default'](content).text());
         }
 
         return;
@@ -9978,10 +10029,10 @@ function fromByteArray (uint8) {
       }
 
       if (Util.isElement(this.config.container)) {
-        return $(this.config.container);
+        return $__default['default'](this.config.container);
       }
 
-      return $(document).find(this.config.container);
+      return $__default['default'](document).find(this.config.container);
     };
 
     _proto._getAttachment = function _getAttachment(placement) {
@@ -9994,13 +10045,13 @@ function fromByteArray (uint8) {
       var triggers = this.config.trigger.split(' ');
       triggers.forEach(function (trigger) {
         if (trigger === 'click') {
-          $(_this5.element).on(_this5.constructor.Event.CLICK, _this5.config.selector, function (event) {
+          $__default['default'](_this5.element).on(_this5.constructor.Event.CLICK, _this5.config.selector, function (event) {
             return _this5.toggle(event);
           });
         } else if (trigger !== TRIGGER_MANUAL) {
           var eventIn = trigger === TRIGGER_HOVER ? _this5.constructor.Event.MOUSEENTER : _this5.constructor.Event.FOCUSIN;
           var eventOut = trigger === TRIGGER_HOVER ? _this5.constructor.Event.MOUSELEAVE : _this5.constructor.Event.FOCUSOUT;
-          $(_this5.element).on(eventIn, _this5.config.selector, function (event) {
+          $__default['default'](_this5.element).on(eventIn, _this5.config.selector, function (event) {
             return _this5._enter(event);
           }).on(eventOut, _this5.config.selector, function (event) {
             return _this5._leave(event);
@@ -10014,7 +10065,7 @@ function fromByteArray (uint8) {
         }
       };
 
-      $(this.element).closest('.modal').on('hide.bs.modal', this._hideModalHandler);
+      $__default['default'](this.element).closest('.modal').on('hide.bs.modal', this._hideModalHandler);
 
       if (this.config.selector) {
         this.config = _extends({}, this.config, {
@@ -10037,18 +10088,18 @@ function fromByteArray (uint8) {
 
     _proto._enter = function _enter(event, context) {
       var dataKey = this.constructor.DATA_KEY;
-      context = context || $(event.currentTarget).data(dataKey);
+      context = context || $__default['default'](event.currentTarget).data(dataKey);
 
       if (!context) {
         context = new this.constructor(event.currentTarget, this._getDelegateConfig());
-        $(event.currentTarget).data(dataKey, context);
+        $__default['default'](event.currentTarget).data(dataKey, context);
       }
 
       if (event) {
         context._activeTrigger[event.type === 'focusin' ? TRIGGER_FOCUS : TRIGGER_HOVER] = true;
       }
 
-      if ($(context.getTipElement()).hasClass(CLASS_NAME_SHOW$4) || context._hoverState === HOVER_STATE_SHOW) {
+      if ($__default['default'](context.getTipElement()).hasClass(CLASS_NAME_SHOW$4) || context._hoverState === HOVER_STATE_SHOW) {
         context._hoverState = HOVER_STATE_SHOW;
         return;
       }
@@ -10070,11 +10121,11 @@ function fromByteArray (uint8) {
 
     _proto._leave = function _leave(event, context) {
       var dataKey = this.constructor.DATA_KEY;
-      context = context || $(event.currentTarget).data(dataKey);
+      context = context || $__default['default'](event.currentTarget).data(dataKey);
 
       if (!context) {
         context = new this.constructor(event.currentTarget, this._getDelegateConfig());
-        $(event.currentTarget).data(dataKey, context);
+        $__default['default'](event.currentTarget).data(dataKey, context);
       }
 
       if (event) {
@@ -10111,7 +10162,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._getConfig = function _getConfig(config) {
-      var dataAttributes = $(this.element).data();
+      var dataAttributes = $__default['default'](this.element).data();
       Object.keys(dataAttributes).forEach(function (dataAttr) {
         if (DISALLOWED_ATTRIBUTES.indexOf(dataAttr) !== -1) {
           delete dataAttributes[dataAttr];
@@ -10158,7 +10209,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._cleanTipClass = function _cleanTipClass() {
-      var $tip = $(this.getTipElement());
+      var $tip = $__default['default'](this.getTipElement());
       var tabClass = $tip.attr('class').match(BSCLS_PREFIX_REGEX);
 
       if (tabClass !== null && tabClass.length) {
@@ -10182,7 +10233,7 @@ function fromByteArray (uint8) {
         return;
       }
 
-      $(tip).removeClass(CLASS_NAME_FADE$2);
+      $__default['default'](tip).removeClass(CLASS_NAME_FADE$2);
       this.config.animation = false;
       this.hide();
       this.show();
@@ -10192,7 +10243,8 @@ function fromByteArray (uint8) {
 
     Tooltip._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$6);
+        var $element = $__default['default'](this);
+        var data = $element.data(DATA_KEY$6);
 
         var _config = typeof config === 'object' && config;
 
@@ -10202,7 +10254,7 @@ function fromByteArray (uint8) {
 
         if (!data) {
           data = new Tooltip(this, _config);
-          $(this).data(DATA_KEY$6, data);
+          $element.data(DATA_KEY$6, data);
         }
 
         if (typeof config === 'string') {
@@ -10261,11 +10313,11 @@ function fromByteArray (uint8) {
    */
 
 
-  $.fn[NAME$6] = Tooltip._jQueryInterface;
-  $.fn[NAME$6].Constructor = Tooltip;
+  $__default['default'].fn[NAME$6] = Tooltip._jQueryInterface;
+  $__default['default'].fn[NAME$6].Constructor = Tooltip;
 
-  $.fn[NAME$6].noConflict = function () {
-    $.fn[NAME$6] = JQUERY_NO_CONFLICT$6;
+  $__default['default'].fn[NAME$6].noConflict = function () {
+    $__default['default'].fn[NAME$6] = JQUERY_NO_CONFLICT$6;
     return Tooltip._jQueryInterface;
   };
 
@@ -10276,10 +10328,10 @@ function fromByteArray (uint8) {
    */
 
   var NAME$7 = 'popover';
-  var VERSION$7 = '4.5.2';
+  var VERSION$7 = '4.5.3';
   var DATA_KEY$7 = 'bs.popover';
   var EVENT_KEY$7 = "." + DATA_KEY$7;
-  var JQUERY_NO_CONFLICT$7 = $.fn[NAME$7];
+  var JQUERY_NO_CONFLICT$7 = $__default['default'].fn[NAME$7];
   var CLASS_PREFIX$1 = 'bs-popover';
   var BSCLS_PREFIX_REGEX$1 = new RegExp("(^|\\s)" + CLASS_PREFIX$1 + "\\S+", 'g');
 
@@ -10331,16 +10383,16 @@ function fromByteArray (uint8) {
     };
 
     _proto.addAttachmentClass = function addAttachmentClass(attachment) {
-      $(this.getTipElement()).addClass(CLASS_PREFIX$1 + "-" + attachment);
+      $__default['default'](this.getTipElement()).addClass(CLASS_PREFIX$1 + "-" + attachment);
     };
 
     _proto.getTipElement = function getTipElement() {
-      this.tip = this.tip || $(this.config.template)[0];
+      this.tip = this.tip || $__default['default'](this.config.template)[0];
       return this.tip;
     };
 
     _proto.setContent = function setContent() {
-      var $tip = $(this.getTipElement()); // We use append for html objects to maintain js events
+      var $tip = $__default['default'](this.getTipElement()); // We use append for html objects to maintain js events
 
       this.setElementContent($tip.find(SELECTOR_TITLE), this.getTitle());
 
@@ -10360,7 +10412,7 @@ function fromByteArray (uint8) {
     };
 
     _proto._cleanTipClass = function _cleanTipClass() {
-      var $tip = $(this.getTipElement());
+      var $tip = $__default['default'](this.getTipElement());
       var tabClass = $tip.attr('class').match(BSCLS_PREFIX_REGEX$1);
 
       if (tabClass !== null && tabClass.length > 0) {
@@ -10371,7 +10423,7 @@ function fromByteArray (uint8) {
 
     Popover._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$7);
+        var data = $__default['default'](this).data(DATA_KEY$7);
 
         var _config = typeof config === 'object' ? config : null;
 
@@ -10381,7 +10433,7 @@ function fromByteArray (uint8) {
 
         if (!data) {
           data = new Popover(this, _config);
-          $(this).data(DATA_KEY$7, data);
+          $__default['default'](this).data(DATA_KEY$7, data);
         }
 
         if (typeof config === 'string') {
@@ -10441,11 +10493,11 @@ function fromByteArray (uint8) {
    */
 
 
-  $.fn[NAME$7] = Popover._jQueryInterface;
-  $.fn[NAME$7].Constructor = Popover;
+  $__default['default'].fn[NAME$7] = Popover._jQueryInterface;
+  $__default['default'].fn[NAME$7].Constructor = Popover;
 
-  $.fn[NAME$7].noConflict = function () {
-    $.fn[NAME$7] = JQUERY_NO_CONFLICT$7;
+  $__default['default'].fn[NAME$7].noConflict = function () {
+    $__default['default'].fn[NAME$7] = JQUERY_NO_CONFLICT$7;
     return Popover._jQueryInterface;
   };
 
@@ -10456,11 +10508,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$8 = 'scrollspy';
-  var VERSION$8 = '4.5.2';
+  var VERSION$8 = '4.5.3';
   var DATA_KEY$8 = 'bs.scrollspy';
   var EVENT_KEY$8 = "." + DATA_KEY$8;
   var DATA_API_KEY$6 = '.data-api';
-  var JQUERY_NO_CONFLICT$8 = $.fn[NAME$8];
+  var JQUERY_NO_CONFLICT$8 = $__default['default'].fn[NAME$8];
   var Default$6 = {
     offset: 10,
     method: 'auto',
@@ -10504,7 +10556,7 @@ function fromByteArray (uint8) {
       this._targets = [];
       this._activeTarget = null;
       this._scrollHeight = 0;
-      $(this._scrollElement).on(EVENT_SCROLL, function (event) {
+      $__default['default'](this._scrollElement).on(EVENT_SCROLL, function (event) {
         return _this._process(event);
       });
       this.refresh();
@@ -10539,7 +10591,7 @@ function fromByteArray (uint8) {
 
           if (targetBCR.width || targetBCR.height) {
             // TODO (fat): remove sketch reliance on jQuery position/offset
-            return [$(target)[offsetMethod]().top + offsetBase, targetSelector];
+            return [$__default['default'](target)[offsetMethod]().top + offsetBase, targetSelector];
           }
         }
 
@@ -10556,8 +10608,8 @@ function fromByteArray (uint8) {
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY$8);
-      $(this._scrollElement).off(EVENT_KEY$8);
+      $__default['default'].removeData(this._element, DATA_KEY$8);
+      $__default['default'](this._scrollElement).off(EVENT_KEY$8);
       this._element = null;
       this._scrollElement = null;
       this._config = null;
@@ -10573,11 +10625,11 @@ function fromByteArray (uint8) {
       config = _extends({}, Default$6, typeof config === 'object' && config ? config : {});
 
       if (typeof config.target !== 'string' && Util.isElement(config.target)) {
-        var id = $(config.target).attr('id');
+        var id = $__default['default'](config.target).attr('id');
 
         if (!id) {
           id = Util.getUID(NAME$8);
-          $(config.target).attr('id', id);
+          $__default['default'](config.target).attr('id', id);
         }
 
         config.target = "#" + id;
@@ -10646,7 +10698,7 @@ function fromByteArray (uint8) {
         return selector + "[data-target=\"" + target + "\"]," + selector + "[href=\"" + target + "\"]";
       });
 
-      var $link = $([].slice.call(document.querySelectorAll(queries.join(','))));
+      var $link = $__default['default']([].slice.call(document.querySelectorAll(queries.join(','))));
 
       if ($link.hasClass(CLASS_NAME_DROPDOWN_ITEM)) {
         $link.closest(SELECTOR_DROPDOWN).find(SELECTOR_DROPDOWN_TOGGLE).addClass(CLASS_NAME_ACTIVE$2);
@@ -10661,7 +10713,7 @@ function fromByteArray (uint8) {
         $link.parents(SELECTOR_NAV_LIST_GROUP).prev(SELECTOR_NAV_ITEMS).children(SELECTOR_NAV_LINKS).addClass(CLASS_NAME_ACTIVE$2);
       }
 
-      $(this._scrollElement).trigger(EVENT_ACTIVATE, {
+      $__default['default'](this._scrollElement).trigger(EVENT_ACTIVATE, {
         relatedTarget: target
       });
     };
@@ -10677,13 +10729,13 @@ function fromByteArray (uint8) {
 
     ScrollSpy._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var data = $(this).data(DATA_KEY$8);
+        var data = $__default['default'](this).data(DATA_KEY$8);
 
         var _config = typeof config === 'object' && config;
 
         if (!data) {
           data = new ScrollSpy(this, _config);
-          $(this).data(DATA_KEY$8, data);
+          $__default['default'](this).data(DATA_KEY$8, data);
         }
 
         if (typeof config === 'string') {
@@ -10717,12 +10769,12 @@ function fromByteArray (uint8) {
    */
 
 
-  $(window).on(EVENT_LOAD_DATA_API$2, function () {
+  $__default['default'](window).on(EVENT_LOAD_DATA_API$2, function () {
     var scrollSpys = [].slice.call(document.querySelectorAll(SELECTOR_DATA_SPY));
     var scrollSpysLength = scrollSpys.length;
 
     for (var i = scrollSpysLength; i--;) {
-      var $spy = $(scrollSpys[i]);
+      var $spy = $__default['default'](scrollSpys[i]);
 
       ScrollSpy._jQueryInterface.call($spy, $spy.data());
     }
@@ -10733,11 +10785,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$8] = ScrollSpy._jQueryInterface;
-  $.fn[NAME$8].Constructor = ScrollSpy;
+  $__default['default'].fn[NAME$8] = ScrollSpy._jQueryInterface;
+  $__default['default'].fn[NAME$8].Constructor = ScrollSpy;
 
-  $.fn[NAME$8].noConflict = function () {
-    $.fn[NAME$8] = JQUERY_NO_CONFLICT$8;
+  $__default['default'].fn[NAME$8].noConflict = function () {
+    $__default['default'].fn[NAME$8] = JQUERY_NO_CONFLICT$8;
     return ScrollSpy._jQueryInterface;
   };
 
@@ -10748,11 +10800,11 @@ function fromByteArray (uint8) {
    */
 
   var NAME$9 = 'tab';
-  var VERSION$9 = '4.5.2';
+  var VERSION$9 = '4.5.3';
   var DATA_KEY$9 = 'bs.tab';
   var EVENT_KEY$9 = "." + DATA_KEY$9;
   var DATA_API_KEY$7 = '.data-api';
-  var JQUERY_NO_CONFLICT$9 = $.fn[NAME$9];
+  var JQUERY_NO_CONFLICT$9 = $__default['default'].fn[NAME$9];
   var EVENT_HIDE$3 = "hide" + EVENT_KEY$9;
   var EVENT_HIDDEN$3 = "hidden" + EVENT_KEY$9;
   var EVENT_SHOW$3 = "show" + EVENT_KEY$9;
@@ -10788,33 +10840,33 @@ function fromByteArray (uint8) {
     _proto.show = function show() {
       var _this = this;
 
-      if (this._element.parentNode && this._element.parentNode.nodeType === Node.ELEMENT_NODE && $(this._element).hasClass(CLASS_NAME_ACTIVE$3) || $(this._element).hasClass(CLASS_NAME_DISABLED$1)) {
+      if (this._element.parentNode && this._element.parentNode.nodeType === Node.ELEMENT_NODE && $__default['default'](this._element).hasClass(CLASS_NAME_ACTIVE$3) || $__default['default'](this._element).hasClass(CLASS_NAME_DISABLED$1)) {
         return;
       }
 
       var target;
       var previous;
-      var listElement = $(this._element).closest(SELECTOR_NAV_LIST_GROUP$1)[0];
+      var listElement = $__default['default'](this._element).closest(SELECTOR_NAV_LIST_GROUP$1)[0];
       var selector = Util.getSelectorFromElement(this._element);
 
       if (listElement) {
         var itemSelector = listElement.nodeName === 'UL' || listElement.nodeName === 'OL' ? SELECTOR_ACTIVE_UL : SELECTOR_ACTIVE$2;
-        previous = $.makeArray($(listElement).find(itemSelector));
+        previous = $__default['default'].makeArray($__default['default'](listElement).find(itemSelector));
         previous = previous[previous.length - 1];
       }
 
-      var hideEvent = $.Event(EVENT_HIDE$3, {
+      var hideEvent = $__default['default'].Event(EVENT_HIDE$3, {
         relatedTarget: this._element
       });
-      var showEvent = $.Event(EVENT_SHOW$3, {
+      var showEvent = $__default['default'].Event(EVENT_SHOW$3, {
         relatedTarget: previous
       });
 
       if (previous) {
-        $(previous).trigger(hideEvent);
+        $__default['default'](previous).trigger(hideEvent);
       }
 
-      $(this._element).trigger(showEvent);
+      $__default['default'](this._element).trigger(showEvent);
 
       if (showEvent.isDefaultPrevented() || hideEvent.isDefaultPrevented()) {
         return;
@@ -10827,14 +10879,14 @@ function fromByteArray (uint8) {
       this._activate(this._element, listElement);
 
       var complete = function complete() {
-        var hiddenEvent = $.Event(EVENT_HIDDEN$3, {
+        var hiddenEvent = $__default['default'].Event(EVENT_HIDDEN$3, {
           relatedTarget: _this._element
         });
-        var shownEvent = $.Event(EVENT_SHOWN$3, {
+        var shownEvent = $__default['default'].Event(EVENT_SHOWN$3, {
           relatedTarget: previous
         });
-        $(previous).trigger(hiddenEvent);
-        $(_this._element).trigger(shownEvent);
+        $__default['default'](previous).trigger(hiddenEvent);
+        $__default['default'](_this._element).trigger(shownEvent);
       };
 
       if (target) {
@@ -10845,7 +10897,7 @@ function fromByteArray (uint8) {
     };
 
     _proto.dispose = function dispose() {
-      $.removeData(this._element, DATA_KEY$9);
+      $__default['default'].removeData(this._element, DATA_KEY$9);
       this._element = null;
     } // Private
     ;
@@ -10853,9 +10905,9 @@ function fromByteArray (uint8) {
     _proto._activate = function _activate(element, container, callback) {
       var _this2 = this;
 
-      var activeElements = container && (container.nodeName === 'UL' || container.nodeName === 'OL') ? $(container).find(SELECTOR_ACTIVE_UL) : $(container).children(SELECTOR_ACTIVE$2);
+      var activeElements = container && (container.nodeName === 'UL' || container.nodeName === 'OL') ? $__default['default'](container).find(SELECTOR_ACTIVE_UL) : $__default['default'](container).children(SELECTOR_ACTIVE$2);
       var active = activeElements[0];
-      var isTransitioning = callback && active && $(active).hasClass(CLASS_NAME_FADE$4);
+      var isTransitioning = callback && active && $__default['default'](active).hasClass(CLASS_NAME_FADE$4);
 
       var complete = function complete() {
         return _this2._transitionComplete(element, active, callback);
@@ -10863,7 +10915,7 @@ function fromByteArray (uint8) {
 
       if (active && isTransitioning) {
         var transitionDuration = Util.getTransitionDurationFromElement(active);
-        $(active).removeClass(CLASS_NAME_SHOW$6).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+        $__default['default'](active).removeClass(CLASS_NAME_SHOW$6).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
       } else {
         complete();
       }
@@ -10871,11 +10923,11 @@ function fromByteArray (uint8) {
 
     _proto._transitionComplete = function _transitionComplete(element, active, callback) {
       if (active) {
-        $(active).removeClass(CLASS_NAME_ACTIVE$3);
-        var dropdownChild = $(active.parentNode).find(SELECTOR_DROPDOWN_ACTIVE_CHILD)[0];
+        $__default['default'](active).removeClass(CLASS_NAME_ACTIVE$3);
+        var dropdownChild = $__default['default'](active.parentNode).find(SELECTOR_DROPDOWN_ACTIVE_CHILD)[0];
 
         if (dropdownChild) {
-          $(dropdownChild).removeClass(CLASS_NAME_ACTIVE$3);
+          $__default['default'](dropdownChild).removeClass(CLASS_NAME_ACTIVE$3);
         }
 
         if (active.getAttribute('role') === 'tab') {
@@ -10883,7 +10935,7 @@ function fromByteArray (uint8) {
         }
       }
 
-      $(element).addClass(CLASS_NAME_ACTIVE$3);
+      $__default['default'](element).addClass(CLASS_NAME_ACTIVE$3);
 
       if (element.getAttribute('role') === 'tab') {
         element.setAttribute('aria-selected', true);
@@ -10895,12 +10947,12 @@ function fromByteArray (uint8) {
         element.classList.add(CLASS_NAME_SHOW$6);
       }
 
-      if (element.parentNode && $(element.parentNode).hasClass(CLASS_NAME_DROPDOWN_MENU)) {
-        var dropdownElement = $(element).closest(SELECTOR_DROPDOWN$1)[0];
+      if (element.parentNode && $__default['default'](element.parentNode).hasClass(CLASS_NAME_DROPDOWN_MENU)) {
+        var dropdownElement = $__default['default'](element).closest(SELECTOR_DROPDOWN$1)[0];
 
         if (dropdownElement) {
           var dropdownToggleList = [].slice.call(dropdownElement.querySelectorAll(SELECTOR_DROPDOWN_TOGGLE$1));
-          $(dropdownToggleList).addClass(CLASS_NAME_ACTIVE$3);
+          $__default['default'](dropdownToggleList).addClass(CLASS_NAME_ACTIVE$3);
         }
 
         element.setAttribute('aria-expanded', true);
@@ -10914,7 +10966,7 @@ function fromByteArray (uint8) {
 
     Tab._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var $this = $(this);
+        var $this = $__default['default'](this);
         var data = $this.data(DATA_KEY$9);
 
         if (!data) {
@@ -10948,10 +11000,10 @@ function fromByteArray (uint8) {
    */
 
 
-  $(document).on(EVENT_CLICK_DATA_API$6, SELECTOR_DATA_TOGGLE$4, function (event) {
+  $__default['default'](document).on(EVENT_CLICK_DATA_API$6, SELECTOR_DATA_TOGGLE$4, function (event) {
     event.preventDefault();
 
-    Tab._jQueryInterface.call($(this), 'show');
+    Tab._jQueryInterface.call($__default['default'](this), 'show');
   });
   /**
    * ------------------------------------------------------------------------
@@ -10959,11 +11011,11 @@ function fromByteArray (uint8) {
    * ------------------------------------------------------------------------
    */
 
-  $.fn[NAME$9] = Tab._jQueryInterface;
-  $.fn[NAME$9].Constructor = Tab;
+  $__default['default'].fn[NAME$9] = Tab._jQueryInterface;
+  $__default['default'].fn[NAME$9].Constructor = Tab;
 
-  $.fn[NAME$9].noConflict = function () {
-    $.fn[NAME$9] = JQUERY_NO_CONFLICT$9;
+  $__default['default'].fn[NAME$9].noConflict = function () {
+    $__default['default'].fn[NAME$9] = JQUERY_NO_CONFLICT$9;
     return Tab._jQueryInterface;
   };
 
@@ -10974,10 +11026,10 @@ function fromByteArray (uint8) {
    */
 
   var NAME$a = 'toast';
-  var VERSION$a = '4.5.2';
+  var VERSION$a = '4.5.3';
   var DATA_KEY$a = 'bs.toast';
   var EVENT_KEY$a = "." + DATA_KEY$a;
-  var JQUERY_NO_CONFLICT$a = $.fn[NAME$a];
+  var JQUERY_NO_CONFLICT$a = $__default['default'].fn[NAME$a];
   var EVENT_CLICK_DISMISS$1 = "click.dismiss" + EVENT_KEY$a;
   var EVENT_HIDE$4 = "hide" + EVENT_KEY$a;
   var EVENT_HIDDEN$4 = "hidden" + EVENT_KEY$a;
@@ -11020,8 +11072,8 @@ function fromByteArray (uint8) {
     _proto.show = function show() {
       var _this = this;
 
-      var showEvent = $.Event(EVENT_SHOW$4);
-      $(this._element).trigger(showEvent);
+      var showEvent = $__default['default'].Event(EVENT_SHOW$4);
+      $__default['default'](this._element).trigger(showEvent);
 
       if (showEvent.isDefaultPrevented()) {
         return;
@@ -11038,7 +11090,7 @@ function fromByteArray (uint8) {
 
         _this._element.classList.add(CLASS_NAME_SHOW$7);
 
-        $(_this._element).trigger(EVENT_SHOWN$4);
+        $__default['default'](_this._element).trigger(EVENT_SHOWN$4);
 
         if (_this._config.autohide) {
           _this._timeout = setTimeout(function () {
@@ -11055,7 +11107,7 @@ function fromByteArray (uint8) {
 
       if (this._config.animation) {
         var transitionDuration = Util.getTransitionDurationFromElement(this._element);
-        $(this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+        $__default['default'](this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
       } else {
         complete();
       }
@@ -11066,8 +11118,8 @@ function fromByteArray (uint8) {
         return;
       }
 
-      var hideEvent = $.Event(EVENT_HIDE$4);
-      $(this._element).trigger(hideEvent);
+      var hideEvent = $__default['default'].Event(EVENT_HIDE$4);
+      $__default['default'](this._element).trigger(hideEvent);
 
       if (hideEvent.isDefaultPrevented()) {
         return;
@@ -11083,15 +11135,15 @@ function fromByteArray (uint8) {
         this._element.classList.remove(CLASS_NAME_SHOW$7);
       }
 
-      $(this._element).off(EVENT_CLICK_DISMISS$1);
-      $.removeData(this._element, DATA_KEY$a);
+      $__default['default'](this._element).off(EVENT_CLICK_DISMISS$1);
+      $__default['default'].removeData(this._element, DATA_KEY$a);
       this._element = null;
       this._config = null;
     } // Private
     ;
 
     _proto._getConfig = function _getConfig(config) {
-      config = _extends({}, Default$7, $(this._element).data(), typeof config === 'object' && config ? config : {});
+      config = _extends({}, Default$7, $__default['default'](this._element).data(), typeof config === 'object' && config ? config : {});
       Util.typeCheckConfig(NAME$a, config, this.constructor.DefaultType);
       return config;
     };
@@ -11099,7 +11151,7 @@ function fromByteArray (uint8) {
     _proto._setListeners = function _setListeners() {
       var _this2 = this;
 
-      $(this._element).on(EVENT_CLICK_DISMISS$1, SELECTOR_DATA_DISMISS$1, function () {
+      $__default['default'](this._element).on(EVENT_CLICK_DISMISS$1, SELECTOR_DATA_DISMISS$1, function () {
         return _this2.hide();
       });
     };
@@ -11110,14 +11162,14 @@ function fromByteArray (uint8) {
       var complete = function complete() {
         _this3._element.classList.add(CLASS_NAME_HIDE);
 
-        $(_this3._element).trigger(EVENT_HIDDEN$4);
+        $__default['default'](_this3._element).trigger(EVENT_HIDDEN$4);
       };
 
       this._element.classList.remove(CLASS_NAME_SHOW$7);
 
       if (this._config.animation) {
         var transitionDuration = Util.getTransitionDurationFromElement(this._element);
-        $(this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
+        $__default['default'](this._element).one(Util.TRANSITION_END, complete).emulateTransitionEnd(transitionDuration);
       } else {
         complete();
       }
@@ -11131,7 +11183,7 @@ function fromByteArray (uint8) {
 
     Toast._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
-        var $element = $(this);
+        var $element = $__default['default'](this);
         var data = $element.data(DATA_KEY$a);
 
         var _config = typeof config === 'object' && config;
@@ -11177,11 +11229,11 @@ function fromByteArray (uint8) {
    */
 
 
-  $.fn[NAME$a] = Toast._jQueryInterface;
-  $.fn[NAME$a].Constructor = Toast;
+  $__default['default'].fn[NAME$a] = Toast._jQueryInterface;
+  $__default['default'].fn[NAME$a].Constructor = Toast;
 
-  $.fn[NAME$a].noConflict = function () {
-    $.fn[NAME$a] = JQUERY_NO_CONFLICT$a;
+  $__default['default'].fn[NAME$a].noConflict = function () {
+    $__default['default'].fn[NAME$a] = JQUERY_NO_CONFLICT$a;
     return Toast._jQueryInterface;
   };
 
@@ -13008,6 +13060,25 @@ function isnan (val) {
 
 /***/ }),
 
+/***/ "./node_modules/css-loader/index.js?!./node_modules/postcss-loader/src/index.js?!./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css":
+/*!*********************************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader??ref--6-1!./node_modules/postcss-loader/src??ref--6-2!./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css ***!
+  \*********************************************************************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(/*! ../../css-loader/lib/css-base.js */ "./node_modules/css-loader/lib/css-base.js")(false);
+// imports
+
+
+// module
+exports.push([module.i, "\n.fadeTr-enter-active {\n  -webkit-transition: opacity 0.3s ease-in;\n  transition: opacity 0.3s ease-in;\n  -webkit-transition-delay: 0.1s;\n          transition-delay: 0.1s;\n}\n.fadeTr-leave-active {\n  -webkit-transition: opacity 0.1s ease-out;\n  transition: opacity 0.1s ease-out;\n}\n.fadeTr-enter, .fadeTr-leave-to {\n  opacity: 0;\n}\n.slide-enter-active,\n.slide-leave-active {\n  -webkit-transition: all 1s;\n  transition: all 1s;\n}\n.slide-enter,\n.slide-leave-to {\n  opacity: 0;\n  -webkit-transform: translateX(30px);\n          transform: translateX(30px);\n}\n.dg-backdrop-enter-active {\n  -webkit-animation: dg-fadeIn .3s;\n          animation: dg-fadeIn .3s;\n}\n.dg-backdrop-leave-active {\n  -webkit-animation: dg-fadeOut .5s;\n          animation: dg-fadeOut .5s;\n}\n.dg-fade-enter-active {\n  -webkit-animation: dg-fadeIn 0.6s cubic-bezier(0, 0, 0.58, 1);\n          animation: dg-fadeIn 0.6s cubic-bezier(0, 0, 0.58, 1);\n}\n.dg-fade-leave-active {\n  -webkit-animation: dg-fadeOut 0.6s cubic-bezier(0, 0, 0.58, 1);\n          animation: dg-fadeOut 0.6s cubic-bezier(0, 0, 0.58, 1);\n}\n@-webkit-keyframes dg-fadeIn {\n0% {\n    opacity: 0;\n}\n100% {\n    opacity: 1;\n}\n}\n@keyframes dg-fadeIn {\n0% {\n    opacity: 0;\n}\n100% {\n    opacity: 1;\n}\n}\n@-webkit-keyframes dg-fadeOut {\n0% {\n    opacity: 1;\n}\n100% {\n    opacity: 0;\n}\n}\n@keyframes dg-fadeOut {\n0% {\n    opacity: 1;\n}\n100% {\n    opacity: 0;\n}\n}\n.dg-zoom-enter-active {\n  -webkit-animation: dg-zoomIn 0.3s cubic-bezier(0, 0, 0.58, 1);\n          animation: dg-zoomIn 0.3s cubic-bezier(0, 0, 0.58, 1);\n}\n.dg-zoom-leave-active {\n  -webkit-animation: dg-zoomOut 0.4s cubic-bezier(0, 0, 0.58, 1);\n          animation: dg-zoomOut 0.4s cubic-bezier(0, 0, 0.58, 1);\n}\n@-webkit-keyframes dg-zoomIn {\n0% {\n    opacity: 0;\n    -webkit-transform: scale3d(0.3, 0.3, 0.3);\n    transform: scale3d(0.3, 0.3, 0.3);\n}\n50% {\n    opacity: 1;\n}\n}\n@keyframes dg-zoomIn {\n0% {\n    opacity: 0;\n    -webkit-transform: scale3d(0.3, 0.3, 0.3);\n    transform: scale3d(0.3, 0.3, 0.3);\n}\n50% {\n    opacity: 1;\n}\n}\n@-webkit-keyframes dg-zoomOut {\n0% {\n    opacity: 1;\n}\n50% {\n    opacity: 0;\n    -webkit-transform: scale3d(0.3, 0.3, 0.3);\n    transform: scale3d(0.3, 0.3, 0.3);\n}\n100% {\n    opacity: 0;\n}\n}\n@keyframes dg-zoomOut {\n0% {\n    opacity: 1;\n}\n50% {\n    opacity: 0;\n    -webkit-transform: scale3d(0.3, 0.3, 0.3);\n    transform: scale3d(0.3, 0.3, 0.3);\n}\n100% {\n    opacity: 0;\n}\n}\n.dg-bounce-enter-active {\n  -webkit-animation: dg-bounceIn .6s;\n          animation: dg-bounceIn .6s;\n}\n.dg-bounce-leave-active {\n  -webkit-animation: dg-zoomOut .6s;\n          animation: dg-zoomOut .6s;\n}\n@-webkit-keyframes dg-bounceIn {\n0% {\n    opacity: 0;\n    -webkit-transform: scale(0.3);\n            transform: scale(0.3);\n}\n40% {\n    opacity: 1;\n    -webkit-transform: scale(1.06);\n            transform: scale(1.06);\n}\n60% {\n    -webkit-transform: scale(0.92);\n            transform: scale(0.92);\n}\n100% {\n    -webkit-transform: scale(1);\n            transform: scale(1);\n}\n}\n@keyframes dg-bounceIn {\n0% {\n    opacity: 0;\n    -webkit-transform: scale(0.3);\n            transform: scale(0.3);\n}\n40% {\n    opacity: 1;\n    -webkit-transform: scale(1.06);\n            transform: scale(1.06);\n}\n60% {\n    -webkit-transform: scale(0.92);\n            transform: scale(0.92);\n}\n100% {\n    -webkit-transform: scale(1);\n            transform: scale(1);\n}\n}\n@-webkit-keyframes dg-bounceOut {\n0% {\n    -webkit-transform: scale(1);\n            transform: scale(1);\n}\n25% {\n    -webkit-transform: scale(0.95);\n            transform: scale(0.95);\n}\n50% {\n    opacity: 1;\n    -webkit-transform: scale(1.1);\n            transform: scale(1.1);\n}\n100% {\n    opacity: 0;\n    -webkit-transform: scale(0.3);\n            transform: scale(0.3);\n}\n}\n@keyframes dg-bounceOut {\n0% {\n    -webkit-transform: scale(1);\n            transform: scale(1);\n}\n25% {\n    -webkit-transform: scale(0.95);\n            transform: scale(0.95);\n}\n50% {\n    opacity: 1;\n    -webkit-transform: scale(1.1);\n            transform: scale(1.1);\n}\n100% {\n    opacity: 0;\n    -webkit-transform: scale(0.3);\n            transform: scale(0.3);\n}\n}\n.dg-btn-loader {\n  width: 100%;\n  height: 100%;\n  position: absolute;\n  display: -webkit-box;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-box-align: center;\n      -ms-flex-align: center;\n          align-items: center;\n  top: 0;\n  left: 0;\n}\n.dg-btn-loader .dg-circles {\n    width: 100%;\n    display: block;\n    text-align: center;\n}\n.dg-btn-loader .dg-circle {\n    width: .9em;\n    height: .9em;\n    opacity: 0;\n    background-color: #09a2e3;\n    display: inline-block;\n    border-radius: 50%;\n    -webkit-animation-name: dg-circle-oscillation;\n            animation-name: dg-circle-oscillation;\n    -webkit-animation-duration: 0.5875s;\n            animation-duration: 0.5875s;\n    -webkit-animation-iteration-count: infinite;\n            animation-iteration-count: infinite;\n    -webkit-animation-direction: normal;\n            animation-direction: normal;\n}\n.dg-btn-loader .dg-circle:not(:last-child) {\n      margin-right: 8px;\n}\n.dg-btn-loader .dg-circle:nth-child(1) {\n      -webkit-animation-delay: 0.1195s;\n              animation-delay: 0.1195s;\n}\n.dg-btn-loader .dg-circle:nth-child(2) {\n      -webkit-animation-delay: 0.2755s;\n              animation-delay: 0.2755s;\n}\n.dg-btn-loader .dg-circle:nth-child(3) {\n      -webkit-animation-delay: 0.3485s;\n              animation-delay: 0.3485s;\n}\n@-webkit-keyframes dg-circle-oscillation {\n0% {\n}\n50% {\n    opacity: 1;\n}\n100% {\n}\n}\n@keyframes dg-circle-oscillation {\n0% {\n}\n50% {\n    opacity: 1;\n}\n100% {\n}\n}\nbody.dg-open {\n  width: 100%;\n  height: 100%;\n  overflow: hidden;\n}\n.dg-container * {\n  -webkit-box-sizing: border-box;\n          box-sizing: border-box;\n}\n.dg-container [disabled] {\n  cursor: not-allowed;\n  opacity: .3;\n}\n.dg-backdrop {\n  background-color: rgba(0, 0, 0, 0.8);\n  position: fixed;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  z-index: 5000;\n}\n.dg-container {\n  width: 100%;\n  height: 100%;\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 5000;\n}\n.dg-content-cont {\n  width: 100%;\n  font-family: inherit;\n}\n.dg-main-content {\n  width: 98%;\n  /*width: calc(98% - 30px);*/\n  max-width: 400px;\n  padding: 15px;\n  border-radius: 5px;\n  margin: 25px auto;\n  background-color: #ffffff;\n}\n.dg-content {\n  font-size: 16px;\n  line-height: 1.3em;\n}\n.dg-title {\n  margin: 0 0 10px 0;\n  padding: 0;\n  font-size: 18px;\n}\n.dg-content-body {\n  border-bottom: 2px solid #E1E6EA;\n  padding-bottom: 15px;\n}\n.dg-content-footer {\n  position: relative;\n  padding: 15px 0 0;\n}\n.dg-form {\n  background-color: ghostwhite;\n  padding: 10px;\n  margin-bottom: -15px;\n}\n.dg-content-cont--floating {\n  position: absolute;\n  top: 35%;\n  -webkit-transform: translateY(-70%);\n          transform: translateY(-70%);\n  margin-top: 0;\n}\n@media all and (max-height: 700px) {\n.dg-content-cont--floating {\n    position: relative;\n    top: 10%;\n    -webkit-transform: none;\n            transform: none;\n    margin-top: 0;\n}\n}\n.dg-btn {\n  display: inline-block;\n  position: relative;\n  min-width: 80px;\n  padding: 6px 20px;\n  border-radius: 4px;\n  outline: 0;\n  border: 2px solid transparent;\n  text-align: center;\n  text-decoration: none;\n  cursor: pointer;\n  outline: none;\n  -webkit-appearance: none;\n  -moz-appearance: none;\n  appearance: none;\n  font-size: 16px;\n  font-weight: 700;\n}\n.dg-btn:focus,\n.dg-btn:active,\n.dg-btn:link {\n  outline: none;\n}\n.dg-btn::-moz-focus-inner {\n  border: 0;\n}\n.dg-btn--cancel {\n  color: #fefefe;\n  background-color: #0096D9;\n}\n.dg-btn--ok {\n  color: #0096D9;\n  background-color: #fefefe;\n  border-color: #0096D9;\n}\n.dg-pull-right {\n  float: right;\n}\n.dg-btn.dg-btn--loading .dg-btn-content {\n  visibility: hidden;\n}\n.dg-clear:before {\n  content: ' ';\n  display: block;\n  clear: both;\n}\n.dg-content-body--has-title .dg-content {\n  font-size: 14px;\n}\n.dg-container--has-input .dg-main-content {\n  max-width: 450px;\n}\n.dg-container--has-input .dg-content {\n  margin-bottom: 15px;\n}\n.dg-container--has-input .dg-content-body {\n  border-bottom: none;\n}\n.dg-container--has-input .dg-form {\n  border: 1px solid #E1E6EA;\n  border-bottom: none;\n  border-top-left-radius: 4px;\n  border-top-right-radius: 4px;\n}\n.dg-container--has-input .dg-content-footer {\n  background-color: ghostwhite;\n  border: 1px solid #E1E6EA;\n  border-top: none;\n  border-bottom-left-radius: 4px;\n  border-bottom-right-radius: 4px;\n  padding: 0 10px 10px;\n}\n.dg-container .dg-highlight-1 {\n  color: #FF8C00;\n  font-weight: bold;\n  border-bottom: 1px solid #2ba5ff;\n}\n.dg-container .dg-highlight-2 {\n  color: #2ba5ff;\n  font-weight: bold;\n  border-bottom: 1px solid #FF8C00;\n}\n\n", ""]);
+
+// exports
+
+
+/***/ }),
+
 /***/ "./node_modules/css-loader/index.js?!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponent.vue?vue&type=style&index=0&lang=css&":
 /*!***********************************************************************************************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/css-loader??ref--6-1!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src??ref--6-2!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ChatRootComponent.vue?vue&type=style&index=0&lang=css& ***!
@@ -13039,7 +13110,7 @@ exports = module.exports = __webpack_require__(/*! ../../../../node_modules/css-
 
 
 // module
-exports.push([module.i, "\n.friendlist-container{\n    background: #e6e6e6;\n    height: 500px;\n    overflow-y: auto;\n}\n.friendlist-item{\n    cursor: pointer;\n}\n.newmessage-blink{\n    -webkit-animation: blink 1s linear infinite;\n            animation: blink 1s linear infinite;\n}\n@-webkit-keyframes blink{\n0%{opacity: 0;}\n50%{opacity: .5;}\n100%{opacity: 1;}\n}\n@keyframes blink{\n0%{opacity: 0;}\n50%{opacity: .5;}\n100%{opacity: 1;}\n}\n", ""]);
+exports.push([module.i, "\n.friendlist-container {\n  background: #e6e6e6;\n  height: 500px;\n  overflow-y: auto;\n}\n.friendlist-item {\n  cursor: pointer;\n}\n.newmessage-blink {\n  -webkit-animation: blink 1s linear infinite;\n          animation: blink 1s linear infinite;\n}\n@-webkit-keyframes blink {\n0% {\n    opacity: 0;\n}\n50% {\n    opacity: 0.5;\n}\n100% {\n    opacity: 1;\n}\n}\n@keyframes blink {\n0% {\n    opacity: 0;\n}\n50% {\n    opacity: 0.5;\n}\n100% {\n    opacity: 1;\n}\n}\n", ""]);
 
 // exports
 
@@ -13058,7 +13129,7 @@ exports = module.exports = __webpack_require__(/*! ../../../../node_modules/css-
 
 
 // module
-exports.push([module.i, "\n.chat-container {\n  height: 415px;\n  overflow-y: auto;\n}\n.chat-bubble {\n  background: #fff;\n}\n.chat-bubble .sender {\n  color: crimson;\n}\n.chat-bubble .org-message {\n  color: #626263;\n}\n.text-chat-outer-container {\n  background: #e6e6e6 !important;\n}\n.typing-animation {\n  height: 50px;\n}\n.typing-gif {\n  height: 40px;\n}\n.message-time {\n  font-size: x-small;\n}\n", ""]);
+exports.push([module.i, "\n.chat-container {\n  height: 415px;\n  overflow-y: auto;\n}\n.chat-bubble {\n  background: #fff;\n}\n.chat-bubble .sender {\n  color: crimson;\n}\n.chat-bubble .sender.self {\n  color: #0094ff;\n}\n.chat-bubble .org-message {\n  color: #626263;\n}\n.text-chat-outer-container {\n  background: #e6e6e6 !important;\n}\n.typing-animation {\n  height: 50px;\n}\n.typing-gif {\n  height: 40px;\n}\n.message-time {\n  font-size: x-small;\n}\n", ""]);
 
 // exports
 
@@ -13167,6 +13238,65 @@ function toComment(sourceMap) {
 
 	return '/*# ' + data + ' */';
 }
+
+
+/***/ }),
+
+/***/ "./node_modules/err-code/index.js":
+/*!****************************************!*\
+  !*** ./node_modules/err-code/index.js ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+function assign(obj, props) {
+    for (const key in props) {
+        Object.defineProperty(obj, key, {
+            value: props[key],
+            enumerable: true,
+            configurable: true,
+        });
+    }
+
+    return obj;
+}
+
+function createError(err, code, props) {
+    if (!err || typeof err === 'string') {
+        throw new TypeError('Please pass an Error to err-code');
+    }
+
+    if (!props) {
+        props = {};
+    }
+
+    if (typeof code === 'object') {
+        props = code;
+        code = undefined;
+    }
+
+    if (code != null) {
+        props.code = code;
+    }
+
+    try {
+        return assign(err, props);
+    } catch (_) {
+        props.message = err.message;
+        props.stack = err.stack;
+
+        const ErrClass = function () {};
+
+        ErrClass.prototype = Object.create(Object.getPrototypeOf(err));
+
+        return assign(new ErrClass(), props);
+    }
+}
+
+module.exports = createError;
 
 
 /***/ }),
@@ -13669,14 +13799,14 @@ function once(emitter, name) {
 // originally pulled out of simple-peer
 
 module.exports = function getBrowserRTC () {
-  if (typeof window === 'undefined') return null
+  if (typeof globalThis === 'undefined') return null
   var wrtc = {
-    RTCPeerConnection: window.RTCPeerConnection || window.mozRTCPeerConnection ||
-      window.webkitRTCPeerConnection,
-    RTCSessionDescription: window.RTCSessionDescription ||
-      window.mozRTCSessionDescription || window.webkitRTCSessionDescription,
-    RTCIceCandidate: window.RTCIceCandidate || window.mozRTCIceCandidate ||
-      window.webkitRTCIceCandidate
+    RTCPeerConnection: globalThis.RTCPeerConnection || globalThis.mozRTCPeerConnection ||
+      globalThis.webkitRTCPeerConnection,
+    RTCSessionDescription: globalThis.RTCSessionDescription ||
+      globalThis.mozRTCSessionDescription || globalThis.webkitRTCSessionDescription,
+    RTCIceCandidate: globalThis.RTCIceCandidate || globalThis.mozRTCIceCandidate ||
+      globalThis.webkitRTCIceCandidate
   }
   if (!wrtc.RTCPeerConnection) return null
   return wrtc
@@ -13692,6 +13822,7 @@ module.exports = function getBrowserRTC () {
 /*! no static exports found */
 /***/ (function(module, exports) {
 
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -25059,6 +25190,18 @@ var PusherChannel = /*#__PURE__*/function (_Channel) {
       return this;
     }
     /**
+     * Register a callback to be called anytime a subscription succeeds.
+     */
+
+  }, {
+    key: "subscribed",
+    value: function subscribed(callback) {
+      this.on('pusher:subscription_succeeded', function () {
+        callback();
+      });
+      return this;
+    }
+    /**
      * Register a callback to be called anytime a subscription error occurs.
      */
 
@@ -25296,6 +25439,18 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
       return this;
     }
     /**
+     * Register a callback to be called anytime a subscription succeeds.
+     */
+
+  }, {
+    key: "subscribed",
+    value: function subscribed(callback) {
+      this.on('connect', function (socket) {
+        callback(socket);
+      });
+      return this;
+    }
+    /**
      * Register a callback to be called anytime an error occurs.
      */
 
@@ -25509,6 +25664,15 @@ var NullChannel = /*#__PURE__*/function (_Channel) {
   }, {
     key: "stopListening",
     value: function stopListening(event) {
+      return this;
+    }
+    /**
+     * Register a callback to be called anytime a subscription succeeds.
+     */
+
+  }, {
+    key: "subscribed",
+    value: function subscribed(callback) {
       return this;
     }
     /**
@@ -43381,6 +43545,291 @@ var Echo = /*#__PURE__*/function () {
 
 /***/ }),
 
+/***/ "./node_modules/loglevel/lib/loglevel.js":
+/*!***********************************************!*\
+  !*** ./node_modules/loglevel/lib/loglevel.js ***!
+  \***********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
+* loglevel - https://github.com/pimterry/loglevel
+*
+* Copyright (c) 2013 Tim Perry
+* Licensed under the MIT license.
+*/
+(function (root, definition) {
+    "use strict";
+    if (true) {
+        !(__WEBPACK_AMD_DEFINE_FACTORY__ = (definition),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
+				__WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+    } else {}
+}(this, function () {
+    "use strict";
+
+    // Slightly dubious tricks to cut down minimized file size
+    var noop = function() {};
+    var undefinedType = "undefined";
+    var isIE = (typeof window !== undefinedType) && (typeof window.navigator !== undefinedType) && (
+        /Trident\/|MSIE /.test(window.navigator.userAgent)
+    );
+
+    var logMethods = [
+        "trace",
+        "debug",
+        "info",
+        "warn",
+        "error"
+    ];
+
+    // Cross-browser bind equivalent that works at least back to IE6
+    function bindMethod(obj, methodName) {
+        var method = obj[methodName];
+        if (typeof method.bind === 'function') {
+            return method.bind(obj);
+        } else {
+            try {
+                return Function.prototype.bind.call(method, obj);
+            } catch (e) {
+                // Missing bind shim or IE8 + Modernizr, fallback to wrapping
+                return function() {
+                    return Function.prototype.apply.apply(method, [obj, arguments]);
+                };
+            }
+        }
+    }
+
+    // Trace() doesn't print the message in IE, so for that case we need to wrap it
+    function traceForIE() {
+        if (console.log) {
+            if (console.log.apply) {
+                console.log.apply(console, arguments);
+            } else {
+                // In old IE, native console methods themselves don't have apply().
+                Function.prototype.apply.apply(console.log, [console, arguments]);
+            }
+        }
+        if (console.trace) console.trace();
+    }
+
+    // Build the best logging method possible for this env
+    // Wherever possible we want to bind, not wrap, to preserve stack traces
+    function realMethod(methodName) {
+        if (methodName === 'debug') {
+            methodName = 'log';
+        }
+
+        if (typeof console === undefinedType) {
+            return false; // No method possible, for now - fixed later by enableLoggingWhenConsoleArrives
+        } else if (methodName === 'trace' && isIE) {
+            return traceForIE;
+        } else if (console[methodName] !== undefined) {
+            return bindMethod(console, methodName);
+        } else if (console.log !== undefined) {
+            return bindMethod(console, 'log');
+        } else {
+            return noop;
+        }
+    }
+
+    // These private functions always need `this` to be set properly
+
+    function replaceLoggingMethods(level, loggerName) {
+        /*jshint validthis:true */
+        for (var i = 0; i < logMethods.length; i++) {
+            var methodName = logMethods[i];
+            this[methodName] = (i < level) ?
+                noop :
+                this.methodFactory(methodName, level, loggerName);
+        }
+
+        // Define log.log as an alias for log.debug
+        this.log = this.debug;
+    }
+
+    // In old IE versions, the console isn't present until you first open it.
+    // We build realMethod() replacements here that regenerate logging methods
+    function enableLoggingWhenConsoleArrives(methodName, level, loggerName) {
+        return function () {
+            if (typeof console !== undefinedType) {
+                replaceLoggingMethods.call(this, level, loggerName);
+                this[methodName].apply(this, arguments);
+            }
+        };
+    }
+
+    // By default, we use closely bound real methods wherever possible, and
+    // otherwise we wait for a console to appear, and then try again.
+    function defaultMethodFactory(methodName, level, loggerName) {
+        /*jshint validthis:true */
+        return realMethod(methodName) ||
+               enableLoggingWhenConsoleArrives.apply(this, arguments);
+    }
+
+    function Logger(name, defaultLevel, factory) {
+      var self = this;
+      var currentLevel;
+
+      var storageKey = "loglevel";
+      if (typeof name === "string") {
+        storageKey += ":" + name;
+      } else if (typeof name === "symbol") {
+        storageKey = undefined;
+      }
+
+      function persistLevelIfPossible(levelNum) {
+          var levelName = (logMethods[levelNum] || 'silent').toUpperCase();
+
+          if (typeof window === undefinedType || !storageKey) return;
+
+          // Use localStorage if available
+          try {
+              window.localStorage[storageKey] = levelName;
+              return;
+          } catch (ignore) {}
+
+          // Use session cookie as fallback
+          try {
+              window.document.cookie =
+                encodeURIComponent(storageKey) + "=" + levelName + ";";
+          } catch (ignore) {}
+      }
+
+      function getPersistedLevel() {
+          var storedLevel;
+
+          if (typeof window === undefinedType || !storageKey) return;
+
+          try {
+              storedLevel = window.localStorage[storageKey];
+          } catch (ignore) {}
+
+          // Fallback to cookies if local storage gives us nothing
+          if (typeof storedLevel === undefinedType) {
+              try {
+                  var cookie = window.document.cookie;
+                  var location = cookie.indexOf(
+                      encodeURIComponent(storageKey) + "=");
+                  if (location !== -1) {
+                      storedLevel = /^([^;]+)/.exec(cookie.slice(location))[1];
+                  }
+              } catch (ignore) {}
+          }
+
+          // If the stored level is not valid, treat it as if nothing was stored.
+          if (self.levels[storedLevel] === undefined) {
+              storedLevel = undefined;
+          }
+
+          return storedLevel;
+      }
+
+      /*
+       *
+       * Public logger API - see https://github.com/pimterry/loglevel for details
+       *
+       */
+
+      self.name = name;
+
+      self.levels = { "TRACE": 0, "DEBUG": 1, "INFO": 2, "WARN": 3,
+          "ERROR": 4, "SILENT": 5};
+
+      self.methodFactory = factory || defaultMethodFactory;
+
+      self.getLevel = function () {
+          return currentLevel;
+      };
+
+      self.setLevel = function (level, persist) {
+          if (typeof level === "string" && self.levels[level.toUpperCase()] !== undefined) {
+              level = self.levels[level.toUpperCase()];
+          }
+          if (typeof level === "number" && level >= 0 && level <= self.levels.SILENT) {
+              currentLevel = level;
+              if (persist !== false) {  // defaults to true
+                  persistLevelIfPossible(level);
+              }
+              replaceLoggingMethods.call(self, level, name);
+              if (typeof console === undefinedType && level < self.levels.SILENT) {
+                  return "No console available for logging";
+              }
+          } else {
+              throw "log.setLevel() called with invalid level: " + level;
+          }
+      };
+
+      self.setDefaultLevel = function (level) {
+          if (!getPersistedLevel()) {
+              self.setLevel(level, false);
+          }
+      };
+
+      self.enableAll = function(persist) {
+          self.setLevel(self.levels.TRACE, persist);
+      };
+
+      self.disableAll = function(persist) {
+          self.setLevel(self.levels.SILENT, persist);
+      };
+
+      // Initialize with the right level
+      var initialLevel = getPersistedLevel();
+      if (initialLevel == null) {
+          initialLevel = defaultLevel == null ? "WARN" : defaultLevel;
+      }
+      self.setLevel(initialLevel, false);
+    }
+
+    /*
+     *
+     * Top-level API
+     *
+     */
+
+    var defaultLogger = new Logger();
+
+    var _loggersByName = {};
+    defaultLogger.getLogger = function getLogger(name) {
+        if ((typeof name !== "symbol" && typeof name !== "string") || name === "") {
+          throw new TypeError("You must supply a name when creating a logger.");
+        }
+
+        var logger = _loggersByName[name];
+        if (!logger) {
+          logger = _loggersByName[name] = new Logger(
+            name, defaultLogger.getLevel(), defaultLogger.methodFactory);
+        }
+        return logger;
+    };
+
+    // Grab the current global log variable in case of overwrite
+    var _log = (typeof window !== undefinedType) ? window.log : undefined;
+    defaultLogger.noConflict = function() {
+        if (typeof window !== undefinedType &&
+               window.log === defaultLogger) {
+            window.log = _log;
+        }
+
+        return defaultLogger;
+    };
+
+    defaultLogger.getLoggers = function getLoggers() {
+        return _loggersByName;
+    };
+
+    // ES6 default export, for compatibility
+    defaultLogger['default'] = defaultLogger;
+
+    return defaultLogger;
+}));
+
+
+/***/ }),
+
 /***/ "./node_modules/popper.js/dist/esm/popper.js":
 /*!***************************************************!*\
   !*** ./node_modules/popper.js/dist/esm/popper.js ***!
@@ -52931,7 +53380,7 @@ runtime.setup(pusher_Pusher);
 let promise
 
 module.exports = typeof queueMicrotask === 'function'
-  ? queueMicrotask
+  ? queueMicrotask.bind(globalThis)
   // reuse resolved promise, and allocate it lazily
   : cb => (promise || (promise = Promise.resolve()))
     .then(cb)
@@ -53281,27 +53730,22 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(Buffer) {/*! simple-peer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
-var debug = __webpack_require__(/*! debug */ "./node_modules/simple-peer/node_modules/debug/src/browser.js")('simple-peer')
-var getBrowserRTC = __webpack_require__(/*! get-browser-rtc */ "./node_modules/get-browser-rtc/index.js")
-var randombytes = __webpack_require__(/*! randombytes */ "./node_modules/randombytes/browser.js")
-var stream = __webpack_require__(/*! readable-stream */ "./node_modules/simple-peer/node_modules/readable-stream/readable-browser.js")
-var queueMicrotask = __webpack_require__(/*! queue-microtask */ "./node_modules/queue-microtask/index.js") // TODO: remove when Node 10 is not supported
+/*! simple-peer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
+const debug = __webpack_require__(/*! debug */ "./node_modules/simple-peer/node_modules/debug/src/browser.js")('simple-peer')
+const getBrowserRTC = __webpack_require__(/*! get-browser-rtc */ "./node_modules/get-browser-rtc/index.js")
+const randombytes = __webpack_require__(/*! randombytes */ "./node_modules/randombytes/browser.js")
+const stream = __webpack_require__(/*! readable-stream */ "./node_modules/simple-peer/node_modules/readable-stream/readable-browser.js")
+const queueMicrotask = __webpack_require__(/*! queue-microtask */ "./node_modules/queue-microtask/index.js") // TODO: remove when Node 10 is not supported
+const errCode = __webpack_require__(/*! err-code */ "./node_modules/err-code/index.js")
+const { Buffer } = __webpack_require__(/*! buffer */ "./node_modules/buffer/index.js")
 
-var MAX_BUFFERED_AMOUNT = 64 * 1024
-var ICECOMPLETE_TIMEOUT = 5 * 1000
-var CHANNEL_CLOSING_TIMEOUT = 5 * 1000
+const MAX_BUFFERED_AMOUNT = 64 * 1024
+const ICECOMPLETE_TIMEOUT = 5 * 1000
+const CHANNEL_CLOSING_TIMEOUT = 5 * 1000
 
 // HACK: Filter trickle lines when trickle is disabled #354
 function filterTrickle (sdp) {
   return sdp.replace(/a=ice-options:trickle\s\n/g, '')
-}
-
-function makeError (err, code) {
-  if (typeof err === 'string') err = new Error(err)
-  if (err.error instanceof Error) err = err.error
-  err.code = code
-  return err
 }
 
 function warn (message) {
@@ -53330,7 +53774,7 @@ class Peer extends stream.Duplex {
 
     this.initiator = opts.initiator || false
     this.channelConfig = opts.channelConfig || Peer.channelConfig
-    this.negotiated = this.channelConfig.negotiated
+    this.channelNegotiated = this.channelConfig.negotiated
     this.config = Object.assign({}, Peer.config, opts.config)
     this.offerOptions = opts.offerOptions || {}
     this.answerOptions = opts.answerOptions || {}
@@ -53341,6 +53785,7 @@ class Peer extends stream.Duplex {
     this.iceCompleteTimeout = opts.iceCompleteTimeout || ICECOMPLETE_TIMEOUT
 
     this.destroyed = false
+    this.destroying = false
     this._connected = false
 
     this.remoteAddress = undefined
@@ -53356,9 +53801,9 @@ class Peer extends stream.Duplex {
 
     if (!this._wrtc) {
       if (typeof window === 'undefined') {
-        throw makeError('No WebRTC support: Specify `opts.wrtc` option in this environment', 'ERR_WEBRTC_SUPPORT')
+        throw errCode(new Error('No WebRTC support: Specify `opts.wrtc` option in this environment'), 'ERR_WEBRTC_SUPPORT')
       } else {
-        throw makeError('No WebRTC support: Not a supported browser', 'ERR_WEBRTC_SUPPORT')
+        throw errCode(new Error('No WebRTC support: Not a supported browser'), 'ERR_WEBRTC_SUPPORT')
       }
     }
 
@@ -53369,12 +53814,12 @@ class Peer extends stream.Duplex {
     this._channel = null
     this._pendingCandidates = []
 
-    this._isNegotiating = this.negotiated ? false : !this.initiator // is this peer waiting for negotiation to complete?
+    this._isNegotiating = false // is this peer waiting for negotiation to complete?
+    this._firstNegotiation = true
     this._batchedNegotiation = false // batch synchronous negotiations
     this._queuedNegotiation = false // is there a queued negotiation request?
     this._sendersAwaitingStable = []
     this._senderMap = new Map()
-    this._firstStable = true
     this._closingInterval = null
 
     this._remoteTracks = []
@@ -53387,7 +53832,7 @@ class Peer extends stream.Duplex {
     try {
       this._pc = new (this._wrtc.RTCPeerConnection)(this.config)
     } catch (err) {
-      queueMicrotask(() => this.destroy(makeError(err, 'ERR_PC_CONSTRUCTOR')))
+      queueMicrotask(() => this.destroy(errCode(err, 'ERR_PC_CONSTRUCTOR')))
       return
     }
 
@@ -53417,7 +53862,7 @@ class Peer extends stream.Duplex {
     // - onfingerprintfailure
     // - onnegotiationneeded
 
-    if (this.initiator || this.negotiated) {
+    if (this.initiator || this.channelNegotiated) {
       this._setupData({
         channel: this._pc.createDataChannel(this.channelName, this.channelConfig)
       })
@@ -53436,9 +53881,8 @@ class Peer extends stream.Duplex {
       this._onTrack(event)
     }
 
-    if (this.initiator) {
-      this._needsNegotiation()
-    }
+    this._debug('initial negotiation')
+    this._needsNegotiation()
 
     this._onFinishBound = () => {
       this._onFinish()
@@ -53461,7 +53905,7 @@ class Peer extends stream.Duplex {
   }
 
   signal (data) {
-    if (this.destroyed) throw makeError('cannot signal after peer is destroyed', 'ERR_SIGNALING')
+    if (this.destroyed) throw errCode(new Error('cannot signal after peer is destroyed'), 'ERR_SIGNALING')
     if (typeof data === 'string') {
       try {
         data = JSON.parse(data)
@@ -53499,22 +53943,22 @@ class Peer extends stream.Duplex {
           if (this._pc.remoteDescription.type === 'offer') this._createAnswer()
         })
         .catch(err => {
-          this.destroy(makeError(err, 'ERR_SET_REMOTE_DESCRIPTION'))
+          this.destroy(errCode(err, 'ERR_SET_REMOTE_DESCRIPTION'))
         })
     }
     if (!data.sdp && !data.candidate && !data.renegotiate && !data.transceiverRequest) {
-      this.destroy(makeError('signal() called with invalid signal data', 'ERR_SIGNALING'))
+      this.destroy(errCode(new Error('signal() called with invalid signal data'), 'ERR_SIGNALING'))
     }
   }
 
   _addIceCandidate (candidate) {
-    var iceCandidateObj = new this._wrtc.RTCIceCandidate(candidate)
+    const iceCandidateObj = new this._wrtc.RTCIceCandidate(candidate)
     this._pc.addIceCandidate(iceCandidateObj)
       .catch(err => {
         if (!iceCandidateObj.address || iceCandidateObj.address.endsWith('.local')) {
           warn('Ignoring unsupported ICE candidate.')
         } else {
-          this.destroy(makeError(err, 'ERR_ADD_ICE_CANDIDATE'))
+          this.destroy(errCode(err, 'ERR_ADD_ICE_CANDIDATE'))
         }
       })
   }
@@ -53540,10 +53984,11 @@ class Peer extends stream.Duplex {
         this._pc.addTransceiver(kind, init)
         this._needsNegotiation()
       } catch (err) {
-        this.destroy(makeError(err, 'ERR_ADD_TRANSCEIVER'))
+        this.destroy(errCode(err, 'ERR_ADD_TRANSCEIVER'))
       }
     } else {
       this.emit('signal', { // request initiator to renegotiate
+        type: 'transceiverRequest',
         transceiverRequest: { kind, init }
       })
     }
@@ -53569,17 +54014,17 @@ class Peer extends stream.Duplex {
   addTrack (track, stream) {
     this._debug('addTrack()')
 
-    var submap = this._senderMap.get(track) || new Map() // nested Maps map [track, stream] to sender
-    var sender = submap.get(stream)
+    const submap = this._senderMap.get(track) || new Map() // nested Maps map [track, stream] to sender
+    let sender = submap.get(stream)
     if (!sender) {
       sender = this._pc.addTrack(track, stream)
       submap.set(stream, sender)
       this._senderMap.set(track, submap)
       this._needsNegotiation()
     } else if (sender.removed) {
-      throw makeError('Track has been removed. You should enable/disable tracks that you want to re-add.', 'ERR_SENDER_REMOVED')
+      throw errCode(new Error('Track has been removed. You should enable/disable tracks that you want to re-add.'), 'ERR_SENDER_REMOVED')
     } else {
-      throw makeError('Track has already been added to that stream.', 'ERR_SENDER_ALREADY_ADDED')
+      throw errCode(new Error('Track has already been added to that stream.'), 'ERR_SENDER_ALREADY_ADDED')
     }
   }
 
@@ -53592,17 +54037,17 @@ class Peer extends stream.Duplex {
   replaceTrack (oldTrack, newTrack, stream) {
     this._debug('replaceTrack()')
 
-    var submap = this._senderMap.get(oldTrack)
-    var sender = submap ? submap.get(stream) : null
+    const submap = this._senderMap.get(oldTrack)
+    const sender = submap ? submap.get(stream) : null
     if (!sender) {
-      throw makeError('Cannot replace track that was never added.', 'ERR_TRACK_NOT_ADDED')
+      throw errCode(new Error('Cannot replace track that was never added.'), 'ERR_TRACK_NOT_ADDED')
     }
     if (newTrack) this._senderMap.set(newTrack, submap)
 
     if (sender.replaceTrack != null) {
       sender.replaceTrack(newTrack)
     } else {
-      this.destroy(makeError('replaceTrack is not supported in this browser', 'ERR_UNSUPPORTED_REPLACETRACK'))
+      this.destroy(errCode(new Error('replaceTrack is not supported in this browser'), 'ERR_UNSUPPORTED_REPLACETRACK'))
     }
   }
 
@@ -53614,10 +54059,10 @@ class Peer extends stream.Duplex {
   removeTrack (track, stream) {
     this._debug('removeSender()')
 
-    var submap = this._senderMap.get(track)
-    var sender = submap ? submap.get(stream) : null
+    const submap = this._senderMap.get(track)
+    const sender = submap ? submap.get(stream) : null
     if (!sender) {
-      throw makeError('Cannot remove track that was never added.', 'ERR_TRACK_NOT_ADDED')
+      throw errCode(new Error('Cannot remove track that was never added.'), 'ERR_TRACK_NOT_ADDED')
     }
     try {
       sender.removed = true
@@ -53626,7 +54071,7 @@ class Peer extends stream.Duplex {
       if (err.name === 'NS_ERROR_UNEXPECTED') {
         this._sendersAwaitingStable.push(sender) // HACK: Firefox must wait until (signalingState === stable) https://bugzilla.mozilla.org/show_bug.cgi?id=1133874
       } else {
-        this.destroy(makeError(err, 'ERR_REMOVE_TRACK'))
+        this.destroy(errCode(err, 'ERR_REMOVE_TRACK'))
       }
     }
     this._needsNegotiation()
@@ -53650,8 +54095,13 @@ class Peer extends stream.Duplex {
     this._batchedNegotiation = true
     queueMicrotask(() => {
       this._batchedNegotiation = false
-      this._debug('starting batched negotiation')
-      this.negotiate()
+      if (this.initiator || !this._firstNegotiation) {
+        this._debug('starting batched negotiation')
+        this.negotiate()
+      } else {
+        this._debug('non-initiator initial negotiation request discarded')
+      }
+      this._firstNegotiation = false
     })
   }
 
@@ -53673,6 +54123,7 @@ class Peer extends stream.Duplex {
       } else {
         this._debug('requesting negotiation from initiator')
         this.emit('signal', { // request initiator to renegotiate
+          type: 'renegotiate',
           renegotiate: true
         })
       }
@@ -53688,62 +54139,71 @@ class Peer extends stream.Duplex {
   }
 
   _destroy (err, cb) {
-    if (this.destroyed) return
+    if (this.destroyed || this.destroying) return
+    this.destroying = true
 
-    this._debug('destroy (error: %s)', err && (err.message || err))
+    this._debug('destroying (error: %s)', err && (err.message || err))
 
-    this.readable = this.writable = false
+    queueMicrotask(() => { // allow events concurrent with the call to _destroy() to fire (see #692)
+      this.destroyed = true
+      this.destroying = false
 
-    if (!this._readableState.ended) this.push(null)
-    if (!this._writableState.finished) this.end()
+      this._debug('destroy (error: %s)', err && (err.message || err))
 
-    this.destroyed = true
-    this._connected = false
-    this._pcReady = false
-    this._channelReady = false
-    this._remoteTracks = null
-    this._remoteStreams = null
-    this._senderMap = null
+      this.readable = this.writable = false
 
-    clearInterval(this._closingInterval)
-    this._closingInterval = null
+      if (!this._readableState.ended) this.push(null)
+      if (!this._writableState.finished) this.end()
 
-    clearInterval(this._interval)
-    this._interval = null
-    this._chunk = null
-    this._cb = null
+      this._connected = false
+      this._pcReady = false
+      this._channelReady = false
+      this._remoteTracks = null
+      this._remoteStreams = null
+      this._senderMap = null
 
-    if (this._onFinishBound) this.removeListener('finish', this._onFinishBound)
-    this._onFinishBound = null
+      clearInterval(this._closingInterval)
+      this._closingInterval = null
 
-    if (this._channel) {
-      try {
-        this._channel.close()
-      } catch (err) {}
+      clearInterval(this._interval)
+      this._interval = null
+      this._chunk = null
+      this._cb = null
 
-      this._channel.onmessage = null
-      this._channel.onopen = null
-      this._channel.onclose = null
-      this._channel.onerror = null
-    }
-    if (this._pc) {
-      try {
-        this._pc.close()
-      } catch (err) {}
+      if (this._onFinishBound) this.removeListener('finish', this._onFinishBound)
+      this._onFinishBound = null
 
-      this._pc.oniceconnectionstatechange = null
-      this._pc.onicegatheringstatechange = null
-      this._pc.onsignalingstatechange = null
-      this._pc.onicecandidate = null
-      this._pc.ontrack = null
-      this._pc.ondatachannel = null
-    }
-    this._pc = null
-    this._channel = null
+      if (this._channel) {
+        try {
+          this._channel.close()
+        } catch (err) {}
 
-    if (err) this.emit('error', err)
-    this.emit('close')
-    cb()
+        // allow events concurrent with destruction to be handled
+        this._channel.onmessage = null
+        this._channel.onopen = null
+        this._channel.onclose = null
+        this._channel.onerror = null
+      }
+      if (this._pc) {
+        try {
+          this._pc.close()
+        } catch (err) {}
+
+        // allow events concurrent with destruction to be handled
+        this._pc.oniceconnectionstatechange = null
+        this._pc.onicegatheringstatechange = null
+        this._pc.onsignalingstatechange = null
+        this._pc.onicecandidate = null
+        this._pc.ontrack = null
+        this._pc.ondatachannel = null
+      }
+      this._pc = null
+      this._channel = null
+
+      if (err) this.emit('error', err)
+      this.emit('close')
+      cb()
+    })
   }
 
   _setupData (event) {
@@ -53751,7 +54211,7 @@ class Peer extends stream.Duplex {
       // In some situations `pc.createDataChannel()` returns `undefined` (in wrtc),
       // which is invalid behavior. Handle it gracefully.
       // See: https://github.com/feross/simple-peer/issues/163
-      return this.destroy(makeError('Data channel event is missing `channel` property', 'ERR_DATA_CHANNEL'))
+      return this.destroy(errCode(new Error('Data channel event is missing `channel` property'), 'ERR_DATA_CHANNEL'))
     }
 
     this._channel = event.channel
@@ -53776,12 +54236,12 @@ class Peer extends stream.Duplex {
       this._onChannelClose()
     }
     this._channel.onerror = err => {
-      this.destroy(makeError(err, 'ERR_DATA_CHANNEL'))
+      this.destroy(errCode(err, 'ERR_DATA_CHANNEL'))
     }
 
     // HACK: Chrome will sometimes get stuck in readyState "closing", let's check for this condition
     // https://bugs.chromium.org/p/chromium/issues/detail?id=882743
-    var isClosing = false
+    let isClosing = false
     this._closingInterval = setInterval(() => { // No "onclosing" event
       if (this._channel && this._channel.readyState === 'closing') {
         if (isClosing) this._onChannelClose() // closing timed out: equivalent to onclose firing
@@ -53795,13 +54255,13 @@ class Peer extends stream.Duplex {
   _read () {}
 
   _write (chunk, encoding, cb) {
-    if (this.destroyed) return cb(makeError('cannot write after peer is destroyed', 'ERR_DATA_CHANNEL'))
+    if (this.destroyed) return cb(errCode(new Error('cannot write after peer is destroyed'), 'ERR_DATA_CHANNEL'))
 
     if (this._connected) {
       try {
         this.send(chunk)
       } catch (err) {
-        return this.destroy(makeError(err, 'ERR_DATA_CHANNEL'))
+        return this.destroy(errCode(err, 'ERR_DATA_CHANNEL'))
       }
       if (this._channel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
         this._debug('start backpressure: bufferedAmount %d', this._channel.bufferedAmount)
@@ -53859,7 +54319,7 @@ class Peer extends stream.Duplex {
 
         const sendOffer = () => {
           if (this.destroyed) return
-          var signal = this._pc.localDescription || offer
+          const signal = this._pc.localDescription || offer
           this._debug('signal')
           this.emit('signal', {
             type: signal.type,
@@ -53875,7 +54335,7 @@ class Peer extends stream.Duplex {
         }
 
         const onError = err => {
-          this.destroy(makeError(err, 'ERR_SET_LOCAL_DESCRIPTION'))
+          this.destroy(errCode(err, 'ERR_SET_LOCAL_DESCRIPTION'))
         }
 
         this._pc.setLocalDescription(offer)
@@ -53883,7 +54343,7 @@ class Peer extends stream.Duplex {
           .catch(onError)
       })
       .catch(err => {
-        this.destroy(makeError(err, 'ERR_CREATE_OFFER'))
+        this.destroy(errCode(err, 'ERR_CREATE_OFFER'))
       })
   }
 
@@ -53909,7 +54369,7 @@ class Peer extends stream.Duplex {
 
         const sendAnswer = () => {
           if (this.destroyed) return
-          var signal = this._pc.localDescription || answer
+          const signal = this._pc.localDescription || answer
           this._debug('signal')
           this.emit('signal', {
             type: signal.type,
@@ -53925,7 +54385,7 @@ class Peer extends stream.Duplex {
         }
 
         const onError = err => {
-          this.destroy(makeError(err, 'ERR_SET_LOCAL_DESCRIPTION'))
+          this.destroy(errCode(err, 'ERR_SET_LOCAL_DESCRIPTION'))
         }
 
         this._pc.setLocalDescription(answer)
@@ -53933,21 +54393,21 @@ class Peer extends stream.Duplex {
           .catch(onError)
       })
       .catch(err => {
-        this.destroy(makeError(err, 'ERR_CREATE_ANSWER'))
+        this.destroy(errCode(err, 'ERR_CREATE_ANSWER'))
       })
   }
 
   _onConnectionStateChange () {
     if (this.destroyed) return
     if (this._pc.connectionState === 'failed') {
-      this.destroy(makeError('Connection failed.', 'ERR_CONNECTION_FAILURE'))
+      this.destroy(errCode(new Error('Connection failed.'), 'ERR_CONNECTION_FAILURE'))
     }
   }
 
   _onIceStateChange () {
     if (this.destroyed) return
-    var iceConnectionState = this._pc.iceConnectionState
-    var iceGatheringState = this._pc.iceGatheringState
+    const iceConnectionState = this._pc.iceConnectionState
+    const iceGatheringState = this._pc.iceGatheringState
 
     this._debug(
       'iceStateChange (connection: %s) (gathering: %s)',
@@ -53961,10 +54421,10 @@ class Peer extends stream.Duplex {
       this._maybeReady()
     }
     if (iceConnectionState === 'failed') {
-      this.destroy(makeError('Ice connection failed.', 'ERR_ICE_CONNECTION_FAILURE'))
+      this.destroy(errCode(new Error('Ice connection failed.'), 'ERR_ICE_CONNECTION_FAILURE'))
     }
     if (iceConnectionState === 'closed') {
-      this.destroy(makeError('Ice connection closed.', 'ERR_ICE_CONNECTION_CLOSED'))
+      this.destroy(errCode(new Error('Ice connection closed.'), 'ERR_ICE_CONNECTION_CLOSED'))
     }
   }
 
@@ -53983,7 +54443,7 @@ class Peer extends stream.Duplex {
     if (this._pc.getStats.length === 0 || this._isReactNativeWebrtc) {
       this._pc.getStats()
         .then(res => {
-          var reports = []
+          const reports = []
           res.forEach(report => {
             reports.push(flattenValues(report))
           })
@@ -53996,9 +54456,9 @@ class Peer extends stream.Duplex {
         // If we destroy connection in `connect` callback this code might happen to run when actual connection is already closed
         if (this.destroyed) return
 
-        var reports = []
+        const reports = []
         res.result().forEach(result => {
-          var report = {}
+          const report = {}
           result.names().forEach(name => {
             report[name] = result.stat(name)
           })
@@ -54033,10 +54493,10 @@ class Peer extends stream.Duplex {
         // Treat getStats error as non-fatal. It's not essential.
         if (err) items = []
 
-        var remoteCandidates = {}
-        var localCandidates = {}
-        var candidatePairs = {}
-        var foundSelectedCandidatePair = false
+        const remoteCandidates = {}
+        const localCandidates = {}
+        const candidatePairs = {}
+        let foundSelectedCandidatePair = false
 
         items.forEach(item => {
           // TODO: Once all browsers support the hyphenated stats report types, remove
@@ -54055,7 +54515,7 @@ class Peer extends stream.Duplex {
         const setSelectedCandidatePair = selectedCandidatePair => {
           foundSelectedCandidatePair = true
 
-          var local = localCandidates[selectedCandidatePair.localCandidateId]
+          let local = localCandidates[selectedCandidatePair.localCandidateId]
 
           if (local && (local.ip || local.address)) {
             // Spec
@@ -54075,7 +54535,7 @@ class Peer extends stream.Duplex {
             this.localFamily = this.localAddress.includes(':') ? 'IPv6' : 'IPv4'
           }
 
-          var remote = remoteCandidates[selectedCandidatePair.remoteCandidateId]
+          let remote = remoteCandidates[selectedCandidatePair.remoteCandidateId]
 
           if (remote && (remote.ip || remote.address)) {
             // Spec
@@ -54097,7 +54557,10 @@ class Peer extends stream.Duplex {
 
           this._debug(
             'connect local: %s:%s remote: %s:%s',
-            this.localAddress, this.localPort, this.remoteAddress, this.remotePort
+            this.localAddress,
+            this.localPort,
+            this.remoteAddress,
+            this.remotePort
           )
         }
 
@@ -54130,12 +54593,12 @@ class Peer extends stream.Duplex {
           try {
             this.send(this._chunk)
           } catch (err) {
-            return this.destroy(makeError(err, 'ERR_DATA_CHANNEL'))
+            return this.destroy(errCode(err, 'ERR_DATA_CHANNEL'))
           }
           this._chunk = null
           this._debug('sent chunk from "write before connect"')
 
-          var cb = this._cb
+          const cb = this._cb
           this._cb = null
           cb(null)
         }
@@ -54164,7 +54627,7 @@ class Peer extends stream.Duplex {
   _onSignalingStateChange () {
     if (this.destroyed) return
 
-    if (this._pc.signalingState === 'stable' && !this._firstStable) {
+    if (this._pc.signalingState === 'stable') {
       this._isNegotiating = false
 
       // HACK: Firefox doesn't yet support removing tracks when signalingState !== 'stable'
@@ -54179,12 +54642,11 @@ class Peer extends stream.Duplex {
         this._debug('flushing negotiation queue')
         this._queuedNegotiation = false
         this._needsNegotiation() // negotiate again
+      } else {
+        this._debug('negotiated')
+        this.emit('negotiated')
       }
-
-      this._debug('negotiate')
-      this.emit('negotiate')
     }
-    this._firstStable = false
 
     this._debug('signalingStateChange %s', this._pc.signalingState)
     this.emit('signalingStateChange', this._pc.signalingState)
@@ -54194,6 +54656,7 @@ class Peer extends stream.Duplex {
     if (this.destroyed) return
     if (event.candidate && this.trickle) {
       this.emit('signal', {
+        type: 'candidate',
         candidate: {
           candidate: event.candidate.candidate,
           sdpMLineIndex: event.candidate.sdpMLineIndex,
@@ -54212,7 +54675,7 @@ class Peer extends stream.Duplex {
 
   _onChannelMessage (event) {
     if (this.destroyed) return
-    var data = event.data
+    let data = event.data
     if (data instanceof ArrayBuffer) data = Buffer.from(data)
     this.push(data)
   }
@@ -54220,7 +54683,7 @@ class Peer extends stream.Duplex {
   _onChannelBufferedAmountLow () {
     if (this.destroyed || !this._cb) return
     this._debug('ending backpressure: bufferedAmount %d', this._channel.bufferedAmount)
-    var cb = this._cb
+    const cb = this._cb
     this._cb = null
     cb(null)
   }
@@ -54256,13 +54719,14 @@ class Peer extends stream.Duplex {
 
       this._remoteStreams.push(eventStream)
       queueMicrotask(() => {
+        this._debug('on stream')
         this.emit('stream', eventStream) // ensure all tracks have been added
       })
     })
   }
 
   _debug () {
-    var args = [].slice.call(arguments)
+    const args = [].slice.call(arguments)
     args[0] = '[' + this._id + '] ' + args[0]
     debug.apply(null, args)
   }
@@ -54278,10 +54742,10 @@ Peer.WEBRTC_SUPPORT = !!getBrowserRTC()
 Peer.config = {
   iceServers: [
     {
-      urls: 'stun:stun.l.google.com:19302'
-    },
-    {
-      urls: 'stun:global.stun.twilio.com:3478?transport=udp'
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:global.stun.twilio.com:3478'
+      ]
     }
   ],
   sdpSemantics: 'unified-plan'
@@ -54291,7 +54755,6 @@ Peer.channelConfig = {}
 
 module.exports = Peer
 
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../buffer/index.js */ "./node_modules/buffer/index.js").Buffer))
 
 /***/ }),
 
@@ -59385,6 +59848,7 @@ var _require4 = __webpack_require__(/*! ./util */ "./node_modules/twilio-video/e
 var _require5 = __webpack_require__(/*! ./util/constants */ "./node_modules/twilio-video/es5/util/constants.js"),
     DEFAULT_ENVIRONMENT = _require5.DEFAULT_ENVIRONMENT,
     DEFAULT_LOG_LEVEL = _require5.DEFAULT_LOG_LEVEL,
+    DEFAULT_LOGGER_NAME = _require5.DEFAULT_LOGGER_NAME,
     DEFAULT_REALM = _require5.DEFAULT_REALM,
     DEFAULT_REGION = _require5.DEFAULT_REGION,
     WS_SERVER = _require5.WS_SERVER,
@@ -59392,7 +59856,7 @@ var _require5 = __webpack_require__(/*! ./util/constants */ "./node_modules/twil
 
 var CancelablePromise = __webpack_require__(/*! ./util/cancelablepromise */ "./node_modules/twilio-video/es5/util/cancelablepromise.js");
 var EventObserver = __webpack_require__(/*! ./util/eventobserver */ "./node_modules/twilio-video/es5/util/eventobserver.js");
-var Log = __webpack_require__(/*! ./util/log */ "./node_modules/twilio-video/es5/util/log.js");
+var DefaultLog = __webpack_require__(/*! ./util/log */ "./node_modules/twilio-video/es5/util/log.js");
 
 var _require6 = __webpack_require__(/*! ./util/validate */ "./node_modules/twilio-video/es5/util/validate.js"),
     validateBandwidthProfile = _require6.validateBandwidthProfile;
@@ -59508,6 +59972,35 @@ if (safariVersion) {
  * }).catch(error => {
  *   console.log('Could not connect to the Room:', error.message);
  * });
+ * @example
+ * // Accessing the SDK logger
+ * var { Logger, connect } = require('twilio-video');
+ * var token = getAccessToken();
+ *
+ * var logger = Logger.getLogger('twilio-video');
+ *
+ * // Listen for logs
+ * var originalFactory = logger.methodFactory;
+ * logger.methodFactory = function (methodName, logLevel, loggerName) {
+ *   var method = originalFactory(methodName, logLevel, loggerName);
+ *
+ *   return function (datetime, logLevel, component, message, data) {
+ *     method(datetime, logLevel, component, message, data);
+ *     // Send to your own server
+ *     postDataToServer(arguments);
+ *   };
+ * };
+ * logger.setLevel('debug');
+ *
+ * connect(token, {
+ *   name: 'my-cool-room'
+ * }).then(function(room) {
+ *   room.on('participantConnected', function(participant) {
+ *     console.log(participant.identity + ' has connected');
+ *   });
+ * }).catch(error => {
+ *   console.log('Could not connect to the Room:', error.message);
+ * });
  */
 function connect(token, options) {
   if (typeof options === 'undefined') {
@@ -59516,6 +60009,24 @@ function connect(token, options) {
   if (!isNonArrayObject(options)) {
     return CancelablePromise.reject(E.INVALID_TYPE('options', 'object'));
   }
+
+  var Log = options.Log || DefaultLog;
+  var loggerName = options.loggerName || DEFAULT_LOGGER_NAME;
+  var logLevel = options.logLevel || DEFAULT_LOG_LEVEL;
+  var logLevels = buildLogLevels(logLevel);
+  var logComponentName = '[connect #' + ++connectCalls + ']';
+
+  var log = void 0;
+  try {
+    log = new Log('default', logComponentName, logLevels, loggerName);
+  } catch (error) {
+    return CancelablePromise.reject(error);
+  }
+
+  // NOTE(csantos): Log a warning for the deprecated ConnectOptions properties.
+  // The warning is displayed only for the first call to connect() per browser session.
+  // Additionally, the options that are no longer needed will be removed.
+  deprecateOptions(options, log);
 
   options = Object.assign({
     automaticSubscription: true,
@@ -59531,7 +60042,8 @@ function connect(token, options) {
     LocalVideoTrack: LocalVideoTrack,
     Log: Log,
     MediaStreamTrack: MediaStreamTrack,
-    logLevel: DEFAULT_LOG_LEVEL,
+    loggerName: loggerName,
+    logLevel: logLevel,
     maxAudioBitrate: null,
     maxVideoBitrate: null,
     name: null,
@@ -59546,23 +60058,10 @@ function connect(token, options) {
 
   /* eslint new-cap:0 */
   var wsServer = WS_SERVER(options.environment, options.region);
-  var eventObserver = new EventObserver(Date.now(), options.eventListener);
+  var eventObserver = new EventObserver(Date.now(), log, options.eventListener);
   options = Object.assign({ eventObserver: eventObserver, wsServer: wsServer }, options);
 
-  var logLevels = buildLogLevels(options.logLevel);
-  var logComponentName = '[connect #' + ++connectCalls + ']';
-
-  var log = void 0;
-  try {
-    log = new options.Log('default', logComponentName, logLevels);
-  } catch (error) {
-    return CancelablePromise.reject(error);
-  }
   options.log = log;
-
-  // NOTE(mmalavalli): Remove the deprecated ConnectOptions properties with a warning.
-  // The warning is displayed only for the first call to connect() per browser session.
-  removeDeprecatedConnectOptionsPropsWithWarning(options, log);
 
   // NOTE(mroberts): Print the Safari warning once if the log-level is at least
   // "warn", i.e. neither "error" nor "off".
@@ -59612,8 +60111,8 @@ function connect(token, options) {
   });
 
   var preferredCodecs = {
-    audio: options.preferredAudioCodecs,
-    video: options.preferredVideoCodecs.map(normalizeVideoCodecSettings)
+    audio: options.preferredAudioCodecs.map(normalizeCodecSettings),
+    video: options.preferredVideoCodecs.map(normalizeCodecSettings)
   };
 
   var networkQualityConfiguration = new NetworkQualityConfigurationImpl(isNonArrayObject(options.networkQuality) ? options.networkQuality : {});
@@ -59677,9 +60176,10 @@ function connect(token, options) {
  *   sent with DSCP header value set to 0xb8 which corresponds to Expedited Forwarding (EF).
  *   Video packets will be sent with DSCP header value set to 0x88 which corresponds to
  *   Assured Forwarding (AF41).
- * @property {EventListener} [eventListener] - Optionally, you can listen to fine-grained events
- *   related to signaling and media that are not available in the public APIs. These events
- *   might be useful for your own reporting and diagnostics.
+ * @property {EventListener} [eventListener] - <code>(deprecated: use [Video.Logger](module-twilio-video.html)</code>
+ *   you can listen to fine-grained events related to signaling and media that are
+ *   not available in the public APIs. These events might be useful for your own reporting
+ *   and diagnostics.
  * @property {Array<RTCIceServer>} iceServers - Override the STUN and TURN
  *   servers used when connecting to {@link Room}s
  * @property {RTCIceTransportPolicy} [iceTransportPolicy="all"] - Override the
@@ -59711,7 +60211,7 @@ function connect(token, options) {
  *   than <code style="padding:0 0">gll</code> bypasses routing and guarantees that signaling traffic will be
  *   terminated in the region that you prefer. Please refer to this <a href="https://www.twilio.com/docs/video/ip-address-whitelisting#signaling-communication" target="_blank">table</a>
  *   for the list of supported signaling regions.
- * @property {Array<AudioCodec>} [preferredAudioCodecs=[]] - Preferred audio codecs;
+ * @property {Array<AudioCodec|AudioCodecSettings>} [preferredAudioCodecs=[]] - Preferred audio codecs;
  *  An empty array preserves the current audio codec preference order.
  * @property {Array<VideoCodec|VideoCodecSettings>} [preferredVideoCodecs=[]] -
  *  Preferred video codecs; An empty array preserves the current video codec
@@ -59720,10 +60220,14 @@ function connect(token, options) {
  *  <code>VideoCodecs</code> property.
  *  See <a href="https://www.twilio.com/docs/api/video/rooms-resource#create-room">
  *  here</a> for more information.
- * @property {LogLevel|LogLevels} [logLevel='warn'] - Set the log verbosity
- *   of logging to console. Passing a {@link LogLevel} string will use the same
+ * @property {LogLevel|LogLevels} [logLevel='warn'] - <code>(deprecated: use [Video.Logger](module-twilio-video.html) instead.
+ *   See [examples](module-twilio-video.html#.connect) for details)</code>
+ *   Set the default log verbosity
+ *   of logging. Passing a {@link LogLevel} string will use the same
  *   level for all components. Pass a {@link LogLevels} to set specific log
  *   levels.
+ * @property {string} [loggerName='twilio-video'] - The name of the logger. Use this name when accessing the logger used by the SDK.
+ *   See [examples](module-twilio-video.html#.connect) for details.
  * @property {Array<LocalTrack|MediaStreamTrack>} [tracks] - The
  *   {@link LocalTrack}s or MediaStreamTracks with which to join the
  *   {@link Room}. These tracks can be obtained either by calling
@@ -59807,6 +60311,22 @@ function connect(token, options) {
  */
 
 /**
+ * Audio codec settings.
+ * @typedef {object} AudioCodecSettings
+ * @property {AudioCodec} codec - Audio codec name
+ */
+
+/**
+ * Opus codec settings.
+ * @typedef {AudioCodecSettings} OpusCodecSettings
+ * @property {AudioCodec} name - "opus"
+ * @property {boolean} [dtx=true] - Enable/disable discontinuous transmission (DTX);
+ *   If enabled all published {@link LocalAudioTrack}s will reduce the outgoing bitrate
+ *   to near-zero whenever speech is not detected, resulting in bandwidth and CPU savings;
+ *   It defaults to true.
+ */
+
+/**
  * Video codec settings.
  * @typedef {object} VideoCodecSettings
  * @property {VideoCodec} codec - Video codec name
@@ -59816,7 +60336,7 @@ function connect(token, options) {
  * VP8 codec settings.
  * @typedef {VideoCodecSettings} VP8CodecSettings
  * @property {VideoCodec} name - "VP8"
- * @property {boolean} [simulcast=false] - Enable/disable VP8 simulcast; if
+ * @property {boolean} [simulcast=false] - Enable/disable VP8 simulcast; If
  *   enabled, Twilio's Video SDK will send three video streams of different
  *   qualities
  */
@@ -60066,21 +60586,24 @@ var EventListenerGroup = {
  * @property {string} name='waiting'
  */
 
-var deprecatedConnectOptionsProps = new Set([{ didWarn: false, name: 'abortOnIceServersTimeout' }, { didWarn: false, name: 'dscpTagging', newName: 'enableDscp' }, { didWarn: false, name: 'iceServersTimeout' }]);
+var deprecatedConnectOptionsProps = new Set([{ didWarn: false, shouldDelete: true, name: 'abortOnIceServersTimeout' }, { didWarn: false, shouldDelete: true, name: 'dscpTagging', newName: 'enableDscp' }, { didWarn: false, shouldDelete: true, name: 'iceServersTimeout' }, { didWarn: false, shouldDelete: false, name: 'eventListener', newName: 'Video.Logger' }, { didWarn: false, shouldDelete: false, name: 'logLevel', newName: 'Video.Logger' }]);
 
-function removeDeprecatedConnectOptionsPropsWithWarning(options, log) {
+function deprecateOptions(options, log) {
   deprecatedConnectOptionsProps.forEach(function (prop) {
     var didWarn = prop.didWarn,
         name = prop.name,
-        newName = prop.newName;
+        newName = prop.newName,
+        shouldDelete = prop.shouldDelete;
 
-    if (name in options) {
-      if (newName) {
+    if (name in options && typeof options[name] !== 'undefined') {
+      if (newName && shouldDelete) {
         options[newName] = options[name];
       }
-      delete options[name];
+      if (shouldDelete) {
+        delete options[name];
+      }
       if (!didWarn && !['error', 'off'].includes(log.level)) {
-        log.warn('The ConnectOptions flag "' + name + '" is ' + (newName ? 'deprecated and scheduled for removal. Please use "' + newName + '" instead.' : 'no longer applicable and will be ignored.'));
+        log.warn('The ConnectOptions "' + name + '" is ' + (newName ? 'deprecated and scheduled for removal. Please use "' + newName + '" instead.' : 'no longer applicable and will be ignored.'));
         prop.didWarn = true;
       }
     }
@@ -60140,9 +60663,13 @@ function getLocalTracks(options, handleLocalTracks) {
   });
 }
 
-function normalizeVideoCodecSettings(nameOrSettings) {
+function normalizeCodecSettings(nameOrSettings) {
   var settings = typeof nameOrSettings === 'string' ? { codec: nameOrSettings } : nameOrSettings;
   switch (settings.codec.toLowerCase()) {
+    case 'opus':
+      {
+        return Object.assign({ dtx: true }, settings);
+      }
     case 'vp8':
       {
         return Object.assign({ simulcast: false }, settings);
@@ -60169,7 +60696,10 @@ module.exports = connect;
 
 
 var defaultCreateLocalTracks = __webpack_require__(/*! ./createlocaltracks */ "./node_modules/twilio-video/es5/createlocaltracks.js");
-var DEFAULT_LOG_LEVEL = __webpack_require__(/*! ./util/constants */ "./node_modules/twilio-video/es5/util/constants.js").DEFAULT_LOG_LEVEL;
+
+var _require = __webpack_require__(/*! ./util/constants */ "./node_modules/twilio-video/es5/util/constants.js"),
+    DEFAULT_LOG_LEVEL = _require.DEFAULT_LOG_LEVEL,
+    DEFAULT_LOGGER_NAME = _require.DEFAULT_LOGGER_NAME;
 
 /**
  * Request a {@link LocalAudioTrack} or {@link LocalVideoTrack}.
@@ -60178,14 +60708,19 @@ var DEFAULT_LOG_LEVEL = __webpack_require__(/*! ./util/constants */ "./node_modu
  * @returns {Promise<LocalAudioTrack|LocalVideoTrack>}
  * @private
  */
+
+
 function createLocalTrack(kind, options) {
   options = Object.assign({
     createLocalTracks: defaultCreateLocalTracks,
+    loggerName: DEFAULT_LOGGER_NAME,
     logLevel: DEFAULT_LOG_LEVEL
   }, options);
 
   var createOptions = {};
+  createOptions.loggerName = options.loggerName;
   createOptions.logLevel = options.logLevel;
+  delete options.loggerName;
   delete options.logLevel;
 
   var createLocalTracks = options.createLocalTracks;
@@ -60228,7 +60763,10 @@ function createLocalAudioTrack(options) {
 }
 
 /**
- * Request a {@link LocalVideoTrack}.
+ * Request a {@link LocalVideoTrack}. Note that on mobile browsers,
+ * the camera can be reserved by only one {@link LocalVideoTrack} at any given
+ * time. If you attempt to create a second {@link LocalVideoTrack}, video frames
+ * will no longer be supplied to the first {@link LocalVideoTrack}.
  * @alias module:twilio-video.createLocalVideoTrack
  * @param {CreateLocalTrackOptions} [options] - Options for requesting a {@link LocalVideoTrack}
  * @returns {Promise<LocalVideoTrack>}
@@ -60262,7 +60800,14 @@ function createLocalVideoTrack(options) {
  * also specify any of the <a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints" target="_blank">MediaTrackConstraints</a>
  * properties.
  * @typedef {MediaTrackConstraints} CreateLocalTrackOptions
- * @property {LogLevel|LogLevels} logLevel
+ * @property {LogLevel|LogLevels} [logLevel='warn'] - <code>(deprecated: use [Video.Logger](module-twilio-video.html) instead.
+ *   See [examples](module-twilio-video.html#.connect) for details)</code>
+ *   Set the default log verbosity
+ *   of logging. Passing a {@link LogLevel} string will use the same
+ *   level for all components. Pass a {@link LogLevels} to set specific log
+ *   levels.
+ * @property {string} [loggerName='twilio-video'] - The name of the logger. Use this name when accessing the logger used by the SDK.
+ *   See [examples](module-twilio-video.html#.connect) for details.
  * @property {string} [name] - The {@link LocalTrack}'s name; by default,
  *   it is set to the {@link LocalTrack}'s ID.
  * @property {boolean} [workaroundWebKitBug180748=false] - Only valid for
@@ -60299,7 +60844,11 @@ var _require = __webpack_require__(/*! ./media/track/es5 */ "./node_modules/twil
 
 var MediaStreamTrack = __webpack_require__(/*! @twilio/webrtc */ "./node_modules/@twilio/webrtc/lib/index.js").MediaStreamTrack;
 var Log = __webpack_require__(/*! ./util/log */ "./node_modules/twilio-video/es5/util/log.js");
-var DEFAULT_LOG_LEVEL = __webpack_require__(/*! ./util/constants */ "./node_modules/twilio-video/es5/util/constants.js").DEFAULT_LOG_LEVEL;
+
+var _require2 = __webpack_require__(/*! ./util/constants */ "./node_modules/twilio-video/es5/util/constants.js"),
+    DEFAULT_LOG_LEVEL = _require2.DEFAULT_LOG_LEVEL,
+    DEFAULT_LOGGER_NAME = _require2.DEFAULT_LOGGER_NAME;
+
 var workaround180748 = __webpack_require__(/*! ./webaudio/workaround180748 */ "./node_modules/twilio-video/es5/webaudio/workaround180748.js");
 
 // This is used to make out which createLocalTracks() call a particular Log
@@ -60310,6 +60859,9 @@ var createLocalTrackCalls = 0;
 /**
  * Request {@link LocalTrack}s. By default, it requests a
  * {@link LocalAudioTrack} and a {@link LocalVideoTrack}.
+ * Note that on mobile browsers, the camera can be reserved by only one {@link LocalVideoTrack}
+ * at any given time. If you attempt to create a second {@link LocalVideoTrack}, video frames
+ * will no longer be supplied to the first {@link LocalVideoTrack}.
  * @alias module:twilio-video.createLocalTracks
  * @param {CreateLocalTracksOptions} [options]
  * @returns {Promise<Array<LocalTrack>>}
@@ -60342,6 +60894,24 @@ var createLocalTrackCalls = 0;
  *     console.log(localTrack.name);
  *   });
  * });
+ *
+ * @example
+ * var Video = require('twilio-video');
+ * var localTracks;
+ *
+ * // Pre-acquire tracks to display camera preview.
+ * Video.createLocalTracks().then(function(tracks) {
+ *  localTracks = tracks;
+ *  var localVideoTrack = localTracks.find(track => track.kind === 'video');
+ *  divContainer.appendChild(localVideoTrack.attach());
+ * })
+ *
+ * // Later, join the Room with the pre-acquired LocalTracks.
+ * Video.connect('token', {
+ *   name: 'my-cool-room',
+ *   tracks: localTracks
+ * });
+ *
  */
 function createLocalTracks(options) {
   var isAudioVideoAbsent = !(options && ('audio' in options || 'video' in options));
@@ -60349,6 +60919,7 @@ function createLocalTracks(options) {
   options = Object.assign({
     audio: isAudioVideoAbsent,
     getUserMedia: getUserMedia,
+    loggerName: DEFAULT_LOGGER_NAME,
     logLevel: DEFAULT_LOG_LEVEL,
     LocalAudioTrack: LocalAudioTrack,
     LocalDataTrack: LocalDataTrack,
@@ -60360,7 +60931,7 @@ function createLocalTracks(options) {
 
   var logComponentName = '[createLocalTracks #' + ++createLocalTrackCalls + ']';
   var logLevels = buildLogLevels(options.logLevel);
-  var log = new options.Log('default', logComponentName, logLevels);
+  var log = new options.Log('default', logComponentName, logLevels, options.loggerName);
 
   // NOTE(mmalavalli): The Room "name" in "options" was being used
   // as the LocalTrack name in asLocalTrack(). So we pass a copy of
@@ -60431,10 +61002,14 @@ function createLocalTracks(options) {
  * @property {boolean|CreateLocalTrackOptions} [audio=true] - Whether or not to
  *   get local audio with <code>getUserMedia</code> when <code>tracks</code>
  *   are not provided.
- * @property {LogLevel|LogLevels} [logLevel='warn'] - Set the log verbosity
- *   of logging to console. Passing a {@link LogLevel} string will use the same
+ * @property {LogLevel|LogLevels} [logLevel='warn'] - <code>(deprecated: use [Video.Logger](module-twilio-video.html) instead.
+ *   See [examples](module-twilio-video.html#.connect) for details)</code>
+ *   Set the default log verbosity
+ *   of logging. Passing a {@link LogLevel} string will use the same
  *   level for all components. Pass a {@link LogLevels} to set specific log
  *   levels.
+ * @property {string} [loggerName='twilio-video'] - The name of the logger. Use this name when accessing the logger used by the SDK.
+ *   See [examples](module-twilio-video.html#.connect) for details.
  * @property {boolean|CreateLocalTrackOptions} [video=true] - Whether or not to
  *   get local video with <code>getUserMedia</code> when <code>tracks</code>
  *   are not provided.
@@ -61066,8 +61641,13 @@ var _require = __webpack_require__(/*! ./media/track/es5 */ "./node_modules/twil
  * @property {boolean} isSupported - true if the current browser is officially
  *   supported by twilio-video.js; In this context, "supported" means that
  *   twilio-video.js has been extensively tested with this browser; This
- *   <a href='https://www.twilio.com/docs/video/javascript#supported-browsers target="_blank">table</a>
+ *   <a href="https://www.twilio.com/docs/video/javascript#supported-browsers" target="_blank">table</a>
  *   specifies the list of officially supported browsers.
+ *
+ * @property {object} Logger - The <a href="https://www.npmjs.com/package/loglevel" target="_blank">loglevel</a>
+ *    module used by the SDK. Use this object to access the internal loggers and perform actions as defined by the
+ *   <a href="https://www.npmjs.com/package/loglevel" target="_blank">loglevel</a> APIs.
+ *   See [connect](#.connect) for examples.
  *
  * @property {string} version - current version of twilio-video.js.
  */
@@ -61108,6 +61688,10 @@ Object.defineProperties(Video, {
   LocalVideoTrack: {
     enumerable: true,
     value: LocalVideoTrack
+  },
+  Logger: {
+    enumerable: true,
+    value: __webpack_require__(/*! loglevel */ "./node_modules/loglevel/lib/loglevel.js")
   },
   version: {
     enumerable: true,
@@ -62247,7 +62831,7 @@ var Track = function (_EventEmitter) {
     var name = String(options.name);
 
     var logLevels = buildLogLevels(options.logLevel);
-    var log = options.log ? options.log.createLog('media', _this) : new Log('media', _this, logLevels);
+    var log = options.log ? options.log.createLog('media', _this) : new Log('media', _this, logLevels, options.loggerName);
 
     Object.defineProperties(_this, {
       _instanceId: {
@@ -62348,13 +62932,9 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var _require = __webpack_require__(/*! @twilio/webrtc/lib/util */ "./node_modules/@twilio/webrtc/lib/util/index.js"),
-    guessBrowser = _require.guessBrowser;
-
 var AudioTrack = __webpack_require__(/*! ./audiotrack */ "./node_modules/twilio-video/es5/media/track/audiotrack.js");
 var mixinLocalMediaTrack = __webpack_require__(/*! ./localmediatrack */ "./node_modules/twilio-video/es5/media/track/localmediatrack.js");
 
-var isFirefox = guessBrowser() === 'firefox';
 var LocalMediaAudioTrack = mixinLocalMediaTrack(AudioTrack);
 
 /**
@@ -62480,17 +63060,6 @@ var LocalAudioTrack = function (_LocalMediaAudioTrack) {
   }, {
     key: 'restart',
     value: function restart() {
-      var constraints = arguments[0] || {};
-
-      // NOTE(mmalavalli): If "deviceId" is present in the constraints, then the developer
-      // is most likely trying to switch audio devices. In Firefox, getUserMedia raises a
-      // NotReadableError when trying to capture from a different audio device while the
-      // existing audio device is still being used. So, we stop the existing MediaStreamTrack
-      // before calling getUserMedia.
-      if (isFirefox && 'deviceId' in constraints) {
-        this._stop();
-      }
-
       return _get(LocalAudioTrack.prototype.__proto__ || Object.getPrototypeOf(LocalAudioTrack.prototype), 'restart', this).apply(this, arguments);
     }
 
@@ -63026,8 +63595,15 @@ function mixinLocalMediaTrack(AudioOrVideoTrack) {
         var log = this._log;
 
         constraints = constraints || this._constraints;
+
+        // NOTE(mmalavalli): If we try and restart a silent MediaStreamTrack
+        // without stopping it first, then a NotReadableError is raised in case of
+        // video, or the restarted audio will still be silent. Hence, we stop the
+        // MediaStreamTrack here.
+        this._stop();
+
         return this._reacquireTrack(constraints).catch(function (error) {
-          log.error('Failed to re-acquire the MediaStreamTrack:', error, constraints);
+          log.error('Failed to re-acquire the MediaStreamTrack:', { error: error, constraints: constraints });
           throw error;
         }).then(function (newMediaStreamTrack) {
           log.info('Re-acquired the MediaStreamTrack');
@@ -63054,7 +63630,7 @@ function mixinLocalMediaTrack(AudioOrVideoTrack) {
         this._stop();
 
         return this._trackSender.setMediaStreamTrack(mediaStreamTrack).catch(function (error) {
-          _this3._log.warn('setMediaStreamTrack failed:', error, mediaStreamTrack);
+          _this3._log.warn('setMediaStreamTrack failed:', { error: error, mediaStreamTrack: mediaStreamTrack });
         }).then(function () {
           _this3._initialize();
           _this3._getAllAttachedElements().forEach(function (el) {
@@ -63188,13 +63764,6 @@ function restartWhenInadvertentlyStopped(localMediaTrack) {
     }).then(function (shouldReacquire) {
       if (shouldReacquire && !trackChangeInProgress) {
         trackChangeInProgress = defer();
-
-        // NOTE(mmalavalli): If we try and restart a silent MediaStreamTrack
-        // without stopping it first, then a NotReadableError is raised in case of
-        // video, or the restarted audio will still be silent. Hence, we stop the
-        // MediaStreamTrack here.
-        localMediaTrack._stop();
-
         localMediaTrack._restart().finally(function () {
           el = localMediaTrack._dummyEl;
           removeMediaStreamTrackListeners();
@@ -63246,7 +63815,7 @@ function restartWhenInadvertentlyStopped(localMediaTrack) {
   }
 
   // NOTE(mpatwardhan): listen for document visibility callback on phase 1.
-  // this ensures that any we acquire media tracks before RemoteMediaTrack
+  // this ensures that we acquire media tracks before RemoteMediaTrack
   // tries to `play` them (in phase 2). This order is important because
   // play can fail on safari if audio is not being captured.
   documentVisibilityMonitor.onVisible(1, maybeRestart);
@@ -63646,6 +64215,7 @@ function workaroundSilentLocalVideo(localVideoTrack, doc) {
       localVideoTrack._stop();
 
       // Restart the LocalVideoTrack.
+      // eslint-disable-next-line consistent-return
       return localVideoTrack._restart();
     }).catch(function (error) {
       log.warn('Failed to detect silence and restart:', error);
@@ -64118,7 +64688,7 @@ function playIfPausedAndNotBackgrounded(el, log) {
       //
       // Bug: https://bugs.webkit.org/show_bug.cgi?id=213853
       //
-      localMediaRestartDeferreds.whenResolved(tag).then(function () {
+      localMediaRestartDeferreds.whenResolved('audio').then(function () {
         log.info('Playing unintentionally paused <' + tag + '> element');
         log.debug('Element:', el);
         return el.play();
@@ -64126,7 +64696,7 @@ function playIfPausedAndNotBackgrounded(el, log) {
         log.info('Successfully played unintentionally paused <' + tag + '> element');
         log.debug('Element:', el);
       }).catch(function (error) {
-        log.warn('Error while playing unintentionally paused <' + tag + '> element:', error, el);
+        log.warn('Error while playing unintentionally paused <' + tag + '> element:', { error: error, el: el });
       });
     }
   });
@@ -64952,7 +65522,7 @@ function playIfPausedWhileInBackground(remoteMediaTrack) {
           log.debug('Element:', el);
           log.debug('RemoteMediaTrack:', remoteMediaTrack);
         }).catch(function (err) {
-          log.warn('Error while playing inadvertently paused <' + kind + '> element:', err, el, remoteMediaTrack);
+          log.warn('Error while playing inadvertently paused <' + kind + '> element:', { err: err, el: el, remoteMediaTrack: remoteMediaTrack });
         });
       }
     });
@@ -65644,7 +66214,7 @@ var TrackPublication = function (_EventEmitter) {
         value: nInstances++
       },
       _log: {
-        value: options.log || new Log('default', _this, logLevels)
+        value: options.log || new Log('default', _this, logLevels, options.loggerName)
       },
       trackName: {
         enumerable: true,
@@ -66772,6 +67342,17 @@ function reemitSignalingStateChangedEvents(participant, signaling) {
       log.debug('Removing Track event reemitters');
       signaling.removeListener('stateChanged', stateChanged);
 
+      participant._tracks.forEach(function (track) {
+        var reemitters = participant._trackEventReemitters.get(track.id);
+        if (track && reemitters) {
+          reemitters.forEach(function (reemitter, event) {
+            track.removeListener(event, reemitter);
+          });
+        }
+      });
+
+      // TODO(joma): Removing this introduced unit test failures in the RemoteParticipant.
+      // Investigate further before removing.
       signaling.tracks.forEach(function (trackSignaling) {
         var track = participant._tracks.get(trackSignaling.id);
         var reemitters = participant._trackEventReemitters.get(trackSignaling.id);
@@ -66781,6 +67362,7 @@ function reemitSignalingStateChangedEvents(participant, signaling) {
           });
         }
       });
+
       participant._trackEventReemitters.clear();
 
       participant.tracks.forEach(function (publication) {
@@ -67310,7 +67892,7 @@ var nInstances = 0;
  * {@link RemoteParticipant}s sharing {@link AudioTrack}s and
  * {@link VideoTrack}s.
  * <br><br>
- * You can connect to a {@link Room} by calling {@link connect}.
+ * You can connect to a {@link Room} by calling {@link module:twilio-video.connect}.
  * @extends EventEmitter
  * @property {?RemoteParticipant} dominantSpeaker - The Dominant Speaker in the
  *   {@link Room}, if any
@@ -67834,6 +68416,9 @@ function handleSignalingEvents(room, signaling) {
           participant._unsubscribeTracks();
         });
         room.emit(state, room, error);
+        room.localParticipant.tracks.forEach(function (publication) {
+          publication.unpublish();
+        });
         signaling.removeListener('stateChanged', stateChanged);
         break;
       case 'reconnecting':
@@ -69468,7 +70053,8 @@ var _require = __webpack_require__(/*! ../../util/twilio-video-errors */ "./node
     SignalingIncomingMessageInvalidError = _require.SignalingIncomingMessageInvalidError;
 
 var _require2 = __webpack_require__(/*! ../../util */ "./node_modules/twilio-video/es5/util/index.js"),
-    flatMap = _require2.flatMap;
+    flatMap = _require2.flatMap,
+    createRoomConnectEventPayload = _require2.createRoomConnectEventPayload;
 
 function createCancelableRoomSignalingPromise(token, wsServer, localParticipant, encodingParameters, preferredCodecs, options) {
   options = Object.assign({
@@ -69530,6 +70116,7 @@ function createCancelableRoomSignalingPromise(token, wsServer, localParticipant,
         dominantSpeaker = _options2.dominantSpeaker,
         environment = _options2.environment,
         eventObserver = _options2.eventObserver,
+        loggerName = _options2.loggerName,
         logLevel = _options2.logLevel,
         name = _options2.name,
         networkMonitor = _options2.networkMonitor,
@@ -69545,6 +70132,7 @@ function createCancelableRoomSignalingPromise(token, wsServer, localParticipant,
       dominantSpeaker: dominantSpeaker,
       environment: environment,
       eventObserver: eventObserver,
+      loggerName: loggerName,
       logLevel: logLevel,
       networkMonitor: networkMonitor,
       networkQuality: networkQuality,
@@ -69564,6 +70152,9 @@ function createCancelableRoomSignalingPromise(token, wsServer, localParticipant,
     } : {});
 
     transport = new Transport(name, token, localParticipant, peerConnectionManager, wsServer, transportOptions);
+
+    var connectEventPayload = createRoomConnectEventPayload(options);
+    eventObserver.emit('event', connectEventPayload);
 
     transport.once('connected', function (initialState) {
       log.debug('Transport connected:', initialState);
@@ -71078,6 +71669,7 @@ var _require4 = __webpack_require__(/*! ../../util/constants */ "./node_modules/
 var _require5 = __webpack_require__(/*! ../../util/sdp */ "./node_modules/twilio-video/es5/util/sdp/index.js"),
     createCodecMapForMediaSection = _require5.createCodecMapForMediaSection,
     disableRtx = _require5.disableRtx,
+    enableDtxForOpus = _require5.enableDtxForOpus,
     getMediaSections = _require5.getMediaSections,
     removeSSRCAttributes = _require5.removeSSRCAttributes,
     revertSimulcastForNonVP8MediaSections = _require5.revertSimulcastForNonVP8MediaSections,
@@ -71206,7 +71798,7 @@ var PeerConnectionV2 = function (_StateMachine) {
       options.chromeSpecificConstraints.optional.push({ googDscp: true });
     }
 
-    var log = options.log ? options.log.createLog('signaling', _this) : new Log('webrtc', _this, logLevels);
+    var log = options.log ? options.log.createLog('webrtc', _this) : new Log('webrtc', _this, logLevels, options.loggerName);
     var peerConnection = new RTCPeerConnection(configuration, options.chromeSpecificConstraints);
 
     if (options.dummyAudioMediaStreamTrack) {
@@ -71339,6 +71931,17 @@ var PeerConnectionV2 = function (_StateMachine) {
         writable: true,
         value: options.offerOptions
       },
+      _onEncodingParametersChanged: {
+        value: oncePerTick(function () {
+          if (_this._isRTCRtpSenderParamsSupported) {
+            if (!_this._needsAnswer) {
+              updateEncodingParameters(_this);
+            }
+            return;
+          }
+          _this.offer();
+        })
+      },
       _peerConnection: {
         value: peerConnection
       },
@@ -71347,6 +71950,16 @@ var PeerConnectionV2 = function (_StateMachine) {
       },
       _preferredVideoCodecs: {
         value: preferredCodecs.video
+      },
+      _shouldApplyDtx: {
+        value: preferredCodecs.audio.every(function (_ref) {
+          var codec = _ref.codec;
+          return codec !== 'opus';
+        }) || preferredCodecs.audio.some(function (_ref2) {
+          var codec = _ref2.codec,
+              dtx = _ref2.dtx;
+          return codec === 'opus' && dtx;
+        })
       },
       _shouldApplySimulcast: {
         value: (isChrome || isSafari) && preferredCodecs.video.some(function (codecSettings) {
@@ -71422,15 +72035,7 @@ var PeerConnectionV2 = function (_StateMachine) {
       }
     });
 
-    encodingParameters.on('changed', oncePerTick(function () {
-      if (_this._isRTCRtpSenderParamsSupported) {
-        if (!_this._needsAnswer) {
-          updateEncodingParameters(_this);
-        }
-        return;
-      }
-      _this.offer();
-    }));
+    encodingParameters.on('changed', _this._onEncodingParametersChanged);
 
     peerConnection.addEventListener('connectionstatechange', _this._handleConnectionStateChange.bind(_this));
     peerConnection.addEventListener('datachannel', _this._handleDataChannelEvent.bind(_this));
@@ -71645,6 +72250,7 @@ var PeerConnectionV2 = function (_StateMachine) {
       if (this._peerConnection.signalingState !== 'closed') {
         this._peerConnection.close();
         this.preempt('closed');
+        this._encodingParameters.removeListener('changed', this._onEncodingParametersChanged);
         return true;
       }
       return false;
@@ -72071,8 +72677,8 @@ var PeerConnectionV2 = function (_StateMachine) {
   }, {
     key: '_getMediaTrackSenderId',
     value: function _getMediaTrackSenderId(trackId) {
-      var mediaTrackSender = Array.from(this._rtpSenders.keys()).find(function (_ref) {
-        var id = _ref.track.id;
+      var mediaTrackSender = Array.from(this._rtpSenders.keys()).find(function (_ref3) {
+        var id = _ref3.track.id;
         return id === trackId;
       });
       return mediaTrackSender ? mediaTrackSender.id : trackId;
@@ -72091,9 +72697,9 @@ var PeerConnectionV2 = function (_StateMachine) {
       var _this10 = this;
 
       var transceivers = this._peerConnection.getTransceivers();
-      var activeTransceivers = transceivers.filter(function (_ref2) {
-        var sender = _ref2.sender,
-            stopped = _ref2.stopped;
+      var activeTransceivers = transceivers.filter(function (_ref4) {
+        var sender = _ref4.sender,
+            stopped = _ref4.stopped;
         return !stopped && sender && sender.track;
       });
 
@@ -72101,29 +72707,29 @@ var PeerConnectionV2 = function (_StateMachine) {
       // SDPs, and even if they are, there is no guarantee that they will be the same as the
       // actual MediaStreamTrack IDs. So, we add or re-write the actual MediaStreamTrack IDs
       // to the assigned m= sections here.
-      var assignedTransceivers = activeTransceivers.filter(function (_ref3) {
-        var mid = _ref3.mid;
+      var assignedTransceivers = activeTransceivers.filter(function (_ref5) {
+        var mid = _ref5.mid;
         return mid;
       });
-      var midsToTrackIds = new Map(assignedTransceivers.map(function (_ref4) {
-        var mid = _ref4.mid,
-            sender = _ref4.sender;
+      var midsToTrackIds = new Map(assignedTransceivers.map(function (_ref6) {
+        var mid = _ref6.mid,
+            sender = _ref6.sender;
         return [mid, _this10._getMediaTrackSenderId(sender.track.id)];
       }));
       var sdp1 = unifiedPlanAddOrRewriteTrackIds(description.sdp, midsToTrackIds);
 
       // NOTE(mmalavalli): Chrome and Safari do not apply the offer until they get an answer.
       // So, we add or re-write the actual MediaStreamTrack IDs to the unassigned m= sections here.
-      var unassignedTransceivers = activeTransceivers.filter(function (_ref5) {
-        var mid = _ref5.mid;
+      var unassignedTransceivers = activeTransceivers.filter(function (_ref7) {
+        var mid = _ref7.mid;
         return !mid;
       });
       var newTrackIdsByKind = new Map(['audio', 'video'].map(function (kind) {
-        return [kind, unassignedTransceivers.filter(function (_ref6) {
-          var sender = _ref6.sender;
+        return [kind, unassignedTransceivers.filter(function (_ref8) {
+          var sender = _ref8.sender;
           return sender.track.kind === kind;
-        }).map(function (_ref7) {
-          var sender = _ref7.sender;
+        }).map(function (_ref9) {
+          var sender = _ref9.sender;
           return _this10._getMediaTrackSenderId(sender.track.id);
         })];
       }));
@@ -72164,6 +72770,12 @@ var PeerConnectionV2 = function (_StateMachine) {
     value: function _setLocalDescription(description) {
       var _this12 = this;
 
+      if (description.type !== 'rollback' && this._shouldApplyDtx) {
+        description = new this._RTCSessionDescription({
+          sdp: enableDtxForOpus(description.sdp),
+          type: description.type
+        });
+      }
       return this._peerConnection.setLocalDescription(description).catch(function (error) {
         _this12._log.warn('Calling setLocalDescription with an RTCSessionDescription of type "' + description.type + '" failed with the error "' + error.message + '".');
         if (description.sdp) {
@@ -72173,6 +72785,19 @@ var PeerConnectionV2 = function (_StateMachine) {
       }).then(function () {
         if (description.type !== 'rollback') {
           _this12._localDescription = _this12._isUnifiedPlan ? _this12._addOrRewriteLocalTrackIds(description) : description;
+
+          // NOTE(mmalavalli): In order for this feature to be backward compatible with older
+          // SDK versions which to not support opus DTX, we append "usedtx=1" to the local SDP
+          // only while applying it. We will not send it over the wire to prevent inadvertent
+          // enabling of opus DTX in older SDKs. Newer SDKs will append "usedtx=1" by themselves
+          // if the developer has requested opus DTX to be enabled. (JSDK-3063)
+          if (_this12._shouldApplyDtx) {
+            _this12._localDescription = new _this12._RTCSessionDescription({
+              sdp: enableDtxForOpus(_this12._localDescription.sdp, []),
+              type: _this12._localDescription.type
+            });
+          }
+
           _this12._localCandidates = [];
           if (description.type === 'offer') {
             _this12._descriptionRevision++;
@@ -72203,6 +72828,15 @@ var PeerConnectionV2 = function (_StateMachine) {
           description.sdp = this._setBitrateParameters(description.sdp, isFirefox ? 'TIAS' : 'AS', this._encodingParameters.maxAudioBitrate, this._encodingParameters.maxVideoBitrate);
         }
         description.sdp = this._setCodecPreferences(description.sdp, this._preferredAudioCodecs, this._preferredVideoCodecs);
+
+        if (this._shouldApplyDtx) {
+          description.sdp = enableDtxForOpus(description.sdp);
+        } else {
+          // NOTE(mmalavalli): Remove "usedtx=1" from opus's fmtp line if present
+          // since DTX is disabled.
+          description.sdp = enableDtxForOpus(description.sdp, []);
+        }
+
         // NOTE(mroberts): Do this to reduce our MediaStream count in Firefox. By
         // mapping MediaStream IDs in the SDP to "-", we ensure the "track" event
         // doesn't include any new MediaStreams in Firefox. Its `streams` member
@@ -72730,7 +73364,7 @@ function filterOutMediaStreamIds(sdp) {
  * @returns {boolean}
  */
 function shouldRecycleTransceiver(transceiver, pcv2) {
-  return !transceiver.stopped && !pcv2._replaceTrackPromises.has(transceiver) && (transceiver.currentDirection === 'inactive' || transceiver.currentDirection === 'recvonly' || transceiver.direction === 'recvonly');
+  return !transceiver.stopped && !pcv2._replaceTrackPromises.has(transceiver) && ['inactive', 'recvonly'].includes(transceiver.direction);
 }
 
 /**
@@ -72741,11 +73375,12 @@ function shouldRecycleTransceiver(transceiver, pcv2) {
  */
 function takeRecycledTransceiver(pcv2, kind) {
   var preferredCodecs = {
-    audio: pcv2._preferredAudioCodecs.map(function (codec) {
+    audio: pcv2._preferredAudioCodecs.map(function (_ref10) {
+      var codec = _ref10.codec;
       return codec.toLowerCase();
     }),
-    video: pcv2._preferredVideoCodecs.map(function (_ref8) {
-      var codec = _ref8.codec;
+    video: pcv2._preferredVideoCodecs.map(function (_ref11) {
+      var codec = _ref11.codec;
       return codec.toLowerCase();
     })
   }[kind];
@@ -73616,7 +74251,7 @@ var RecordingV2 = function (_RecordingSignaling) {
         return this;
       }
       this._revision = recording.revision;
-      return this.enable(recording.enabled);
+      return this.enable(recording.is_recording);
     }
   }]);
 
@@ -78829,7 +79464,7 @@ var TwilioConnection = function (_StateMachine) {
     }, options);
 
     var logLevels = buildLogLevels(options.logLevel);
-    var log = new options.Log('default', _this, logLevels);
+    var log = new options.Log('default', _this, logLevels, options.loggerName);
 
     var networkMonitor = options.networkMonitor ? new NetworkMonitor(function () {
       var type = networkMonitor.type;
@@ -79745,6 +80380,7 @@ module.exports.DEFAULT_ENVIRONMENT = 'prod';
 module.exports.DEFAULT_REALM = 'us1';
 module.exports.DEFAULT_REGION = 'gll';
 module.exports.DEFAULT_LOG_LEVEL = 'warn';
+module.exports.DEFAULT_LOGGER_NAME = 'twilio-video';
 module.exports.WS_SERVER = function (environment, region) {
   region = region === 'gll' ? 'global' : encodeURIComponent(region);
   return environment === 'prod' ? 'wss://' + region + '.vss.twilio.com/signaling' : 'wss://' + region + '.vss.' + environment + '.twilio.com/signaling';
@@ -80145,7 +80781,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var _require = __webpack_require__(/*! events */ "./node_modules/events/events.js"),
     EventEmitter = _require.EventEmitter;
 
-var VALID_GROUPS = ['signaling'];
+var VALID_GROUPS = ['signaling', 'room'];
 
 var VALID_LEVELS = ['debug', 'error', 'info', 'warning'];
 
@@ -80162,10 +80798,11 @@ var EventObserver = function (_EventEmitter) {
   /**
    * Constructor.
    * @param {number} connectTimestamp
+   * @param {log} Log
    * @param {EventListener} eventListener
    */
-  function EventObserver(connectTimestamp) {
-    var eventListener = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+  function EventObserver(connectTimestamp, log) {
+    var eventListener = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
 
     _classCallCheck(this, EventObserver);
 
@@ -80203,16 +80840,31 @@ var EventObserver = function (_EventEmitter) {
         var publisherPayload = Object.assign(payload ? payload : {}, { elapsedTime: elapsedTime, level: level });
         _this._publisher.publish(group, name, publisherPayload);
       }
+      var event = Object.assign(payload ? { payload: payload } : {}, {
+        elapsedTime: elapsedTime,
+        group: group,
+        level: level,
+        name: name,
+        timestamp: timestamp
+      });
 
-      if (eventListener) {
-        var event = Object.assign(payload ? { payload: payload } : {}, {
+      var logLevel = {
+        debug: 'debug',
+        error: 'error',
+        info: 'info',
+        warning: 'warn'
+      }[level];
+      log[logLevel]('event', event);
+
+      if (eventListener && group === 'signaling') {
+        var _event = Object.assign(payload ? { payload: payload } : {}, {
           elapsedTime: elapsedTime,
           group: group,
           level: level,
           name: name,
           timestamp: timestamp
         });
-        eventListener.emit('event', event);
+        eventListener.emit('event', _event);
       }
     });
     return _this;
@@ -80920,6 +81572,77 @@ function valueToJSON(value) {
   return value;
 }
 
+function createRoomConnectEventPayload(connectOptions) {
+  function boolToString(val) {
+    return val ? 'true' : 'false';
+  }
+  var payload = {
+    // arrays props converted to lengths.
+    iceServers: (connectOptions.iceServers || []).length,
+    audioTracks: (connectOptions.tracks || []).filter(function (track) {
+      return track.kind === 'audio';
+    }).length,
+    videoTracks: (connectOptions.tracks || []).filter(function (track) {
+      return track.kind === 'video';
+    }).length,
+    dataTracks: (connectOptions.tracks || []).filter(function (track) {
+      return track.kind === 'data';
+    }).length
+  };
+
+  // boolean properties.
+  [['audio'], ['automaticSubscription'], ['enableDscp'], ['eventListener'], ['preflight'], ['video'], ['dominantSpeaker', 'enableDominantSpeaker']].forEach(function (_ref6) {
+    var _ref7 = _slicedToArray(_ref6, 2),
+        prop = _ref7[0],
+        eventProp = _ref7[1];
+
+    eventProp = eventProp || prop;
+    payload[eventProp] = boolToString(!!connectOptions[prop]);
+  });
+
+  // numbers and string properties.
+  [['maxVideoBitrate'], ['maxAudioBitrate'], ['iceTransportPolicy'], ['region'], ['name', 'roomName']].forEach(function (_ref8) {
+    var _ref9 = _slicedToArray(_ref8, 2),
+        prop = _ref9[0],
+        eventProp = _ref9[1];
+
+    eventProp = eventProp || prop;
+    if (typeof connectOptions[prop] === 'number' || typeof connectOptions[prop] === 'string') {
+      payload[eventProp] = connectOptions[prop];
+    }
+  });
+
+  // array props stringified.
+  ['preferredAudioCodecs', 'preferredVideoCodecs'].forEach(function (prop) {
+    if (prop in connectOptions) {
+      payload[prop] = JSON.stringify(connectOptions[prop]);
+    }
+  });
+
+  if (connectOptions.bandwidthProfile && connectOptions.bandwidthProfile.video) {
+    var videoBPOptions = connectOptions.bandwidthProfile.video || {};
+    payload.bandwidthProfileOptions = {};
+    ['mode', 'maxTracks', 'trackSwitchOffMode', 'dominantSpeakerPriority'].forEach(function (prop) {
+      if (typeof videoBPOptions[prop] === 'number' || typeof videoBPOptions[prop] === 'string') {
+        if (prop in videoBPOptions) {
+          payload.bandwidthProfileOptions[prop] = videoBPOptions[prop];
+        }
+      }
+    });
+
+    if ('renderDimensions' in videoBPOptions) {
+      payload.bandwidthProfileOptions.renderDimensions = JSON.stringify(videoBPOptions.renderDimensions);
+    }
+  }
+
+  return {
+    group: 'room',
+    name: 'connect',
+    level: 'info',
+    payload: payload
+  };
+}
+
 /**
  * Create the bandwidth profile payload included in an RSP connect message.
  * @param {BandwidthProfileOptions} bandwidthProfile
@@ -80994,15 +81717,15 @@ function createRenderDimensionsPayload(renderDimensions) {
  * @returns {object}
  */
 function createRSPPayload(object, propConversions) {
-  return propConversions.reduce(function (payload, _ref6) {
-    var prop = _ref6.prop,
-        type = _ref6.type,
-        _ref6$payloadProp = _ref6.payloadProp,
-        payloadProp = _ref6$payloadProp === undefined ? prop : _ref6$payloadProp,
-        _ref6$transform = _ref6.transform,
-        transform = _ref6$transform === undefined ? function (x) {
+  return propConversions.reduce(function (payload, _ref10) {
+    var prop = _ref10.prop,
+        type = _ref10.type,
+        _ref10$payloadProp = _ref10.payloadProp,
+        payloadProp = _ref10$payloadProp === undefined ? prop : _ref10$payloadProp,
+        _ref10$transform = _ref10.transform,
+        transform = _ref10$transform === undefined ? function (x) {
       return x;
-    } : _ref6$transform;
+    } : _ref10$transform;
 
     return _typeof(object[prop]) === type ? Object.assign(_defineProperty({}, payloadProp, transform(object[prop])), payload) : payload;
   }, {});
@@ -81089,6 +81812,7 @@ function waitForEvent(eventTarget, event) {
 exports.constants = constants;
 exports.createBandwidthProfilePayload = createBandwidthProfilePayload;
 exports.createMediaSignalingPayload = createMediaSignalingPayload;
+exports.createRoomConnectEventPayload = createRoomConnectEventPayload;
 exports.createSubscribePayload = createSubscribePayload;
 exports.asLocalTrack = asLocalTrack;
 exports.asLocalTrackPublication = asLocalTrackPublication;
@@ -81631,17 +82355,22 @@ module.exports = new LocalMediaRestartDeferreds();
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/* eslint new-cap:0, no-console:0 */
+/* eslint new-cap:0 */
 
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var defaultGetLogger = __webpack_require__(/*! loglevel */ "./node_modules/loglevel/lib/loglevel.js").getLogger;
 var constants = __webpack_require__(/*! ./constants */ "./node_modules/twilio-video/es5/util/constants.js");
-var DEFAULT_LOG_LEVEL = constants.DEFAULT_LOG_LEVEL;
+var DEFAULT_LOG_LEVEL = constants.DEFAULT_LOG_LEVEL,
+    DEFAULT_LOGGER_NAME = constants.DEFAULT_LOGGER_NAME;
+
 var E = __webpack_require__(/*! ./constants */ "./node_modules/twilio-video/es5/util/constants.js").typeErrors;
 
 var deprecationWarningsByComponentConstructor = void 0;
@@ -81657,7 +82386,7 @@ function getDeprecationWarnings(componentConstructor) {
 }
 
 /**
- * Selectively outputs messages to console.log based on specified minimum module
+ * Selectively outputs messages to console based on specified minimum module
  * specific log levels.
  *
  * NOTE: The values in the logLevels object passed to the constructor is changed
@@ -81670,8 +82399,9 @@ var Log = function () {
    * @param {String} moduleName - Name of the logging module (webrtc/media/signaling)
    * @param {object} component - Component owning this instance of {@link Log}
    * @param {LogLevels} logLevels - Logging levels. See {@link LogLevels}
+   * @param {String} loggerName - Name of the logger instance. Used when calling getLogger from loglevel module
    */
-  function Log(moduleName, component, logLevels) {
+  function Log(moduleName, component, logLevels, loggerName, getLogger) {
     _classCallCheck(this, Log);
 
     if (typeof moduleName !== 'string') {
@@ -81686,6 +82416,8 @@ var Log = function () {
       logLevels = {};
     }
 
+    getLogger = getLogger || defaultGetLogger;
+
     validateLogLevels(logLevels);
 
     /* istanbul ignore next */
@@ -81698,6 +82430,34 @@ var Log = function () {
       },
       _warnings: {
         value: new Set()
+      },
+      _loggerName: {
+        get: function get() {
+          var name = loggerName && typeof loggerName === 'string' ? loggerName : DEFAULT_LOGGER_NAME;
+
+          if (!this._logLevelsEqual) {
+            name = name + '-' + moduleName;
+          }
+          return name;
+        }
+      },
+      _logger: {
+        get: function get() {
+          var logger = getLogger(this._loggerName);
+          var level = this._logLevels[moduleName] || DEFAULT_LOG_LEVEL;
+
+          // There is no 'off' in the logger module. It uses 'silent' instead
+          level = level === 'off' ? 'silent' : level;
+
+          logger.setDefaultLevel(level);
+          return logger;
+        }
+      },
+      _logLevelsEqual: {
+        get: function get() {
+          // True if all levels are the same
+          return new Set(Object.values(this._logLevels)).size === 1;
+        }
       },
       logLevel: {
         get: function get() {
@@ -81728,7 +82488,12 @@ var Log = function () {
      * @returns {Log} this
      */
     value: function createLog(moduleName, component) {
-      return new Log(moduleName, component, this._logLevels);
+      var name = this._loggerName;
+      // Grab the original logger name
+      if (!this._logLevelsEqual) {
+        name = name.substring(0, name.lastIndexOf('-'));
+      }
+      return new Log(moduleName, component, this._logLevels, name);
     }
 
     /**
@@ -81749,34 +82514,33 @@ var Log = function () {
     }
 
     /**
-     * Log a message using the console method appropriate for the specified logLevel
+     * Log a message using the logger method appropriate for the specified logLevel
      * @param {Number} logLevel - Log level of the message being logged
-     * @param {String} message - Message(s) to log
+     * @param {Array} messages - Message(s) to log
      * @returns {Log} This instance of {@link Log}
      * @public
      */
 
   }, {
     key: 'log',
-    value: function log(logLevel, message) {
-      var logSpec = Log._levels[logLevel];
+    value: function log(logLevel, messages) {
+      var name = Log._levels[logLevel];
       // eslint-disable-next-line no-use-before-define
-      if (!logSpec) {
+      if (!name) {
         throw E.INVALID_VALUE('logLevel', LOG_LEVEL_VALUES);
       }
 
-      if (this.logLevel <= logLevel) {
-        var levelName = logSpec.name;
-        var prefix = new Date().toISOString().split('T').concat(['|', levelName, 'in', this.name + ':']);
-        logSpec.logFn.apply(console, prefix.concat(message));
-      }
+      name = name.toLowerCase();
+      var prefix = [new Date().toISOString(), name, this.name];
+
+      (this._logger[name] || function noop() {}).apply(undefined, _toConsumableArray(prefix.concat(messages)));
 
       return this;
     }
 
     /**
-     * Log a debug message using console.log
-     * @param {...String} messages - Message(s) to pass to console.log
+     * Log a debug message
+     * @param {...String} messages - Message(s) to pass to the logger
      * @returns {Log} This instance of {@link Log}
      * @public
      */
@@ -81807,8 +82571,8 @@ var Log = function () {
     }
 
     /**
-     * Log an info message using console.info
-     * @param {...String} messages - Message(s) to pass to console.info
+     * Log an info message
+     * @param {...String} messages - Message(s) to pass to the logger
      * @returns {Log} This instance of {@link Log}
      * @public
      */
@@ -81820,8 +82584,8 @@ var Log = function () {
     }
 
     /**
-     * Log a warn message using console.warn
-     * @param {...String} messages - Message(s) to pass to console.warn
+     * Log a warn message
+     * @param {...String} messages - Message(s) to pass to the logger
      * @returns {Log} This instance of {@link Log}
      * @public
      */
@@ -81850,8 +82614,8 @@ var Log = function () {
     }
 
     /**
-     * Log an error message using console.error
-     * @param {...String} messages - Message(s) to pass to console.error
+     * Log an error message
+     * @param {...String} messages - Message(s) to pass to the logger
      * @returns {Log} This instance of {@link Log}
      * @public
      */
@@ -81863,7 +82627,7 @@ var Log = function () {
     }
 
     /**
-     * Log an error message using console.error and throw an exception
+     * Log an error message and throw an exception
      * @param {TwilioError} error - Error to throw
      * @param {String} customMessage - Custom message for the error
      * @public
@@ -81906,7 +82670,7 @@ Object.defineProperties(Log, {
   ERROR: { value: 3 },
   OFF: { value: 4 },
   _levels: {
-    value: [{ name: 'DEBUG', logFn: console.log }, { name: 'INFO', logFn: console.info }, { name: 'WARN', logFn: console.warn }, { name: 'ERROR', logFn: console.error }, { name: 'OFF', logFn: function noop() {} }]
+    value: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'OFF']
   }
 });
 
@@ -81914,9 +82678,9 @@ var LOG_LEVELS_SET = {};
 var LOG_LEVEL_VALUES = [];
 
 var LOG_LEVEL_NAMES = Log._levels.map(function (level, i) {
-  LOG_LEVELS_SET[level.name] = true;
+  LOG_LEVELS_SET[level] = true;
   LOG_LEVEL_VALUES.push(i);
-  return level.name;
+  return level;
 });
 
 function validateLogLevel(level) {
@@ -82230,23 +82994,21 @@ function getPayloadTypesInMediaSection(section) {
 /**
  * Create the reordered Codec Payload Types based on the preferred Codec Names.
  * @param {Map<Codec, Array<PT>>} codecMap - Codec Map
- * @param {Array<Codec>} preferredCodecs - Preferred Codec Names
+ * @param {Array<AudioCodecSettings|VideoCodecSettings>} preferredCodecs - Preferred Codecs
  * @returns {Array<PT>} Reordered Payload Types
  */
 function getReorderedPayloadTypes(codecMap, preferredCodecs) {
-  preferredCodecs = preferredCodecs.map(function (codecName) {
-    return codecName.toLowerCase();
+  preferredCodecs = preferredCodecs.map(function (_ref) {
+    var codec = _ref.codec;
+    return codec.toLowerCase();
   });
-
   var preferredPayloadTypes = flatMap(preferredCodecs, function (codecName) {
     return codecMap.get(codecName) || [];
   });
-
   var remainingCodecs = difference(Array.from(codecMap.keys()), preferredCodecs);
   var remainingPayloadTypes = flatMap(remainingCodecs, function (codecName) {
     return codecMap.get(codecName);
   });
-
   return preferredPayloadTypes.concat(remainingPayloadTypes);
 }
 
@@ -82330,9 +83092,7 @@ function setCodecPreferences(sdp, preferredAudioCodecs, preferredVideoCodecs) {
     }
     var kind = section.match(/^m=(audio|video)/)[1];
     var codecMap = createCodecMapForMediaSection(section);
-    var preferredCodecs = kind === 'audio' ? preferredAudioCodecs : preferredVideoCodecs.map(function (codec) {
-      return codec.codec;
-    });
+    var preferredCodecs = kind === 'audio' ? preferredAudioCodecs : preferredVideoCodecs;
     var payloadTypes = getReorderedPayloadTypes(codecMap, preferredCodecs);
     var newSection = setPayloadTypesInMediaSection(payloadTypes, section);
 
@@ -82433,10 +83193,10 @@ function unifiedPlanFilterCodecsInLocalMediaSection(localSection, remoteMidsToMe
   // Construct a Map of the local codec names to their Payload Types.
   var localCodecsToPts = createCodecMapForMediaSection(localSection);
   // Maintain a list of local non-rtx Payload Types to retain.
-  var localPts = flatMap(Array.from(remotePtToCodecs), function (_ref) {
-    var _ref2 = _slicedToArray(_ref, 2),
-        remotePt = _ref2[0],
-        remoteCodec = _ref2[1];
+  var localPts = flatMap(Array.from(remotePtToCodecs), function (_ref2) {
+    var _ref3 = _slicedToArray(_ref2, 2),
+        remotePt = _ref3[0],
+        remoteCodec = _ref3[1];
 
     return remoteCodec !== 'rtx' ? unifiedPlanGetMatchingLocalPayloadTypes(remoteCodec, remotePt, localCodecsToPts, localSection, remoteSection) : [];
   });
@@ -82529,10 +83289,10 @@ function unifiedPlanAddOrRewriteNewTrackIds(sdp, activeMidsToTrackIds, trackIdsB
   // NOTE(mmalavalli): The m= sections for the new MediaStreamTracks are usually
   // present after the m= sections for the existing MediaStreamTracks, in order
   // of addition.
-  var newMidsToTrackIds = Array.from(trackIdsByKind).reduce(function (midsToTrackIds, _ref3) {
-    var _ref4 = _slicedToArray(_ref3, 2),
-        kind = _ref4[0],
-        trackIds = _ref4[1];
+  var newMidsToTrackIds = Array.from(trackIdsByKind).reduce(function (midsToTrackIds, _ref4) {
+    var _ref5 = _slicedToArray(_ref4, 2),
+        kind = _ref5[0],
+        trackIds = _ref5[1];
 
     var mediaSections = getMediaSections(sdp, kind, 'send(only|recv)');
     var newMids = mediaSections.map(getMidForMediaSection).filter(function (mid) {
@@ -82656,9 +83416,81 @@ function disableRtx(sdp) {
   })).join('\r\n');
 }
 
+/**
+ * Generate an a=fmtp: line from the given payload type and attributes.
+ * @param {PT} pt
+ * @param {*} fmtpAttrs
+ * @returns {string}
+ */
+function generateFmtpLineFromPtAndAttributes(pt, fmtpAttrs) {
+  var serializedFmtpAttrs = Object.entries(fmtpAttrs).map(function (_ref6) {
+    var _ref7 = _slicedToArray(_ref6, 2),
+        name = _ref7[0],
+        value = _ref7[1];
+
+    return name + '=' + value;
+  }).join(';');
+  return 'a=fmtp:' + pt + ' ' + serializedFmtpAttrs;
+}
+
+/**
+ * Enable DTX for opus in the m= sections for the given MIDs.`
+ * @param {string} sdp
+ * @param {Array<string>} [mids] - If not specified, enables opus DTX for all
+ *   audio m= lines.
+ * @returns {string}
+ */
+function enableDtxForOpus(sdp, mids) {
+  var mediaSections = getMediaSections(sdp);
+  var session = sdp.split('\r\nm=')[0];
+
+  mids = mids || mediaSections.filter(function (section) {
+    return (/^m=audio/.test(section)
+    );
+  }).map(getMidForMediaSection);
+
+  return [session].concat(mediaSections.map(function (section) {
+    // Do nothing if the m= section is not audio.
+    if (!/^m=audio/.test(section)) {
+      return section;
+    }
+
+    // Build a map codecs to payload types.
+    var codecsToPts = createCodecMapForMediaSection(section);
+
+    // Do nothing if a payload type for opus does not exist.
+    var opusPt = codecsToPts.get('opus');
+    if (!opusPt) {
+      return section;
+    }
+
+    // If no fmtp attributes are found for opus, do nothing.
+    var opusFmtpAttrs = getFmtpAttributesForPt(opusPt, section);
+    if (!opusFmtpAttrs) {
+      return section;
+    }
+
+    // Add usedtx=1 to the a=fmtp: line for opus.
+    var origOpusFmtpLine = generateFmtpLineFromPtAndAttributes(opusPt, opusFmtpAttrs);
+    var origOpusFmtpRegex = new RegExp(origOpusFmtpLine);
+
+    // If the m= section's MID is in the list of MIDs, then enable dtx. Otherwise disable it.
+    var mid = getMidForMediaSection(section);
+    if (mids.includes(mid)) {
+      opusFmtpAttrs.usedtx = 1;
+    } else {
+      delete opusFmtpAttrs.usedtx;
+    }
+
+    var opusFmtpLineWithDtx = generateFmtpLineFromPtAndAttributes(opusPt, opusFmtpAttrs);
+    return section.replace(origOpusFmtpRegex, opusFmtpLineWithDtx);
+  })).join('\r\n');
+}
+
 exports.createCodecMapForMediaSection = createCodecMapForMediaSection;
 exports.createPtToCodecName = createPtToCodecName;
 exports.disableRtx = disableRtx;
+exports.enableDtxForOpus = enableDtxForOpus;
 exports.getMediaSections = getMediaSections;
 exports.removeSSRCAttributes = removeSSRCAttributes;
 exports.revertSimulcastForNonVP8MediaSections = revertSimulcastForNonVP8MediaSections;
@@ -85499,7 +86331,7 @@ module.exports = workaround;
 /*! exports provided: _from, _id, _inBundle, _integrity, _location, _phantomChildren, _requested, _requiredBy, _resolved, _shasum, _spec, _where, author, browser, bugs, bundleDependencies, contributors, dependencies, deprecated, description, devDependencies, engines, homepage, keywords, license, main, name, repository, scripts, title, version, default */
 /***/ (function(module) {
 
-module.exports = JSON.parse("{\"_from\":\"twilio-video@2.7.2\",\"_id\":\"twilio-video@2.7.2\",\"_inBundle\":false,\"_integrity\":\"sha512-x9Y7P03uc9xWwAIvKLLWsGRILOcAG88M5qH1p0K6DKGRCzfcX356K0rv25UINAmdq5uOOHlqaCYYUG1aVo7B5w==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.7.2\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.7.2\",\"saveSpec\":null,\"fetchSpec\":\"2.7.2\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.7.2.tgz\",\"_shasum\":\"9211fc85a41a352a32b540d91e07a9c97e862c51\",\"_spec\":\"twilio-video@2.7.2\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^14.3.0\",\"cheerio\":\"^0.22.0\",\"chromedriver\":\"^2.28.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"geckodriver\":\"1.4.0\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"npm-run-all\":\"^4.0.2\",\"puppeteer\":\"^1.20.0\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"selenium-webdriver\":\"3.3.0\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^2.11.1\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"2.6.2\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/**\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:angular test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"version\":\"2.7.2\"}");
+module.exports = JSON.parse("{\"_from\":\"twilio-video@2.10.0\",\"_id\":\"twilio-video@2.10.0\",\"_inBundle\":false,\"_integrity\":\"sha512-XRVztAp9NefECW8Zg6sg5dGxtrwvJZQ6DLCCBL3nmNgviYmE9tKOErSzlH9MmAUUvyu6YArcuTTmfIL4AcHAsw==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.10.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.10.0\",\"saveSpec\":null,\"fetchSpec\":\"2.10.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.10.0.tgz\",\"_shasum\":\"f5d6f7495f7ff94bde35996d7b596cf4c3645159\",\"_spec\":\"twilio-video@2.10.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"loglevel\":\"^1.7.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"2.6.2\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/**\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:angular test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"version\":\"2.10.0\"}");
 
 /***/ }),
 
@@ -86398,13 +87230,7 @@ var render = function() {
             staticClass: "col-md-7 bg-light",
             attrs: { id: "video-component" }
           },
-          [
-            _c("twillio-video"),
-            _vm._v(" "),
-            false
-              ? undefined
-              : _vm._e()
-          ],
+          [_c("twillio-video")],
           1
         ),
         _vm._v(" "),
@@ -86445,18 +87271,10 @@ var render = function() {
       )
     ]),
     _vm._v(" "),
-    _vm._m(1)
+    _vm._m(0)
   ])
 }
 var staticRenderFns = [
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
-    return _c("button", { staticClass: "btn btn-danger rounded" }, [
-      _c("i", { staticClass: "fa fa-phone-slash" })
-    ])
-  },
   function() {
     var _vm = this
     var _h = _vm.$createElement
@@ -86466,6 +87284,50 @@ var staticRenderFns = [
     ])
   }
 ]
+render._withStripped = true
+
+
+
+/***/ }),
+
+/***/ "./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204&":
+/*!**********************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204& ***!
+  \**********************************************************************************************************************************************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "render", function() { return render; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return staticRenderFns; });
+var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c("div", [
+    _c("h1", [_vm._v("This is New Chat Root component")]),
+    _vm._v(" "),
+    _c("div", [
+      _c(
+        "button",
+        {
+          staticClass: "btn btn-success",
+          attrs: { disabled: _vm.outGoingCallStatus != 0 },
+          on: { click: _vm.startCall }
+        },
+        [
+          _vm.outGoingCallStatus == 0 ? _c("span", [_vm._v("Call")]) : _vm._e(),
+          _vm._v(" "),
+          _vm.outGoingCallStatus == 1
+            ? _c("span", [_vm._v("Calling")])
+            : _vm._e()
+        ]
+      )
+    ])
+  ])
+}
+var staticRenderFns = []
 render._withStripped = true
 
 
@@ -86595,14 +87457,14 @@ var render = function() {
                 }
               },
               [
-                _vm._v("\n                    " + _vm._s(val.name) + " "),
+                _vm._v("\n          " + _vm._s(val.name) + "\n          "),
                 val.is_online
                   ? _c("span", { staticClass: "text-success" }, [
                       _c("i", { staticClass: "fas fa-globe" })
                     ])
                   : _vm._e(),
                 _vm._v(" "),
-                val.new_message
+                val.new_message || val.unread_message_count > 0
                   ? _c("span", { staticClass: "newmessage-blink" }, [
                       _c("i", { staticClass: "fas fa-envelope-square" })
                     ])
@@ -86766,9 +87628,16 @@ var render = function() {
   return _c("div", [
     _c("div", { staticClass: "chat-bubble shadow-sm p-1 mb-2 rounded" }, [
       _c("div", { staticClass: "d-flex" }, [
-        _c("div", { staticClass: "sender pr-2" }, [
-          _c("b", [_vm._v(_vm._s(_vm.message.sender) + ":")])
-        ]),
+        _c(
+          "div",
+          {
+            staticClass: "sender pr-2",
+            class: {
+              self: _vm.$parent.$parent.user.id == _vm.message.sender_id
+            }
+          },
+          [_c("b", [_vm._v(_vm._s(_vm.message.sender) + ":")])]
+        ),
         _vm._v(" "),
         _c("div", { staticClass: "message" }, [
           _vm._v(
@@ -86945,8 +87814,8 @@ var render = function() {
         "button",
         {
           staticClass: "btn btn-success rounded",
-          attrs: { title: "Join Room" },
-          on: { click: _vm.joinRoom }
+          attrs: { title: "Start Video Call" },
+          on: { click: _vm.startVideoCall }
         },
         [_c("i", { staticClass: "fas fa-phone-alt" })]
       ),
@@ -86955,7 +87824,7 @@ var render = function() {
         "button",
         {
           staticClass: "btn btn-danger rounded",
-          attrs: { title: "Disconnect From Room" },
+          attrs: { title: "End Video Call" },
           on: { click: _vm.disConnectFromRoom }
         },
         [_c("i", { staticClass: "fas fa-video-slash" })]
@@ -99107,6 +99976,47 @@ if (false) {} else {
 
 /***/ }),
 
+/***/ "./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css":
+/*!*************************************************************!*\
+  !*** ./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css ***!
+  \*************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+var content = __webpack_require__(/*! !../../css-loader??ref--6-1!../../postcss-loader/src??ref--6-2!./vuejs-dialog.min.css */ "./node_modules/css-loader/index.js?!./node_modules/postcss-loader/src/index.js?!./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css");
+
+if(typeof content === 'string') content = [[module.i, content, '']];
+
+var transform;
+var insertInto;
+
+
+
+var options = {"hmr":true}
+
+options.transform = transform
+options.insertInto = undefined;
+
+var update = __webpack_require__(/*! ../../style-loader/lib/addStyles.js */ "./node_modules/style-loader/lib/addStyles.js")(content, options);
+
+if(content.locals) module.exports = content.locals;
+
+if(false) {}
+
+/***/ }),
+
+/***/ "./node_modules/vuejs-dialog/dist/vuejs-dialog.min.js":
+/*!************************************************************!*\
+  !*** ./node_modules/vuejs-dialog/dist/vuejs-dialog.min.js ***!
+  \************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+!function(t,e){ true?module.exports=e():undefined}(window,function(){return function(t){var e={};function n(o){if(e[o])return e[o].exports;var i=e[o]={i:o,l:!1,exports:{}};return t[o].call(i.exports,i,i.exports,n),i.l=!0,i.exports}return n.m=t,n.c=e,n.d=function(t,e,o){n.o(t,e)||Object.defineProperty(t,e,{enumerable:!0,get:o})},n.r=function(t){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})},n.t=function(t,e){if(1&e&&(t=n(t)),8&e)return t;if(4&e&&"object"==typeof t&&t&&t.__esModule)return t;var o=Object.create(null);if(n.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:t}),2&e&&"string"!=typeof t)for(var i in t)n.d(o,i,function(e){return t[e]}.bind(null,i));return o},n.n=function(t){var e=t&&t.__esModule?function(){return t.default}:function(){return t};return n.d(e,"a",e),e},n.o=function(t,e){return Object.prototype.hasOwnProperty.call(t,e)},n.p="/dist/",n(n.s=23)}([function(t,e,n){"use strict";function o(t,e,n,o,i,r,s,a){var c,u="function"==typeof t?t.options:t;if(e&&(u.render=e,u.staticRenderFns=n,u._compiled=!0),o&&(u.functional=!0),r&&(u._scopeId="data-v-"+r),s?(c=function(t){(t=t||this.$vnode&&this.$vnode.ssrContext||this.parent&&this.parent.$vnode&&this.parent.$vnode.ssrContext)||"undefined"==typeof __VUE_SSR_CONTEXT__||(t=__VUE_SSR_CONTEXT__),i&&i.call(this,t),t&&t._registeredComponents&&t._registeredComponents.add(s)},u._ssrRegister=c):i&&(c=a?function(){i.call(this,this.$root.$options.shadowRoot)}:i),c)if(u.functional){u._injectStyles=c;var l=u.render;u.render=function(t,e){return c.call(e),l(t,e)}}else{var f=u.beforeCreate;u.beforeCreate=f?[].concat(f,c):[c]}return{exports:t,options:u}}n.d(e,"a",function(){return o})},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=e.DIALOG_TYPES={ALERT:"alert",CONFIRM:"confirm",PROMPT:"prompt"},i=e.CONFIRM_TYPES={BASIC:"basic",SOFT:"soft",HARD:"hard"};e.ANIMATION_TYPES={FADE:"dg-fade",ZOOM:"dg-zoom",BOUNCE:"dg-bounce"},e.CLASS_TYPES={MAIN_CONTENT:"mainContent",BODY:"body",TITLE:"title",FOOTER:"footer",OK_BTN:"okBtn",CANCEL_BTN:"cancelBtn"},e.DEFAULT_OPTIONS={html:!1,loader:!1,reverse:!1,backdropClose:!1,okText:"Continue",cancelText:"Close",view:null,type:i.BASIC,window:o.CONFIRM,message:"Proceed with the request?",clicksCount:3,animation:"zoom",customClass:"",verification:"continue",verificationHelp:'Type "[+:verification]" below to confirm',promptHelp:'Type in the box below and click "[+:okText]"'}},function(t,e,n){"use strict";n.r(e);var o=n(3),i=n.n(o);for(var r in o)"default"!==r&&function(t){n.d(e,t,function(){return o[t]})}(r);e.default=i.a},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=function(t){return t&&t.__esModule?t:{default:t}}(n(29)),i=n(16);e.default={data:function(){return{dialogsARR:[],registeredViews:{}}},created:function(){document.addEventListener("keydown",this.escapeKeyListener)},destroyed:function(){document.removeEventListener("keydown",this.escapeKeyListener)},watch:{dialogsARR:{handler:function(t){var e=document.getElementsByTagName("body")[0];e&&(t.length&&!e.classList.contains("dg-open")?e.classList.add("dg-open"):!t.length&&e&&e.classList.contains("dg-open")&&e.classList.remove("dg-open"))}}},methods:{commit:function(t){t.escapeKeyClose=!1,this.dialogsARR.push(t)},forceCloseAll:function(){var t=this;this.dialogsARR.forEach(function(e,n){return t.$delete(t.dialogsARR,n)})},destroyDialog:function(t){var e=(0,i.firstIndex)(this.dialogsARR,t,"id");-1!==e&&this.$delete(this.dialogsARR,e)},escapeKeyListener:function(t){if(27===t.keyCode){var e=-1+this.dialogsARR.length;e>-1&&this.$set(this.dialogsARR[e],"escapeKeyClose",!0)}}},components:{DialogWindow:o.default}}},function(t,e,n){"use strict";n.r(e);var o=n(5),i=n.n(o);for(var r in o)"default"!==r&&function(t){n.d(e,t,function(){return o[t]})}(r);e.default=i.a},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=function(t){return t&&t.__esModule?t:{default:t}}(n(30)),i=n(1);e.default={data:function(){return{show:!0,closed:!1,endedAnimations:[]}},props:{options:{type:Object,required:!0},escapeKeyClose:{type:Boolean,default:!1},registeredViews:{type:Object,default:function(){return{}}}},watch:{escapeKeyClose:function(t){!0===t&&(this.cancelBtnDisabled?this.proceed():this.cancel())}},computed:{animation:function(){var t=this.options.animation.toUpperCase();return i.ANIMATION_TYPES.hasOwnProperty(t)?i.ANIMATION_TYPES[t]:i.ANIMATION_TYPES.ZOOM},loaderEnabled:function(){return!!this.options.loader},dialogView:function(){return(this.options.view?this.registeredViews[this.options.view]:null)||o.default},isHardConfirm:function(){return this.options.window===i.DIALOG_TYPES.CONFIRM&&this.options.type===i.CONFIRM_TYPES.HARD},isPrompt:function(){return this.options.window===i.DIALOG_TYPES.PROMPT}},methods:{closeAtOutsideClick:function(){!0===this.options.backdropClose&&(this.cancelBtnDisabled?this.proceed():this.cancel())},proceed:function(){this.loaderEnabled?(this.switchLoadingState(!0),this.options.promiseResolver({close:this.close,loading:this.switchLoadingState})):(this.options.promiseResolver(!0),this.close())},cancel:function(){!0!==this.loading&&this.close()},close:function(){this.show=!1,this.closed=!0},animationEnded:function(t){this.endedAnimations.push(t),-1!==this.endedAnimations.indexOf("backdrop")&&-1!==this.endedAnimations.indexOf("content")&&(this.options.promiseRejecter(!1),this.$emit("close",this.options.id))}},beforeDestroy:function(){!1===this.closed&&(this.cancelBtnDisabled?this.proceed():this.cancel())}}},function(t,e,n){"use strict";n.r(e);var o=n(7),i=n.n(o);for(var r in o)"default"!==r&&function(t){n.d(e,t,function(){return o[t]})}(r);e.default=i.a},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=s(n(13)),i=s(n(31)),r=s(n(32));function s(t){return t&&t.__esModule?t:{default:t}}e.default={data:function(){return{}},mixins:[o.default],mounted:function(){this.isHardConfirm&&this.$refs.inputElem&&this.$refs.inputElem.focus()},components:{CancelBtn:r.default,OkBtn:i.default}}},function(t,e,n){"use strict";n.r(e);var o=n(9),i=n.n(o);for(var r in o)"default"!==r&&function(t){n.d(e,t,function(){return o[t]})}(r);e.default=i.a},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=function(t){return t&&t.__esModule?t:{default:t}}(n(36)),i=n(1);e.default={data:function(){return{clicks_count:0}},props:{enabled:{required:!1,type:Boolean,default:!0},options:{required:!0,type:Object},focus:{required:!1,type:Boolean,default:!1},loading:{required:!1,type:Boolean,default:!1}},mounted:function(){this.focus&&this.$refs.btn.focus()},computed:{soft_confirm:function(){return this.options.type===i.CONFIRM_TYPES.SOFT},hard_confirm:function(){return this.options.type===i.CONFIRM_TYPES.HARD},is_disabled:function(){return this.$parent.okBtnDisabled},clicks_remaining:function(){return Math.max(this.options.clicksCount-this.clicks_count,0)}},methods:{proceed:function(){!this.is_disabled&&this.validateProceed()&&this.$emit("click")},validateProceed:function(){switch(this.options.type){case i.CONFIRM_TYPES.SOFT:return this.clicks_count++,this.clicks_count>=this.options.clicksCount;case i.CONFIRM_TYPES.BASIC:default:return!0}}},components:{BtnLoader:o.default}}},function(t,e,n){"use strict";n.r(e);var o=n(11),i=n.n(o);for(var r in o)"default"!==r&&function(t){n.d(e,t,function(){return o[t]})}(r);e.default=i.a},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0}),e.default={props:{enabled:{required:!1,type:Boolean,default:!0},options:{required:!0,type:Object},focus:{required:!1,type:Boolean,default:!1},loading:{required:!1,type:Boolean,default:!1}},mounted:function(){this.focus&&this.$refs.btn.focus()}}},function(t,e,n){},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=n(1),i=s(n(14)),r=s(n(15));function s(t){return t&&t.__esModule?t:{default:t}}e.default={data:function(){return{input:"",loading:!1}},props:{options:{type:Object,required:!0}},computed:{loaderEnabled:function(){return!!this.options.loader},isHardConfirm:function(){return this.options.window===o.DIALOG_TYPES.CONFIRM&&this.options.type===o.CONFIRM_TYPES.HARD},isPrompt:function(){return this.options.window===o.DIALOG_TYPES.PROMPT},leftBtnComponent:function(){return!1===this.options.reverse?"cancel-btn":"ok-btn"},rightBtnComponent:function(){return!0===this.options.reverse?"cancel-btn":"ok-btn"},hardConfirmHelpText:function(){var t=this;return this.options.verificationHelp.replace(/\[\+:(\w+)]/g,function(e,n){return t.options[n]||e})},promptHelpText:function(){var t=this;return this.options.promptHelp.replace(/\[\+:(\w+)]/g,function(e,n){return t.options[n]||e})}},mounted:function(){this.isHardConfirm&&this.$refs.inputElem&&this.$refs.inputElem.focus()},methods:{clickRightBtn:function(){this.options.reverse?this.cancel():this.proceed(this.getDefaultData())},clickLeftBtn:function(){this.options.reverse?this.proceed(this.getDefaultData()):this.cancel()},submitDialogForm:function(){this.okBtnDisabled||this.proceed(this.getDefaultData())},getDefaultData:function(){return this.isPrompt?this.input:null},proceed:function(){var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null;this.loaderEnabled?(this.switchLoadingState(!0),this.options.promiseResolver({close:this.close,loading:this.switchLoadingState,data:t})):(this.options.promiseResolver({data:t}),this.close())},cancel:function(){!0!==this.loading&&this.close()},switchLoadingState:function(){var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null;null===t&&(t=!this.loading),this.loading=!!t},close:function(){this.$emit("close")}},mixins:[i.default,r.default]}},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(t){return typeof t}:function(t){return t&&"function"==typeof Symbol&&t.constructor===Symbol&&t!==Symbol.prototype?"symbol":typeof t};e.default={computed:{messageHasTitle:function(){var t=this.options.message;return"object"===(void 0===t?"undefined":o(t))&&null!==t&&t.title},messageTitle:function(){return this.messageHasTitle?this.options.message.title:null},messageBody:function(){var t=this.options.message;return"string"==typeof t?t:t.body||""}}}},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=n(1);e.default={computed:{cancelBtnDisabled:function(){return this.options.window===o.DIALOG_TYPES.ALERT},okBtnDisabled:function(){return this.options.window===o.DIALOG_TYPES.CONFIRM&&this.options.type===o.CONFIRM_TYPES.HARD&&this.input!==this.options.verification},leftBtnEnabled:function(){return!1===this.cancelBtnDisabled||!0===this.options.reverse},rightBtnEnabled:function(){return!1===this.cancelBtnDisabled||!1===this.options.reverse},leftBtnFocus:function(){return!this.isHardConfirm&&!0===this.options.reverse},rightBtnFocus:function(){return!this.isHardConfirm&&!1===this.options.reverse},leftBtnText:function(){return this.options.reverse?this.options.okText:this.options.cancelText},rightBtnText:function(){return this.options.reverse?this.options.cancelText:this.options.okText}}}},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0}),e.getElem=function(t){return arguments.length>1&&void 0!==arguments[1]&&arguments[1]?document.querySelectorAll(t):document.querySelector(t)};e.noop=function(){};var o=e.cloneObj=function(t){return Object.assign({},t)};e.mergeObjs=function(){for(var t=[],e=0;e<arguments.length;e++)t.push(arguments[e]);return Object.assign.apply(Object,function(t){if(Array.isArray(t)){for(var e=0,n=Array(t.length);e<t.length;e++)n[e]=t[e];return n}return Array.from(t)}(t.map(o)))},e.clickNode=function(t){if(document.createEvent){var e=document.createEvent("MouseEvents");e.initEvent("click",!0,!1),t.dispatchEvent(e)}else document.createEventObject?t.fireEvent("onclick"):"function"==typeof t.onclick&&t.onclick()},e.firstIndex=function(t,e,n){var o=void 0,i=t.length;for(o=0;o<i;o++)if(t[o][n]===e)return o;return-1}},function(t,e,n){"use strict";var o=function(){var t=this,e=t.$createElement,n=t._self._c||e;return n("div",t._l(t.dialogsARR,function(e){return n("dialog-window",{key:e.id,attrs:{options:e,escapeKeyClose:e.escapeKeyClose,registeredViews:t.registeredViews},on:{close:t.destroyDialog}})}))},i=[];n.d(e,"a",function(){return o}),n.d(e,"b",function(){return i})},function(t,e,n){"use strict";var o=function(){var t=this,e=t.$createElement,n=t._self._c||e;return n("div",{class:t.options.customClass},[n("transition",{attrs:{name:"dg-backdrop",appear:""},on:{"after-leave":function(e){t.animationEnded("backdrop")}}},[t.show?n("div",{staticClass:"dg-backdrop"}):t._e()]),t._v(" "),n("transition",{attrs:{name:t.animation,appear:""},on:{"after-leave":function(e){t.animationEnded("content")}}},[t.show?n("div",{class:["dg-container",{"dg-container--has-input":t.isHardConfirm||t.isPrompt}],on:{click:t.closeAtOutsideClick}},[n("div",{staticClass:"dg-content-cont dg-content-cont--floating"},[n("div",{staticClass:"dg-main-content",on:{click:function(t){t.stopPropagation()}}},[n(t.dialogView,{tag:"component",attrs:{options:t.options},on:{close:t.close}})],1)])]):t._e()])],1)},i=[];n.d(e,"a",function(){return o}),n.d(e,"b",function(){return i})},function(t,e,n){"use strict";var o=function(){var t=this,e=t.$createElement,n=t._self._c||e;return n("div",{staticClass:"dg-view-wrapper"},[n("div",{class:["dg-content-body",{"dg-content-body--has-title":t.messageHasTitle}]},[t.messageHasTitle?[t.options.html?n("h6",{staticClass:"dg-title",domProps:{innerHTML:t._s(t.messageTitle)}}):n("h6",{staticClass:"dg-title"},[t._v(t._s(t.messageTitle))])]:t._e(),t._v(" "),t.options.html?n("div",{staticClass:"dg-content",domProps:{innerHTML:t._s(t.messageBody)}}):n("div",{staticClass:"dg-content"},[t._v(t._s(t.messageBody))]),t._v(" "),t.isHardConfirm||t.isPrompt?n("form",{staticClass:"dg-form",attrs:{autocomplete:"off"},on:{submit:function(e){return e.preventDefault(),t.submitDialogForm(e)}}},[n("label",{staticStyle:{"font-size":"13px"},attrs:{for:"dg-input-elem"}},[t._v(t._s(t.isPrompt?t.promptHelpText:t.hardConfirmHelpText))]),t._v(" "),n("input",{directives:[{name:"model",rawName:"v-model",value:t.input,expression:"input"}],ref:"inputElem",staticStyle:{width:"100%","margin-top":"10px",padding:"5px 15px","font-size":"16px","border-radius":"4px",border:"2px solid #eee"},attrs:{type:"text",placeholder:t.isPrompt?"":t.options.verification,autocomplete:"off",id:"dg-input-elem"},domProps:{value:t.input},on:{input:function(e){e.target.composing||(t.input=e.target.value)}}})]):t._e()],2),t._v(" "),n("div",{staticClass:"dg-content-footer"},[n(t.leftBtnComponent,{tag:"button",attrs:{loading:t.loading,enabled:t.leftBtnEnabled,options:t.options,focus:t.leftBtnFocus},on:{click:function(e){t.clickLeftBtn()}}},[t.options.html?n("span",{domProps:{innerHTML:t._s(t.leftBtnText)}}):n("span",[t._v(t._s(t.leftBtnText))])]),t._v(" "),n(t.rightBtnComponent,{tag:"button",attrs:{loading:t.loading,enabled:t.rightBtnEnabled,options:t.options,focus:t.rightBtnFocus},on:{click:function(e){t.clickRightBtn()}}},[t.options.html?n("span",{domProps:{innerHTML:t._s(t.rightBtnText)}}):n("span",[t._v(t._s(t.rightBtnText))])]),t._v(" "),n("div",{staticClass:"dg-clear"})])])},i=[];n.d(e,"a",function(){return o}),n.d(e,"b",function(){return i})},function(t,e,n){"use strict";var o=function(){var t=this,e=t.$createElement,n=t._self._c||e;return t.enabled?n("button",{ref:"btn",class:["dg-btn","dg-btn--ok",{"dg-btn--loading":t.loading},{"dg-pull-right":!t.options.reverse}],attrs:{disabled:t.is_disabled},on:{click:function(e){e.preventDefault(),t.proceed()}}},[n("span",{staticClass:"dg-btn-content"},[t._t("default"),t._v(" "),t.soft_confirm?n("span",[t._v("("+t._s(t.clicks_remaining)+")")]):t._e()],2),t._v(" "),t.loading?n("btn-loader",{tag:"span"}):t._e()]):t._e()},i=[];n.d(e,"a",function(){return o}),n.d(e,"b",function(){return i})},function(t,e,n){"use strict";var o=function(){var t=this,e=t.$createElement,n=t._self._c||e;return t.enabled?n("button",{ref:"btn",class:["dg-btn","dg-btn--cancel",{"dg-pull-right":t.options.reverse}],on:{click:function(e){e.preventDefault(),t.$emit("click")}}},[t._t("default")],2):t._e()},i=[];n.d(e,"a",function(){return o}),n.d(e,"b",function(){return i})},function(t,e){var n;n=function(){return this}();try{n=n||Function("return this")()||(0,eval)("this")}catch(t){"object"==typeof window&&(n=window)}t.exports=n},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=c(n(24)),i=c(n(28)),r=n(1),s=c(n(35)),a=n(16);function c(t){return t&&t.__esModule?t:{default:t}}var u={},l=function(t){var e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{};this.Vue=t,this.mounted=!1,this.$root={},this.registeredViews={},this.globalOptions=(0,a.mergeObjs)(r.DEFAULT_OPTIONS,e)};l.prototype.mountIfNotMounted=function(){var t=this;!0!==this.mounted&&(this.$root=function(){var e=t.Vue.extend(i.default),n=document.createElement("div");document.querySelector("body").appendChild(n);var o=new e;return o.registeredViews=t.registeredComponents(),o.$mount(n)}(),this.mounted=!0)},l.prototype.registeredComponents=function(){return u},l.prototype.registerComponent=function(t,e){this.mounted&&this.destroy(),u[t]=e},l.prototype.destroy=function(){if(!0===this.mounted){this.$root.forceCloseAll();var t=this.$root.$el;this.$root.$destroy(),this.$root.$off(),t.remove(),this.mounted=!1}},l.prototype.alert=function(){var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null,e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{};return t&&(e.message=t),this.open(r.DIALOG_TYPES.ALERT,e)},l.prototype.prompt=function(){var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null,e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{};return t&&(e.message=t),this.open(r.DIALOG_TYPES.PROMPT,e)},l.prototype.confirm=function(){var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:null,e=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{};return t&&(e.message=t),this.open(r.DIALOG_TYPES.CONFIRM,e)},l.prototype.open=function(t){var e=this,n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{};return this.mountIfNotMounted(),new o.default(function(o,i){n.id="dialog."+Date.now(),n.window=t,n.promiseResolver=o,n.promiseRejecter=i,e.$root.commit((0,a.mergeObjs)(e.globalOptions,n))})},l.install=function(t,e){var n=new s.default(t);t.directive("confirm",n.confirmDefinition),t.dialog=new l(t,e),Object.defineProperties(t.prototype,{$dialog:{get:function(){return t.dialog}}})},e.default=l},function(t,e,n){(function(e){!function(n){var o=setTimeout;function i(){}function r(t){if(!(this instanceof r))throw new TypeError("Promises must be constructed via new");if("function"!=typeof t)throw new TypeError("not a function");this._state=0,this._handled=!1,this._value=void 0,this._deferreds=[],l(t,this)}function s(t,e){for(;3===t._state;)t=t._value;0!==t._state?(t._handled=!0,r._immediateFn(function(){var n=1===t._state?e.onFulfilled:e.onRejected;if(null!==n){var o;try{o=n(t._value)}catch(t){return void c(e.promise,t)}a(e.promise,o)}else(1===t._state?a:c)(e.promise,t._value)})):t._deferreds.push(e)}function a(t,e){try{if(e===t)throw new TypeError("A promise cannot be resolved with itself.");if(e&&("object"==typeof e||"function"==typeof e)){var n=e.then;if(e instanceof r)return t._state=3,t._value=e,void u(t);if("function"==typeof n)return void l(function(t,e){return function(){t.apply(e,arguments)}}(n,e),t)}t._state=1,t._value=e,u(t)}catch(e){c(t,e)}}function c(t,e){t._state=2,t._value=e,u(t)}function u(t){2===t._state&&0===t._deferreds.length&&r._immediateFn(function(){t._handled||r._unhandledRejectionFn(t._value)});for(var e=0,n=t._deferreds.length;e<n;e++)s(t,t._deferreds[e]);t._deferreds=null}function l(t,e){var n=!1;try{t(function(t){n||(n=!0,a(e,t))},function(t){n||(n=!0,c(e,t))})}catch(t){if(n)return;n=!0,c(e,t)}}r.prototype.catch=function(t){return this.then(null,t)},r.prototype.then=function(t,e){var n=new this.constructor(i);return s(this,new function(t,e,n){this.onFulfilled="function"==typeof t?t:null,this.onRejected="function"==typeof e?e:null,this.promise=n}(t,e,n)),n},r.all=function(t){return new r(function(e,n){if(!t||void 0===t.length)throw new TypeError("Promise.all accepts an array");var o=Array.prototype.slice.call(t);if(0===o.length)return e([]);var i=o.length;function r(t,s){try{if(s&&("object"==typeof s||"function"==typeof s)){var a=s.then;if("function"==typeof a)return void a.call(s,function(e){r(t,e)},n)}o[t]=s,0==--i&&e(o)}catch(t){n(t)}}for(var s=0;s<o.length;s++)r(s,o[s])})},r.resolve=function(t){return t&&"object"==typeof t&&t.constructor===r?t:new r(function(e){e(t)})},r.reject=function(t){return new r(function(e,n){n(t)})},r.race=function(t){return new r(function(e,n){for(var o=0,i=t.length;o<i;o++)t[o].then(e,n)})},r._immediateFn="function"==typeof e&&function(t){e(t)}||function(t){o(t,0)},r._unhandledRejectionFn=function(t){"undefined"!=typeof console&&console&&console.warn("Possible Unhandled Promise Rejection:",t)},r._setImmediateFn=function(t){r._immediateFn=t},r._setUnhandledRejectionFn=function(t){r._unhandledRejectionFn=t},void 0!==t&&t.exports?t.exports=r:n.Promise||(n.Promise=r)}(this)}).call(this,n(25).setImmediate)},function(t,e,n){(function(t){var o=void 0!==t&&t||"undefined"!=typeof self&&self||window,i=Function.prototype.apply;function r(t,e){this._id=t,this._clearFn=e}e.setTimeout=function(){return new r(i.call(setTimeout,o,arguments),clearTimeout)},e.setInterval=function(){return new r(i.call(setInterval,o,arguments),clearInterval)},e.clearTimeout=e.clearInterval=function(t){t&&t.close()},r.prototype.unref=r.prototype.ref=function(){},r.prototype.close=function(){this._clearFn.call(o,this._id)},e.enroll=function(t,e){clearTimeout(t._idleTimeoutId),t._idleTimeout=e},e.unenroll=function(t){clearTimeout(t._idleTimeoutId),t._idleTimeout=-1},e._unrefActive=e.active=function(t){clearTimeout(t._idleTimeoutId);var e=t._idleTimeout;e>=0&&(t._idleTimeoutId=setTimeout(function(){t._onTimeout&&t._onTimeout()},e))},n(26),e.setImmediate="undefined"!=typeof self&&self.setImmediate||void 0!==t&&t.setImmediate||this&&this.setImmediate,e.clearImmediate="undefined"!=typeof self&&self.clearImmediate||void 0!==t&&t.clearImmediate||this&&this.clearImmediate}).call(this,n(22))},function(t,e,n){(function(t,e){!function(t,n){"use strict";if(!t.setImmediate){var o,i=1,r={},s=!1,a=t.document,c=Object.getPrototypeOf&&Object.getPrototypeOf(t);c=c&&c.setTimeout?c:t,"[object process]"==={}.toString.call(t.process)?o=function(t){e.nextTick(function(){l(t)})}:function(){if(t.postMessage&&!t.importScripts){var e=!0,n=t.onmessage;return t.onmessage=function(){e=!1},t.postMessage("","*"),t.onmessage=n,e}}()?function(){var e="setImmediate$"+Math.random()+"$",n=function(n){n.source===t&&"string"==typeof n.data&&0===n.data.indexOf(e)&&l(+n.data.slice(e.length))};t.addEventListener?t.addEventListener("message",n,!1):t.attachEvent("onmessage",n),o=function(n){t.postMessage(e+n,"*")}}():t.MessageChannel?function(){var t=new MessageChannel;t.port1.onmessage=function(t){l(t.data)},o=function(e){t.port2.postMessage(e)}}():a&&"onreadystatechange"in a.createElement("script")?function(){var t=a.documentElement;o=function(e){var n=a.createElement("script");n.onreadystatechange=function(){l(e),n.onreadystatechange=null,t.removeChild(n),n=null},t.appendChild(n)}}():o=function(t){setTimeout(l,0,t)},c.setImmediate=function(t){"function"!=typeof t&&(t=new Function(""+t));for(var e=new Array(arguments.length-1),n=0;n<e.length;n++)e[n]=arguments[n+1];var s={callback:t,args:e};return r[i]=s,o(i),i++},c.clearImmediate=u}function u(t){delete r[t]}function l(t){if(s)setTimeout(l,0,t);else{var e=r[t];if(e){s=!0;try{!function(t){var e=t.callback,o=t.args;switch(o.length){case 0:e();break;case 1:e(o[0]);break;case 2:e(o[0],o[1]);break;case 3:e(o[0],o[1],o[2]);break;default:e.apply(n,o)}}(e)}finally{u(t),s=!1}}}}}("undefined"==typeof self?void 0===t?this:t:self)}).call(this,n(22),n(27))},function(t,e){var n,o,i=t.exports={};function r(){throw new Error("setTimeout has not been defined")}function s(){throw new Error("clearTimeout has not been defined")}function a(t){if(n===setTimeout)return setTimeout(t,0);if((n===r||!n)&&setTimeout)return n=setTimeout,setTimeout(t,0);try{return n(t,0)}catch(e){try{return n.call(null,t,0)}catch(e){return n.call(this,t,0)}}}!function(){try{n="function"==typeof setTimeout?setTimeout:r}catch(t){n=r}try{o="function"==typeof clearTimeout?clearTimeout:s}catch(t){o=s}}();var c,u=[],l=!1,f=-1;function d(){l&&c&&(l=!1,c.length?u=c.concat(u):f=-1,u.length&&p())}function p(){if(!l){var t=a(d);l=!0;for(var e=u.length;e;){for(c=u,u=[];++f<e;)c&&c[f].run();f=-1,e=u.length}c=null,l=!1,function(t){if(o===clearTimeout)return clearTimeout(t);if((o===s||!o)&&clearTimeout)return o=clearTimeout,clearTimeout(t);try{o(t)}catch(e){try{return o.call(null,t)}catch(e){return o.call(this,t)}}}(t)}}function h(t,e){this.fun=t,this.array=e}function m(){}i.nextTick=function(t){var e=new Array(arguments.length-1);if(arguments.length>1)for(var n=1;n<arguments.length;n++)e[n-1]=arguments[n];u.push(new h(t,e)),1!==u.length||l||a(p)},h.prototype.run=function(){this.fun.apply(null,this.array)},i.title="browser",i.browser=!0,i.env={},i.argv=[],i.version="",i.versions={},i.on=m,i.addListener=m,i.once=m,i.off=m,i.removeListener=m,i.removeAllListeners=m,i.emit=m,i.prependListener=m,i.prependOnceListener=m,i.listeners=function(t){return[]},i.binding=function(t){throw new Error("process.binding is not supported")},i.cwd=function(){return"/"},i.chdir=function(t){throw new Error("process.chdir is not supported")},i.umask=function(){return 0}},function(t,e,n){"use strict";n.r(e);var o=n(17),i=n(2);for(var r in i)"default"!==r&&function(t){n.d(e,t,function(){return i[t]})}(r);n(33);var s=n(0),a=Object(s.a)(i.default,o.a,o.b,!1,null,null,null);e.default=a.exports},function(t,e,n){"use strict";n.r(e);var o=n(18),i=n(4);for(var r in i)"default"!==r&&function(t){n.d(e,t,function(){return i[t]})}(r);var s=n(0),a=Object(s.a)(i.default,o.a,o.b,!1,null,null,null);e.default=a.exports},function(t,e,n){"use strict";n.r(e);var o=n(19),i=n(6);for(var r in i)"default"!==r&&function(t){n.d(e,t,function(){return i[t]})}(r);var s=n(0),a=Object(s.a)(i.default,o.a,o.b,!1,null,null,null);e.default=a.exports},function(t,e,n){"use strict";n.r(e);var o=n(20),i=n(8);for(var r in i)"default"!==r&&function(t){n.d(e,t,function(){return i[t]})}(r);var s=n(0),a=Object(s.a)(i.default,o.a,o.b,!1,null,null,null);e.default=a.exports},function(t,e,n){"use strict";n.r(e);var o=n(21),i=n(10);for(var r in i)"default"!==r&&function(t){n.d(e,t,function(){return i[t]})}(r);var s=n(0),a=Object(s.a)(i.default,o.a,o.b,!1,null,null,null);e.default=a.exports},function(t,e,n){"use strict";var o=n(12);n.n(o).a},,function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var o=Object.assign||function(t){for(var e=1;e<arguments.length;e++){var n=arguments[e];for(var o in n)Object.prototype.hasOwnProperty.call(n,o)&&(t[o]=n[o])}return t},i="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(t){return typeof t}:function(t){return t&&"function"==typeof Symbol&&t.constructor===Symbol&&t!==Symbol.prototype?"symbol":typeof t},r=n(16),s=n(1),a=function(t){Object.defineProperties(this,{Vue:{get:function(){return t}},confirmDefinition:{get:this.defineConfirm}})};a.prototype.getConfirmMessage=function(t){return t.value&&t.value.message?t.value.message:"string"==typeof t.value?t.value:null},a.prototype.getOptions=function(t){var e="object"===i(t.value)?(0,r.cloneObj)(t.value):{};return delete e.ok,delete e.cancel,t.arg&&s.CONFIRM_TYPES.hasOwnProperty(t.arg.toUpperCase())&&(e.type=s.CONFIRM_TYPES[t.arg.toUpperCase()]),e},a.prototype.getThenCallback=function(t,e){return t.value&&t.value.ok?function(n){return t.value.ok(o({},n,{node:e}))}:function(t){t.loading&&t.close(),e.removeEventListener("click",e.VuejsDialog.clickHandler,!0),(0,r.clickNode)(e),e.addEventListener("click",e.VuejsDialog.clickHandler,!0)}},a.prototype.getCatchCallback=function(t){return t.value&&t.value.cancel?t.value.cancel:r.noop},a.prototype.clickHandler=function(t,e,n){t.preventDefault(),t.stopImmediatePropagation();var o=this.getOptions(n),i=this.getConfirmMessage(n),r=this.getThenCallback(n,e),s=this.getCatchCallback(n);this.Vue.dialog.confirm(i,o).then(r).catch(s)},a.prototype.defineConfirm=function(){var t=this,e={bind:function(e,n){e.VuejsDialog=e.VuejsDialog||{},e.VuejsDialog.clickHandler=function(o){return t.clickHandler(o,e,n)},e.addEventListener("click",e.VuejsDialog.clickHandler,!0)},unbind:function(t){t.removeEventListener("click",t.VuejsDialog.clickHandler,!0)}};return e},e.default=a},function(t,e,n){"use strict";n.r(e);var o=n(0),i=Object(o.a)({},function(){this.$createElement;this._self._c;return this._m(0)},[function(){var t=this.$createElement,e=this._self._c||t;return e("span",{staticClass:"dg-btn-loader"},[e("span",{staticClass:"dg-circles"},[e("span",{staticClass:"dg-circle"}),this._v(" "),e("span",{staticClass:"dg-circle"}),this._v(" "),e("span",{staticClass:"dg-circle"})])])}],!1,null,null,null);e.default=i.exports}])});
+
+/***/ }),
+
 /***/ "./node_modules/webpack/buildin/global.js":
 /*!***********************************!*\
   !*** (webpack)/buildin/global.js ***!
@@ -99171,50 +100081,6 @@ module.exports = function(module) {
 
 /***/ }),
 
-/***/ "./resources/js/MediaHandler.js":
-/*!**************************************!*\
-  !*** ./resources/js/MediaHandler.js ***!
-  \**************************************/
-/*! exports provided: default */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return MediaHandler; });
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-var MediaHandler = /*#__PURE__*/function () {
-  function MediaHandler() {
-    _classCallCheck(this, MediaHandler);
-  }
-
-  _createClass(MediaHandler, [{
-    key: "getPermissions",
-    value: function getPermissions() {
-      return new Promise(function (res, rej) {
-        navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        }).then(function (stream) {
-          res(stream);
-        })["catch"](function (err) {
-          throw new Error("Unable to fetch stream! ".concat(err));
-        });
-      });
-    }
-  }]);
-
-  return MediaHandler;
-}();
-
-
-
-/***/ }),
-
 /***/ "./resources/js/app.js":
 /*!*****************************!*\
   !*** ./resources/js/app.js ***!
@@ -99233,6 +100099,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vue_toasted__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(vue_toasted__WEBPACK_IMPORTED_MODULE_3__);
 /* harmony import */ var pusher_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! pusher-js */ "./node_modules/pusher-js/dist/web/pusher.js");
 /* harmony import */ var pusher_js__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(pusher_js__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var vuejs_dialog__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! vuejs-dialog */ "./node_modules/vuejs-dialog/dist/vuejs-dialog.min.js");
+/* harmony import */ var vuejs_dialog__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(vuejs_dialog__WEBPACK_IMPORTED_MODULE_5__);
+/* harmony import */ var vuejs_dialog_dist_vuejs_dialog_min_css__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! vuejs-dialog/dist/vuejs-dialog.min.css */ "./node_modules/vuejs-dialog/dist/vuejs-dialog.min.css");
+/* harmony import */ var vuejs_dialog_dist_vuejs_dialog_min_css__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__webpack_require__.n(vuejs_dialog_dist_vuejs_dialog_min_css__WEBPACK_IMPORTED_MODULE_6__);
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
@@ -99257,6 +100127,11 @@ window.Echo = new laravel_echo__WEBPACK_IMPORTED_MODULE_0__["default"]({
 window.Vue = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.common.js");
 Vue.use(vue_toasted__WEBPACK_IMPORTED_MODULE_3___default.a);
 Vue.use(vue_axios__WEBPACK_IMPORTED_MODULE_2___default.a, axios__WEBPACK_IMPORTED_MODULE_1___default.a);
+ // include the default style
+
+ // Tell Vue to install the plugin.
+
+Vue.use(vuejs_dialog__WEBPACK_IMPORTED_MODULE_5___default.a);
 /**
  * The following block of code may be used to automatically register your
  * Vue components. It will recursively scan this directory for the Vue
@@ -99268,6 +100143,7 @@ Vue.use(vue_axios__WEBPACK_IMPORTED_MODULE_2___default.a, axios__WEBPACK_IMPORTE
 // files.keys().map(key => Vue.component(key.split('/').pop().split('.')[0], files(key).default))
 
 Vue.component('chat-root-component', __webpack_require__(/*! ./components/ChatRootComponent.vue */ "./resources/js/components/ChatRootComponent.vue")["default"]);
+Vue.component('chat-root-component-v2', __webpack_require__(/*! ./components/ChatRootComponentV2.vue */ "./resources/js/components/ChatRootComponentV2.vue")["default"]);
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application
@@ -99390,7 +100266,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/style-loader!../../../node_modules/css-loader??ref--6-1!../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../node_modules/postcss-loader/src??ref--6-2!../../../node_modules/vue-loader/lib??vue-loader-options!./ChatRootComponent.vue?vue&type=style&index=0&lang=css& */ "./node_modules/style-loader/index.js!./node_modules/css-loader/index.js?!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponent.vue?vue&type=style&index=0&lang=css&");
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* harmony reexport (unknown) */ for(var __WEBPACK_IMPORT_KEY__ in _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__) if(["default"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) (function(key) { __webpack_require__.d(__webpack_exports__, key, function() { return _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__[key]; }) }(__WEBPACK_IMPORT_KEY__));
- /* harmony default export */ __webpack_exports__["default"] = (_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
@@ -99407,6 +100283,75 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "render", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_template_id_64b49968___WEBPACK_IMPORTED_MODULE_0__["render"]; });
 
 /* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponent_vue_vue_type_template_id_64b49968___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"]; });
+
+
+
+/***/ }),
+
+/***/ "./resources/js/components/ChatRootComponentV2.vue":
+/*!*********************************************************!*\
+  !*** ./resources/js/components/ChatRootComponentV2.vue ***!
+  \*********************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ChatRootComponentV2.vue?vue&type=template&id=4a578204& */ "./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204&");
+/* harmony import */ var _ChatRootComponentV2_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ChatRootComponentV2.vue?vue&type=script&lang=js& */ "./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport *//* harmony import */ var _node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../node_modules/vue-loader/lib/runtime/componentNormalizer.js */ "./node_modules/vue-loader/lib/runtime/componentNormalizer.js");
+
+
+
+
+
+/* normalize component */
+
+var component = Object(_node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__["default"])(
+  _ChatRootComponentV2_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__["default"],
+  _ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__["render"],
+  _ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"],
+  false,
+  null,
+  null,
+  null
+  
+)
+
+/* hot reload */
+if (false) { var api; }
+component.options.__file = "resources/js/components/ChatRootComponentV2.vue"
+/* harmony default export */ __webpack_exports__["default"] = (component.exports);
+
+/***/ }),
+
+/***/ "./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js&":
+/*!**********************************************************************************!*\
+  !*** ./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js& ***!
+  \**********************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponentV2_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib??ref--4-0!../../../node_modules/vue-loader/lib??vue-loader-options!./ChatRootComponentV2.vue?vue&type=script&lang=js& */ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponentV2.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport */ /* harmony default export */ __webpack_exports__["default"] = (_node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponentV2_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__["default"]); 
+
+/***/ }),
+
+/***/ "./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204&":
+/*!****************************************************************************************!*\
+  !*** ./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204& ***!
+  \****************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!../../../node_modules/vue-loader/lib??vue-loader-options!./ChatRootComponentV2.vue?vue&type=template&id=4a578204& */ "./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ChatRootComponentV2.vue?vue&type=template&id=4a578204&");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "render", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__["render"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return _node_modules_vue_loader_lib_loaders_templateLoader_js_vue_loader_options_node_modules_vue_loader_lib_index_js_vue_loader_options_ChatRootComponentV2_vue_vue_type_template_id_4a578204___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"]; });
 
 
 
@@ -99546,7 +100491,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/style-loader!../../../../node_modules/css-loader??ref--6-1!../../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../../node_modules/postcss-loader/src??ref--6-2!../../../../node_modules/vue-loader/lib??vue-loader-options!./FriendsList.vue?vue&type=style&index=0&lang=css& */ "./node_modules/style-loader/index.js!./node_modules/css-loader/index.js?!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/chat/FriendsList.vue?vue&type=style&index=0&lang=css&");
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* harmony reexport (unknown) */ for(var __WEBPACK_IMPORT_KEY__ in _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__) if(["default"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) (function(key) { __webpack_require__.d(__webpack_exports__, key, function() { return _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__[key]; }) }(__WEBPACK_IMPORT_KEY__));
- /* harmony default export */ __webpack_exports__["default"] = (_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_FriendsList_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
@@ -99771,7 +100716,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/style-loader!../../../../node_modules/css-loader??ref--6-1!../../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../../node_modules/postcss-loader/src??ref--6-2!../../../../node_modules/vue-loader/lib??vue-loader-options!./TextChatComponent.vue?vue&type=style&index=0&lang=css& */ "./node_modules/style-loader/index.js!./node_modules/css-loader/index.js?!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/chat/TextChatComponent.vue?vue&type=style&index=0&lang=css&");
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* harmony reexport (unknown) */ for(var __WEBPACK_IMPORT_KEY__ in _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__) if(["default"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) (function(key) { __webpack_require__.d(__webpack_exports__, key, function() { return _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__[key]; }) }(__WEBPACK_IMPORT_KEY__));
- /* harmony default export */ __webpack_exports__["default"] = (_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TextChatComponent_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
@@ -99858,7 +100803,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/style-loader!../../../../node_modules/css-loader??ref--6-1!../../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../../node_modules/postcss-loader/src??ref--6-2!../../../../node_modules/vue-loader/lib??vue-loader-options!./TwillioVideoChat.vue?vue&type=style&index=0&lang=css& */ "./node_modules/style-loader/index.js!./node_modules/css-loader/index.js?!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/src/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/chat/TwillioVideoChat.vue?vue&type=style&index=0&lang=css&");
 /* harmony import */ var _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__);
 /* harmony reexport (unknown) */ for(var __WEBPACK_IMPORT_KEY__ in _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__) if(["default"].indexOf(__WEBPACK_IMPORT_KEY__) < 0) (function(key) { __webpack_require__.d(__webpack_exports__, key, function() { return _node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0__[key]; }) }(__WEBPACK_IMPORT_KEY__));
- /* harmony default export */ __webpack_exports__["default"] = (_node_modules_style_loader_index_js_node_modules_css_loader_index_js_ref_6_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_src_index_js_ref_6_2_node_modules_vue_loader_lib_index_js_vue_loader_options_TwillioVideoChat_vue_vue_type_style_index_0_lang_css___WEBPACK_IMPORTED_MODULE_0___default.a); 
+
 
 /***/ }),
 
