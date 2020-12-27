@@ -158,7 +158,7 @@ class HomeController extends Controller
                         'id' => $value->sender->id,
                         'name' => $value->sender->name,
                         'is_selected' => false,
-                        'is_online' => false,
+                        'is_online' => $value->sender->is_online,
                         'new_message' => false,
                         'unread_message_count' => UserMessage::getUnreadMessageCount($value->sender->id, auth()->user()->id)
                     ];
@@ -167,7 +167,7 @@ class HomeController extends Controller
                         'id' => $value->recipient->id,
                         'name' => $value->recipient->name,
                         'is_selected' => false,
-                        'is_online' => false,
+                        'is_online' => $value->recipient->is_online,
                         'new_message' => false,
                         'unread_message_count' => UserMessage::getUnreadMessageCount($value->recipient->id, auth()->user()->id)
                     ];

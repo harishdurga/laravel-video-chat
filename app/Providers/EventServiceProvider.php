@@ -27,6 +27,9 @@ class EventServiceProvider extends ServiceProvider
         'App\Events\IncomingCallStatus' => [
             'App\Listeners\IncomingCallStatusNotification',
         ],
+        'App\Events\UserOnlineStatusUpdate' => [
+            'App\Listeners\UserOnlineStatusUpdateNotification',
+        ]
 
     ];
 

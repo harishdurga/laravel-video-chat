@@ -53,6 +53,21 @@ export default {
         })
         .then((response) => {});
     },
+    setUserOnlineStatus(data) {
+      this.$parent.friends.forEach((friend) => {
+        if (friend.id == data.user_id) {
+          friend.is_online = data.is_online;
+          return;
+        }
+      });
+    },
+  },
+  mounted() {
+    this.$parent.channel.listen("UserOnlineStatusUpdate", (e) => {
+      console.log("UserOnlineStatusUpdate");
+      console.log(e.data);
+      this.setUserOnlineStatus(e.data);
+    });
   },
 };
 </script>

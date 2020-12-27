@@ -35,9 +35,13 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-    ];  
-    
+    ];
 
-
-    
+    public static function updateOnlineStatus(int $userID, bool $status): bool
+    {
+        return self::where('id', $userID)->update([
+            'is_online' => $status,
+            'last_seen' => date('Y-m-d H:i:s')
+        ]);
+    }
 }

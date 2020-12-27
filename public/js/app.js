@@ -5553,7 +5553,25 @@ __webpack_require__.r(__webpack_exports__);
       Vue.axios.post("/mark-user-messages", {
         sender_id: sender_id
       }).then(function (response) {});
+    },
+    setUserOnlineStatus: function setUserOnlineStatus(data) {
+      this.$parent.friends.forEach(function (friend) {
+        if (friend.id == data.user_id) {
+          friend.is_online = data.is_online;
+          return;
+        }
+      });
     }
+  },
+  mounted: function mounted() {
+    var _this = this;
+
+    this.$parent.channel.listen("UserOnlineStatusUpdate", function (e) {
+      console.log("UserOnlineStatusUpdate");
+      console.log(e.data);
+
+      _this.setUserOnlineStatus(e.data);
+    });
   }
 });
 
