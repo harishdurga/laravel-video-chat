@@ -50,7 +50,7 @@ Here is my configuration for reference:
     stdout_logfile=/home/laravel-video-chat/websocket-server.log
 ```
 
-#### Run Websocket Server:
+#### Run Laravel Workers:
 
 We also need to run workers to process channel subscribe/unsubscribe events inorder for the user online/offline feature to work. Here is my supervisor config for reference.
 
