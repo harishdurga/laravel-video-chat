@@ -5,6 +5,13 @@
 Laravel Video Chat is a project where one to one video/audio chat and text chat with translation features are available.
 With the help of **laravel web sockets** and **Twilio Video** we are able to transmit the video/audio data from **peer to peer** without the intervention of server. Where as the text based messages are being sent in realtime via server translating the text into different languages on the fly. We are using **Vue, Laravel Echo and Pusher** in the front-end.
 
+### Setup:
+
+#### Setting up credentials:
+
+in `.env` file set `TWILLIO_ACCOUNT_ID`,`TWILIO_ACCOUNT_SID` to your twillio account sid, also set `TWILLIO_AUTH_TOKEN`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` as per the values from your twillio console.
+for Google translation to work set `GOOGLE_APPLICATION_CREDENTIALS` to the full path of the google service account json file. And set `GOOGLE_PROJECT_ID`.
+
 ### Features:
 
 1. Basic Login(Email And Password)
