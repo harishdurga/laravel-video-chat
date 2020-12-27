@@ -4,14 +4,16 @@
       <button
         title="Start Video Call"
         @click="startVideoCall"
-        class="btn btn-success rounded"
+        class="btn bg-theme-yellow rounded shadow-sm"
+        :disabled="!$parent.selected_user"
       >
         <i class="fas fa-phone-alt"></i>
       </button>
       <button
-        class="btn btn-danger rounded"
+        class="btn btn-dark rounded shadow-sm"
         @click="disConnectFromRoom"
         title="End Video Call"
+        :disabled="!$parent.selected_user"
       >
         <i class="fas fa-video-slash"></i>
       </button>

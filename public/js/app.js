@@ -5954,6 +5954,8 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "TwillioVideoChat",
   data: function data() {
@@ -13091,7 +13093,7 @@ exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loa
 
 
 // module
-exports.push([module.i, "\n.my-video-container {\n  position: absolute;\n  top: 0;\n  right: 0;\n}\n.video-container {\n  position: relative;\n  background-color: #9a9999;\n  border: solid 1px #cccccc;\n}\nvideo.my-video {\n  height: 100%;\n  width: 200px;\n}\nvideo.user-video {\n  width: 100%;\n  height: 500px;\n}\n#video-component {\n  background-color: #e6e6e6;\n  height: 500px;\n  border: solid 2px #a2a2a2;\n}\n", ""]);
+exports.push([module.i, "\n.my-video-container {\n  position: absolute;\n  top: 0;\n  right: 0;\n}\n.video-container {\n  position: relative;\n  /* background-color: #9a9999; */\n  border: solid 1px #cccccc;\n}\nvideo.my-video {\n  height: 100%;\n  width: 200px;\n}\nvideo.user-video {\n  width: 100%;\n  height: 500px;\n}\n#video-component {\n  background-color: #fffde1;\n  height: 500px;\n  border: solid 1px #ffeb00;\n}\n", ""]);
 
 // exports
 
@@ -87447,7 +87449,7 @@ var render = function() {
   var _c = _vm._self._c || _h
   return _c("div", [
     _c("div", { staticClass: "friendlist-container" }, [
-      _c("h3", { staticClass: "text-center bg-white shadow-sm py-2" }, [
+      _c("h5", { staticClass: "text-center bg-theme-yellow shadow-sm py-1" }, [
         _vm._v("Friends")
       ]),
       _vm._v(" "),
@@ -87462,7 +87464,7 @@ var render = function() {
                 key: index,
                 staticClass: "friendlist-item my-2 p-2",
                 class: {
-                  "bg-primary text-white": val.is_selected,
+                  "bg-dark text-white font-weight-bold": val.is_selected,
                   "bg-light": !val.is_selected
                 },
                 on: {
@@ -87784,7 +87786,7 @@ var render = function() {
                 _c(
                   "button",
                   {
-                    staticClass: "btn btn-success",
+                    staticClass: "btn bg-theme-yellow",
                     attrs: {
                       disabled: _vm.message.length == 0 || _vm.waiting,
                       type: "button"
@@ -87828,8 +87830,11 @@ var render = function() {
       _c(
         "button",
         {
-          staticClass: "btn btn-success rounded",
-          attrs: { title: "Start Video Call" },
+          staticClass: "btn bg-theme-yellow rounded shadow-sm",
+          attrs: {
+            title: "Start Video Call",
+            disabled: !_vm.$parent.selected_user
+          },
           on: { click: _vm.startVideoCall }
         },
         [_c("i", { staticClass: "fas fa-phone-alt" })]
@@ -87838,8 +87843,11 @@ var render = function() {
       _c(
         "button",
         {
-          staticClass: "btn btn-danger rounded",
-          attrs: { title: "End Video Call" },
+          staticClass: "btn btn-dark rounded shadow-sm",
+          attrs: {
+            title: "End Video Call",
+            disabled: !_vm.$parent.selected_user
+          },
           on: { click: _vm.disConnectFromRoom }
         },
         [_c("i", { staticClass: "fas fa-video-slash" })]

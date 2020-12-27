@@ -158,7 +158,7 @@ export default {
 }
 .video-container {
   position: relative;
-  background-color: #9a9999;
+  /* background-color: #9a9999; */
   border: solid 1px #cccccc;
 }
 video.my-video {
@@ -170,8 +170,8 @@ video.user-video {
   height: 500px;
 }
 #video-component {
-  background-color: #e6e6e6;
+  background-color: #fffde1;
   height: 500px;
-  border: solid 2px #a2a2a2;
+  border: solid 1px #ffeb00;
 }
 </style>

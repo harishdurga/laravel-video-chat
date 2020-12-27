@@ -61,7 +61,7 @@
               <button
                 @click="sendMessage"
                 :disabled="message.length == 0 || waiting"
-                class="btn btn-success"
+                class="btn bg-theme-yellow"
                 type="button"
               >
                 <i class="far fa-paper-plane"></i>

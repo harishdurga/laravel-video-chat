@@ -10903,3 +10903,7 @@ a.text-dark:focus {
   }
 }
 
+.bg-theme-yellow {
+  background-color: #ffeb00 !important;
+}
+

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="friendlist-container">
-      <h3 class="text-center bg-white shadow-sm py-2">Friends</h3>
+      <h5 class="text-center bg-theme-yellow shadow-sm py-1">Friends</h5>
       <div class="friendlist">
         <ul class="list-unstyled">
           <li
@@ -9,7 +9,7 @@
             v-for="(val, index) in $parent.friends"
             :key="index"
             :class="{
-              'bg-primary text-white': val.is_selected,
+              'bg-dark text-white font-weight-bold': val.is_selected,
               'bg-light': !val.is_selected,
             }"
             class="friendlist-item my-2 p-2"
