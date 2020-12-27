@@ -25073,8 +25073,8 @@ var Channel = /*#__PURE__*/function () {
 
   }, {
     key: "stopListeningForWhisper",
-    value: function stopListeningForWhisper(event) {
-      return this.stopListening('.client-' + event);
+    value: function stopListeningForWhisper(event, callback) {
+      return this.stopListening('.client-' + event, callback);
     }
   }]);
 
@@ -25185,8 +25185,13 @@ var PusherChannel = /*#__PURE__*/function (_Channel) {
 
   }, {
     key: "stopListening",
-    value: function stopListening(event) {
-      this.subscription.unbind(this.eventFormatter.format(event));
+    value: function stopListening(event, callback) {
+      if (callback) {
+        this.subscription.unbind(this.eventFormatter.format(event), callback);
+      } else {
+        this.subscription.unbind(this.eventFormatter.format(event));
+      }
+
       return this;
     }
     /**
@@ -25375,18 +25380,21 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
 
     _this = _super.call(this);
     /**
-     * The event callbacks applied to the channel.
+     * The event callbacks applied to the socket.
      */
 
     _this.events = {};
+    /**
+     * User supplied callbacks for events on this channel.
+     */
+
+    _this.listeners = {};
     _this.name = name;
     _this.socket = socket;
     _this.options = options;
     _this.eventFormatter = new EventFormatter(_this.options.namespace);
 
     _this.subscribe();
-
-    _this.configureReconnector();
 
     return _this;
   }
@@ -25432,10 +25440,8 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
 
   }, {
     key: "stopListening",
-    value: function stopListening(event) {
-      var name = this.eventFormatter.format(event);
-      this.socket.removeListener(name);
-      delete this.events[name];
+    value: function stopListening(event, callback) {
+      this.unbindEvent(this.eventFormatter.format(event), callback);
       return this;
     }
     /**
@@ -25468,40 +25474,22 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
     value: function on(event, callback) {
       var _this2 = this;
 
-      var listener = function listener(channel, data) {
-        if (_this2.name == channel) {
-          callback(data);
-        }
-      };
+      this.listeners[event] = this.listeners[event] || [];
 
-      this.socket.on(event, listener);
-      this.bind(event, listener);
-    }
-    /**
-     * Attach a 'reconnect' listener and bind the event.
-     */
+      if (!this.events[event]) {
+        this.events[event] = function (channel, data) {
+          if (_this2.name === channel && _this2.listeners[event]) {
+            _this2.listeners[event].forEach(function (cb) {
+              return cb(data);
+            });
+          }
+        };
 
-  }, {
-    key: "configureReconnector",
-    value: function configureReconnector() {
-      var _this3 = this;
+        this.socket.on(event, this.events[event]);
+      }
 
-      var listener = function listener() {
-        _this3.subscribe();
-      };
-
-      this.socket.on('reconnect', listener);
-      this.bind('reconnect', listener);
-    }
-    /**
-     * Bind the channel's socket to an event and store the callback.
-     */
-
-  }, {
-    key: "bind",
-    value: function bind(event, callback) {
-      this.events[event] = this.events[event] || [];
-      this.events[event].push(callback);
+      this.listeners[event].push(callback);
+      return this;
     }
     /**
      * Unbind the channel's socket from all stored event callbacks.
@@ -25510,15 +25498,35 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
   }, {
     key: "unbind",
     value: function unbind() {
-      var _this4 = this;
+      var _this3 = this;
 
       Object.keys(this.events).forEach(function (event) {
-        _this4.events[event].forEach(function (callback) {
-          _this4.socket.removeListener(event, callback);
-        });
-
-        delete _this4.events[event];
+        _this3.unbindEvent(event);
       });
+    }
+    /**
+     * Unbind the listeners for the given event.
+     */
+
+  }, {
+    key: "unbindEvent",
+    value: function unbindEvent(event, callback) {
+      this.listeners[event] = this.listeners[event] || [];
+
+      if (callback) {
+        this.listeners[event] = this.listeners[event].filter(function (cb) {
+          return cb !== callback;
+        });
+      }
+
+      if (!callback || this.listeners[event].length === 0) {
+        if (this.events[event]) {
+          this.socket.removeListener(event, this.events[event]);
+          delete this.events[event];
+        }
+
+        delete this.listeners[event];
+      }
     }
   }]);
 
@@ -25526,7 +25534,7 @@ var SocketIoChannel = /*#__PURE__*/function (_Channel) {
 }(Channel);
 
 /**
- * This class represents a Socket.io presence channel.
+ * This class represents a Socket.io private channel.
  */
 
 var SocketIoPrivateChannel = /*#__PURE__*/function (_SocketIoChannel) {
@@ -25663,7 +25671,7 @@ var NullChannel = /*#__PURE__*/function (_Channel) {
 
   }, {
     key: "stopListening",
-    value: function stopListening(event) {
+    value: function stopListening(event, callback) {
       return this;
     }
     /**
@@ -25959,8 +25967,15 @@ var SocketIoConnector = /*#__PURE__*/function (_Connector) {
   _createClass(SocketIoConnector, [{
     key: "connect",
     value: function connect() {
+      var _this2 = this;
+
       var io = this.getSocketIO();
       this.socket = io(this.options.host, this.options);
+      this.socket.on('reconnect', function () {
+        Object.values(_this2.channels).forEach(function (channel) {
+          channel.subscribe();
+        });
+      });
       return this.socket;
     }
     /**
@@ -26035,11 +26050,11 @@ var SocketIoConnector = /*#__PURE__*/function (_Connector) {
   }, {
     key: "leave",
     value: function leave(name) {
-      var _this2 = this;
+      var _this3 = this;
 
       var channels = [name, 'private-' + name, 'presence-' + name];
       channels.forEach(function (name) {
-        _this2.leaveChannel(name);
+        _this3.leaveChannel(name);
       });
     }
     /**
