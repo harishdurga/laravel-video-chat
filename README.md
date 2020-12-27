@@ -1,8 +1,12 @@
+![Landing Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072977/Screenshot_from_2020-12-27_18-12-42_vzt6np.png "Landing Page Screenshot")
+
 ## About
+
 Laravel Video Chat is a project where one to one video/audio chat and text chat with translation features are available.
 With the help of **laravel web sockets** and **Twilio Video** we are able to transmit the video/audio data from **peer to peer** without the intervention of server. Where as the text based messages are being sent in realtime via server translating the text into different languages on the fly. We are using **Vue, Laravel Echo and Pusher** in the front-end.
 
 ### Features:
+
 1. Basic Login(Email And Password)
 2. Friends
 3. Search Users
@@ -14,7 +18,5 @@ With the help of **laravel web sockets** and **Twilio Video** we are able to tra
 9. New message indication
 10. Video/audio with Twilio programmable video
 
-![Landing Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072977/Screenshot_from_2020-12-27_18-12-42_vzt6np.png "Landing Page Screenshot")
 ![Chat/Main Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072856/Screenshot_from_2020-12-27_18-00-56_kuj7mt.png "Chat/Main Page Screenshot")
 ![Call In Progress Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609073215/Screenshot_from_2020-12-27_18-16-03_kpmk8j.png "Call in progress Screenshot")
-
