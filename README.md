@@ -33,5 +33,22 @@ With the help of **laravel web sockets** and **Twilio Video** we are able to tra
     PUSHER_APP_CLUSTER=mt1
     ```
 
+#### Run Websocket Server:
+
+Run `php artisan websockets:serve` to start the websocket server. I use supervisor to manage the websocket server
+Here is my configuration for reference:
+
+```bash
+    [program:videochat-websocket-worker]
+    process_name=%(program_name)s_%(process_num)02d
+    command=php /home/laravel-video-chat/artisan websockets:serve
+    autostart=false
+    autorestart=true
+    user=harish
+    numprocs=1
+    redirect_stderr=true
+    stdout_logfile=/home/laravel-video-chat/websocket-server.log
+```
+
 ![Chat/Main Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072856/Screenshot_from_2020-12-27_18-00-56_kuj7mt.png "Chat/Main Page Screenshot")
 ![Call In Progress Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609073215/Screenshot_from_2020-12-27_18-16-03_kpmk8j.png "Call in progress Screenshot")
