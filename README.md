@@ -35,7 +35,7 @@ With the help of **laravel web sockets** and **Twilio Video** we are able to tra
 
 #### Run Websocket Server:
 
-Run `php artisan websockets:serve` to start the websocket server. I use supervisor to manage the websocket server
+Run `php artisan websockets:serve` to start the websocket server. I use supervisor to manage the websocket server.
 Here is my configuration for reference:
 
 ```bash
@@ -49,6 +49,104 @@ Here is my configuration for reference:
     redirect_stderr=true
     stdout_logfile=/home/laravel-video-chat/websocket-server.log
 ```
+
+#### Run Websocket Server:
+
+We also need to run workers to process channel subscribe/unsubscribe events inorder for the user online/offline feature to work. Here is my supervisor config for reference.
+
+```bash
+    [program:videochat-laravel-worker]
+    process_name=%(program_name)s_%(process_num)02d
+    command=php /home/laravel-video-chat/artisan queue:work --sleep=3 --tries=3
+    autostart=true
+    autorestart=true
+    stopasgroup=true
+    killasgroup=true
+    user=harish
+    numprocs=1
+    redirect_stderr=true
+    stdout_logfile=/home/laravel-video-chat/worker.log
+    stopwaitsecs=3600
+```
+
+#### Setting Up Nginx:
+
+Here is my nginx config for reference.
+
+```nginx
+    map $http_upgrade $type {
+        default "web";
+        websocket "ws";
+    }
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        # include snippets/self-signed.conf;
+        # include snippets/ssl-params.conf;
+        ssl_certificate     /home/ssl-certs/videochat.test.pem;
+        ssl_certificate_key /home/ssl-certs/videochat.test-key.pem;
+
+        server_name videochat.test www.videochat.test;
+        root /home/harish/Projects/laravel-video-chat/public;
+
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
+        add_header X-Content-Type-Options "nosniff";
+
+        index index.html index.htm index.php;
+
+        charset utf-8;
+
+        location / {
+            try_files /nonexistent @$type;
+        }
+
+        location @web {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+        location @ws {
+            proxy_pass             http://127.0.0.1:6001;
+            proxy_set_header Host  $host;
+            proxy_read_timeout     60;
+            proxy_connect_timeout  60;
+            proxy_redirect         off;
+
+            # Allow the use of websockets
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+
+        error_page 404 /index.php;
+
+        location ~ \.php$ {
+            fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+    }
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name videochat.test www.videochat.test;
+
+        return 301 https://$server_name$request_uri;
+    }
+
+```
+
+Refer https://beyondco.de/docs/laravel-websockets/basic-usage/ssl#usage-with-a-reverse-proxy-like-nginx for more information.
 
 ![Chat/Main Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072856/Screenshot_from_2020-12-27_18-00-56_kuj7mt.png "Chat/Main Page Screenshot")
 ![Call In Progress Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609073215/Screenshot_from_2020-12-27_18-16-03_kpmk8j.png "Call in progress Screenshot")
