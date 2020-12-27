@@ -14,5 +14,5 @@ With the help of **laravel web sockets** and **Twilio Video** we are able to tra
 9. New message indication
 10. Video/audio with Twilio programmable video
 
-![Landing Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1588273087/Screenshot_from_2020-05-01_00-25-14_bbxkgm.png "Landing Page Screenshot")
-![Chat/Main Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1588273377/Screenshot_from_2020-05-01_00-32-02_yycqhm.png "Chat/Main Page Screenshot")
+![Landing Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072977/Screenshot_from_2020-12-27_18-12-42_vzt6np.png "Landing Page Screenshot")
+![Chat/Main Page Screenshot](https://res.cloudinary.com/harishdurga/image/upload/v1609072856/Screenshot_from_2020-12-27_18-00-56_kuj7mt.png "Chat/Main Page Screenshot")
