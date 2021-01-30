@@ -3354,6 +3354,7 @@ module.exports = __webpack_require__(/*! ./lib/axios */ "./node_modules/axios/li
 
 var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
 var settle = __webpack_require__(/*! ./../core/settle */ "./node_modules/axios/lib/core/settle.js");
+var cookies = __webpack_require__(/*! ./../helpers/cookies */ "./node_modules/axios/lib/helpers/cookies.js");
 var buildURL = __webpack_require__(/*! ./../helpers/buildURL */ "./node_modules/axios/lib/helpers/buildURL.js");
 var buildFullPath = __webpack_require__(/*! ../core/buildFullPath */ "./node_modules/axios/lib/core/buildFullPath.js");
 var parseHeaders = __webpack_require__(/*! ./../helpers/parseHeaders */ "./node_modules/axios/lib/helpers/parseHeaders.js");
@@ -3374,7 +3375,7 @@ module.exports = function xhrAdapter(config) {
     // HTTP basic authentication
     if (config.auth) {
       var username = config.auth.username || '';
-      var password = config.auth.password || '';
+      var password = config.auth.password ? unescape(encodeURIComponent(config.auth.password)) : '';
       requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
     }
 
@@ -3455,8 +3456,6 @@ module.exports = function xhrAdapter(config) {
     // This is only done if running in a standard browser environment.
     // Specifically not if we're in a web worker, or react-native.
     if (utils.isStandardBrowserEnv()) {
-      var cookies = __webpack_require__(/*! ./../helpers/cookies */ "./node_modules/axios/lib/helpers/cookies.js");
-
       // Add xsrf header
       var xsrfValue = (config.withCredentials || isURLSameOrigin(fullPath)) && config.xsrfCookieName ?
         cookies.read(config.xsrfCookieName) :
@@ -3522,7 +3521,7 @@ module.exports = function xhrAdapter(config) {
       });
     }
 
-    if (requestData === undefined) {
+    if (!requestData) {
       requestData = null;
     }
 
@@ -3590,6 +3589,9 @@ axios.all = function all(promises) {
   return Promise.all(promises);
 };
 axios.spread = __webpack_require__(/*! ./helpers/spread */ "./node_modules/axios/lib/helpers/spread.js");
+
+// Expose isAxiosError
+axios.isAxiosError = __webpack_require__(/*! ./helpers/isAxiosError */ "./node_modules/axios/lib/helpers/isAxiosError.js");
 
 module.exports = axios;
 
@@ -3799,9 +3801,10 @@ Axios.prototype.getUri = function getUri(config) {
 utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
   /*eslint func-names:0*/
   Axios.prototype[method] = function(url, config) {
-    return this.request(utils.merge(config || {}, {
+    return this.request(mergeConfig(config || {}, {
       method: method,
-      url: url
+      url: url,
+      data: (config || {}).data
     }));
   };
 });
@@ -3809,7 +3812,7 @@ utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData
 utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
   /*eslint func-names:0*/
   Axios.prototype[method] = function(url, data, config) {
-    return this.request(utils.merge(config || {}, {
+    return this.request(mergeConfig(config || {}, {
       method: method,
       url: url,
       data: data
@@ -4069,7 +4072,7 @@ module.exports = function enhanceError(error, config, code, request, response) {
   error.response = response;
   error.isAxiosError = true;
 
-  error.toJSON = function() {
+  error.toJSON = function toJSON() {
     return {
       // Standard
       message: this.message,
@@ -4118,59 +4121,73 @@ module.exports = function mergeConfig(config1, config2) {
   config2 = config2 || {};
   var config = {};
 
-  var valueFromConfig2Keys = ['url', 'method', 'params', 'data'];
-  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy'];
+  var valueFromConfig2Keys = ['url', 'method', 'data'];
+  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy', 'params'];
   var defaultToConfig2Keys = [
-    'baseURL', 'url', 'transformRequest', 'transformResponse', 'paramsSerializer',
-    'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
-    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress',
-    'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent',
-    'httpsAgent', 'cancelToken', 'socketPath'
+    'baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer',
+    'timeout', 'timeoutMessage', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
+    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'decompress',
+    'maxContentLength', 'maxBodyLength', 'maxRedirects', 'transport', 'httpAgent',
+    'httpsAgent', 'cancelToken', 'socketPath', 'responseEncoding'
   ];
+  var directMergeKeys = ['validateStatus'];
+
+  function getMergedValue(target, source) {
+    if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
+      return utils.merge(target, source);
+    } else if (utils.isPlainObject(source)) {
+      return utils.merge({}, source);
+    } else if (utils.isArray(source)) {
+      return source.slice();
+    }
+    return source;
+  }
+
+  function mergeDeepProperties(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(config1[prop], config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
+    }
+  }
 
   utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(undefined, config2[prop]);
     }
   });
 
-  utils.forEach(mergeDeepPropertiesKeys, function mergeDeepProperties(prop) {
-    if (utils.isObject(config2[prop])) {
-      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
-    } else if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (utils.isObject(config1[prop])) {
-      config[prop] = utils.deepMerge(config1[prop]);
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
-    }
-  });
+  utils.forEach(mergeDeepPropertiesKeys, mergeDeepProperties);
 
   utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(undefined, config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
+    }
+  });
+
+  utils.forEach(directMergeKeys, function merge(prop) {
+    if (prop in config2) {
+      config[prop] = getMergedValue(config1[prop], config2[prop]);
+    } else if (prop in config1) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
     }
   });
 
   var axiosKeys = valueFromConfig2Keys
     .concat(mergeDeepPropertiesKeys)
-    .concat(defaultToConfig2Keys);
+    .concat(defaultToConfig2Keys)
+    .concat(directMergeKeys);
 
   var otherKeys = Object
-    .keys(config2)
+    .keys(config1)
+    .concat(Object.keys(config2))
     .filter(function filterAxiosKeys(key) {
       return axiosKeys.indexOf(key) === -1;
     });
 
-  utils.forEach(otherKeys, function otherKeysDefaultToConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
-    }
-  });
+  utils.forEach(otherKeys, mergeDeepProperties);
 
   return config;
 };
@@ -4199,7 +4216,7 @@ var createError = __webpack_require__(/*! ./createError */ "./node_modules/axios
  */
 module.exports = function settle(resolve, reject, response) {
   var validateStatus = response.config.validateStatus;
-  if (!validateStatus || validateStatus(response.status)) {
+  if (!response.status || !validateStatus || validateStatus(response.status)) {
     resolve(response);
   } else {
     reject(createError(
@@ -4331,6 +4348,7 @@ var defaults = {
   xsrfHeaderName: 'X-XSRF-TOKEN',
 
   maxContentLength: -1,
+  maxBodyLength: -1,
 
   validateStatus: function validateStatus(status) {
     return status >= 200 && status < 300;
@@ -4394,7 +4412,6 @@ var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/util
 
 function encode(val) {
   return encodeURIComponent(val).
-    replace(/%40/gi, '@').
     replace(/%3A/gi, ':').
     replace(/%24/g, '$').
     replace(/%2C/gi, ',').
@@ -4575,6 +4592,29 @@ module.exports = function isAbsoluteURL(url) {
   // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
   // by any combination of letters, digits, plus, period, or hyphen.
   return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/isAxiosError.js":
+/*!********************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/isAxiosError.js ***!
+  \********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * Determines whether the payload is an error thrown by Axios
+ *
+ * @param {*} payload The value to test
+ * @returns {boolean} True if the payload is an error thrown by Axios, otherwise false
+ */
+module.exports = function isAxiosError(payload) {
+  return (typeof payload === 'object') && (payload.isAxiosError === true);
 };
 
 
@@ -4904,6 +4944,21 @@ function isObject(val) {
 }
 
 /**
+ * Determine if a value is a plain Object
+ *
+ * @param {Object} val The value to test
+ * @return {boolean} True if value is a plain Object, otherwise false
+ */
+function isPlainObject(val) {
+  if (toString.call(val) !== '[object Object]') {
+    return false;
+  }
+
+  var prototype = Object.getPrototypeOf(val);
+  return prototype === null || prototype === Object.prototype;
+}
+
+/**
  * Determine if a value is a Date
  *
  * @param {Object} val The value to test
@@ -5059,34 +5114,12 @@ function forEach(obj, fn) {
 function merge(/* obj1, obj2, obj3, ... */) {
   var result = {};
   function assignValue(val, key) {
-    if (typeof result[key] === 'object' && typeof val === 'object') {
+    if (isPlainObject(result[key]) && isPlainObject(val)) {
       result[key] = merge(result[key], val);
-    } else {
-      result[key] = val;
-    }
-  }
-
-  for (var i = 0, l = arguments.length; i < l; i++) {
-    forEach(arguments[i], assignValue);
-  }
-  return result;
-}
-
-/**
- * Function equal to merge with the difference being that no reference
- * to original objects is kept.
- *
- * @see merge
- * @param {Object} obj1 Object to merge
- * @returns {Object} Result of all merge properties
- */
-function deepMerge(/* obj1, obj2, obj3, ... */) {
-  var result = {};
-  function assignValue(val, key) {
-    if (typeof result[key] === 'object' && typeof val === 'object') {
-      result[key] = deepMerge(result[key], val);
-    } else if (typeof val === 'object') {
-      result[key] = deepMerge({}, val);
+    } else if (isPlainObject(val)) {
+      result[key] = merge({}, val);
+    } else if (isArray(val)) {
+      result[key] = val.slice();
     } else {
       result[key] = val;
     }
@@ -5117,6 +5150,19 @@ function extend(a, b, thisArg) {
   return a;
 }
 
+/**
+ * Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
+ *
+ * @param {string} content with BOM
+ * @return {string} content value without BOM
+ */
+function stripBOM(content) {
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  return content;
+}
+
 module.exports = {
   isArray: isArray,
   isArrayBuffer: isArrayBuffer,
@@ -5126,6 +5172,7 @@ module.exports = {
   isString: isString,
   isNumber: isNumber,
   isObject: isObject,
+  isPlainObject: isPlainObject,
   isUndefined: isUndefined,
   isDate: isDate,
   isFile: isFile,
@@ -5136,9 +5183,9 @@ module.exports = {
   isStandardBrowserEnv: isStandardBrowserEnv,
   forEach: forEach,
   merge: merge,
-  deepMerge: deepMerge,
   extend: extend,
-  trim: trim
+  trim: trim,
+  stripBOM: stripBOM
 };
 
 
@@ -6840,8 +6887,8 @@ function fromByteArray (uint8) {
 /***/ (function(module, exports, __webpack_require__) {
 
 /*!
-  * Bootstrap v4.5.3 (https://getbootstrap.com/)
-  * Copyright 2011-2020 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
+  * Bootstrap v4.6.0 (https://getbootstrap.com/)
+  * Copyright 2011-2021 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
   */
 (function (global, factory) {
@@ -6896,7 +6943,7 @@ function fromByteArray (uint8) {
 
   /**
    * --------------------------------------------------------------------------
-   * Bootstrap (v4.5.3): util.js
+   * Bootstrap (v4.6.0): util.js
    * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
    * --------------------------------------------------------------------------
    */
@@ -7075,7 +7122,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME = 'alert';
-  var VERSION = '4.5.3';
+  var VERSION = '4.6.0';
   var DATA_KEY = 'bs.alert';
   var EVENT_KEY = "." + DATA_KEY;
   var DATA_API_KEY = '.data-api';
@@ -7231,7 +7278,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$1 = 'button';
-  var VERSION$1 = '4.5.3';
+  var VERSION$1 = '4.6.0';
   var DATA_KEY$1 = 'bs.button';
   var EVENT_KEY$1 = "." + DATA_KEY$1;
   var DATA_API_KEY$1 = '.data-api';
@@ -7430,7 +7477,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$2 = 'carousel';
-  var VERSION$2 = '4.5.3';
+  var VERSION$2 = '4.6.0';
   var DATA_KEY$2 = 'bs.carousel';
   var EVENT_KEY$2 = "." + DATA_KEY$2;
   var DATA_API_KEY$2 = '.data-api';
@@ -7570,6 +7617,8 @@ function fromByteArray (uint8) {
       }
 
       if (this._config.interval && !this._isPaused) {
+        this._updateInterval();
+
         this._interval = setInterval((document.visibilityState ? this.nextWhenVisible : this.next).bind(this), this._config.interval);
       }
     };
@@ -7811,6 +7860,23 @@ function fromByteArray (uint8) {
       }
     };
 
+    _proto._updateInterval = function _updateInterval() {
+      var element = this._activeElement || this._element.querySelector(SELECTOR_ACTIVE_ITEM);
+
+      if (!element) {
+        return;
+      }
+
+      var elementInterval = parseInt(element.getAttribute('data-interval'), 10);
+
+      if (elementInterval) {
+        this._config.defaultInterval = this._config.defaultInterval || this._config.interval;
+        this._config.interval = elementInterval;
+      } else {
+        this._config.interval = this._config.defaultInterval || this._config.interval;
+      }
+    };
+
     _proto._slide = function _slide(direction, element) {
       var _this4 = this;
 
@@ -7861,6 +7927,7 @@ function fromByteArray (uint8) {
 
       this._setActiveIndicatorElement(nextElement);
 
+      this._activeElement = nextElement;
       var slidEvent = $__default['default'].Event(EVENT_SLID, {
         relatedTarget: nextElement,
         direction: eventDirectionName,
@@ -7873,15 +7940,6 @@ function fromByteArray (uint8) {
         Util.reflow(nextElement);
         $__default['default'](activeElement).addClass(directionalClassName);
         $__default['default'](nextElement).addClass(directionalClassName);
-        var nextElementInterval = parseInt(nextElement.getAttribute('data-interval'), 10);
-
-        if (nextElementInterval) {
-          this._config.defaultInterval = this._config.defaultInterval || this._config.interval;
-          this._config.interval = nextElementInterval;
-        } else {
-          this._config.interval = this._config.defaultInterval || this._config.interval;
-        }
-
         var transitionDuration = Util.getTransitionDurationFromElement(activeElement);
         $__default['default'](activeElement).one(Util.TRANSITION_END, function () {
           $__default['default'](nextElement).removeClass(directionalClassName + " " + orderClassName).addClass(CLASS_NAME_ACTIVE$1);
@@ -8018,7 +8076,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$3 = 'collapse';
-  var VERSION$3 = '4.5.3';
+  var VERSION$3 = '4.6.0';
   var DATA_KEY$3 = 'bs.collapse';
   var EVENT_KEY$3 = "." + DATA_KEY$3;
   var DATA_API_KEY$3 = '.data-api';
@@ -8367,7 +8425,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$4 = 'dropdown';
-  var VERSION$4 = '4.5.3';
+  var VERSION$4 = '4.6.0';
   var DATA_KEY$4 = 'bs.dropdown';
   var EVENT_KEY$4 = "." + DATA_KEY$4;
   var DATA_API_KEY$4 = '.data-api';
@@ -8484,7 +8542,7 @@ function fromByteArray (uint8) {
 
       if (showEvent.isDefaultPrevented()) {
         return;
-      } // Disable totally Popper.js for Dropdown in Navbar
+      } // Totally disable Popper for Dropdowns in Navbar
 
 
       if (!this._inNavbar && usePopper) {
@@ -8493,7 +8551,7 @@ function fromByteArray (uint8) {
          * Popper - https://popper.js.org
          */
         if (typeof Popper__default['default'] === 'undefined') {
-          throw new TypeError('Bootstrap\'s dropdowns require Popper.js (https://popper.js.org/)');
+          throw new TypeError('Bootstrap\'s dropdowns require Popper (https://popper.js.org)');
         }
 
         var referenceElement = this._element;
@@ -8661,7 +8719,7 @@ function fromByteArray (uint8) {
             boundariesElement: this._config.boundary
           }
         }
-      }; // Disable Popper.js if we have a static display
+      }; // Disable Popper if we have a static display
 
       if (this._config.display === 'static') {
         popperConfig.modifiers.applyStyle = {
@@ -8881,7 +8939,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$5 = 'modal';
-  var VERSION$5 = '4.5.3';
+  var VERSION$5 = '4.6.0';
   var DATA_KEY$5 = 'bs.modal';
   var EVENT_KEY$5 = "." + DATA_KEY$5;
   var DATA_API_KEY$5 = '.data-api';
@@ -9081,38 +9139,34 @@ function fromByteArray (uint8) {
     _proto._triggerBackdropTransition = function _triggerBackdropTransition() {
       var _this3 = this;
 
-      if (this._config.backdrop === 'static') {
-        var hideEventPrevented = $__default['default'].Event(EVENT_HIDE_PREVENTED);
-        $__default['default'](this._element).trigger(hideEventPrevented);
+      var hideEventPrevented = $__default['default'].Event(EVENT_HIDE_PREVENTED);
+      $__default['default'](this._element).trigger(hideEventPrevented);
 
-        if (hideEventPrevented.isDefaultPrevented()) {
-          return;
-        }
+      if (hideEventPrevented.isDefaultPrevented()) {
+        return;
+      }
 
-        var isModalOverflowing = this._element.scrollHeight > document.documentElement.clientHeight;
+      var isModalOverflowing = this._element.scrollHeight > document.documentElement.clientHeight;
+
+      if (!isModalOverflowing) {
+        this._element.style.overflowY = 'hidden';
+      }
+
+      this._element.classList.add(CLASS_NAME_STATIC);
+
+      var modalTransitionDuration = Util.getTransitionDurationFromElement(this._dialog);
+      $__default['default'](this._element).off(Util.TRANSITION_END);
+      $__default['default'](this._element).one(Util.TRANSITION_END, function () {
+        _this3._element.classList.remove(CLASS_NAME_STATIC);
 
         if (!isModalOverflowing) {
-          this._element.style.overflowY = 'hidden';
+          $__default['default'](_this3._element).one(Util.TRANSITION_END, function () {
+            _this3._element.style.overflowY = '';
+          }).emulateTransitionEnd(_this3._element, modalTransitionDuration);
         }
+      }).emulateTransitionEnd(modalTransitionDuration);
 
-        this._element.classList.add(CLASS_NAME_STATIC);
-
-        var modalTransitionDuration = Util.getTransitionDurationFromElement(this._dialog);
-        $__default['default'](this._element).off(Util.TRANSITION_END);
-        $__default['default'](this._element).one(Util.TRANSITION_END, function () {
-          _this3._element.classList.remove(CLASS_NAME_STATIC);
-
-          if (!isModalOverflowing) {
-            $__default['default'](_this3._element).one(Util.TRANSITION_END, function () {
-              _this3._element.style.overflowY = '';
-            }).emulateTransitionEnd(_this3._element, modalTransitionDuration);
-          }
-        }).emulateTransitionEnd(modalTransitionDuration);
-
-        this._element.focus();
-      } else {
-        this.hide();
-      }
+      this._element.focus();
     };
 
     _proto._showElement = function _showElement(relatedTarget) {
@@ -9267,7 +9321,11 @@ function fromByteArray (uint8) {
             return;
           }
 
-          _this9._triggerBackdropTransition();
+          if (_this9._config.backdrop === 'static') {
+            _this9._triggerBackdropTransition();
+          } else {
+            _this9.hide();
+          }
         });
 
         if (animate) {
@@ -9491,7 +9549,7 @@ function fromByteArray (uint8) {
 
   /**
    * --------------------------------------------------------------------------
-   * Bootstrap (v4.5.3): tools/sanitizer.js
+   * Bootstrap (v4.6.0): tools/sanitizer.js
    * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
    * --------------------------------------------------------------------------
    */
@@ -9617,7 +9675,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$6 = 'tooltip';
-  var VERSION$6 = '4.5.3';
+  var VERSION$6 = '4.6.0';
   var DATA_KEY$6 = 'bs.tooltip';
   var EVENT_KEY$6 = "." + DATA_KEY$6;
   var JQUERY_NO_CONFLICT$6 = $__default['default'].fn[NAME$6];
@@ -9637,6 +9695,7 @@ function fromByteArray (uint8) {
     container: '(string|element|boolean)',
     fallbackPlacement: '(string|array)',
     boundary: '(string|element)',
+    customClass: '(string|function)',
     sanitize: 'boolean',
     sanitizeFn: '(null|function)',
     whiteList: 'object',
@@ -9662,6 +9721,7 @@ function fromByteArray (uint8) {
     container: false,
     fallbackPlacement: 'flip',
     boundary: 'scrollParent',
+    customClass: '',
     sanitize: true,
     sanitizeFn: null,
     whiteList: DefaultWhitelist,
@@ -9698,7 +9758,7 @@ function fromByteArray (uint8) {
   var Tooltip = /*#__PURE__*/function () {
     function Tooltip(element, config) {
       if (typeof Popper__default['default'] === 'undefined') {
-        throw new TypeError('Bootstrap\'s tooltips require Popper.js (https://popper.js.org/)');
+        throw new TypeError('Bootstrap\'s tooltips require Popper (https://popper.js.org)');
       } // private
 
 
@@ -9832,7 +9892,8 @@ function fromByteArray (uint8) {
 
         $__default['default'](this.element).trigger(this.constructor.Event.INSERTED);
         this._popper = new Popper__default['default'](this.element, tip, this._getPopperConfig(attachment));
-        $__default['default'](tip).addClass(CLASS_NAME_SHOW$4); // If this is a touch-enabled device we add extra
+        $__default['default'](tip).addClass(CLASS_NAME_SHOW$4);
+        $__default['default'](tip).addClass(this.config.customClass); // If this is a touch-enabled device we add extra
         // empty mouseover listeners to the body's immediate children;
         // only needed because of broken event delegation on iOS
         // https://www.quirksmode.org/blog/archives/2014/02/mouse_event_bub.html
@@ -10330,7 +10391,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$7 = 'popover';
-  var VERSION$7 = '4.5.3';
+  var VERSION$7 = '4.6.0';
   var DATA_KEY$7 = 'bs.popover';
   var EVENT_KEY$7 = "." + DATA_KEY$7;
   var JQUERY_NO_CONFLICT$7 = $__default['default'].fn[NAME$7];
@@ -10510,7 +10571,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$8 = 'scrollspy';
-  var VERSION$8 = '4.5.3';
+  var VERSION$8 = '4.6.0';
   var DATA_KEY$8 = 'bs.scrollspy';
   var EVENT_KEY$8 = "." + DATA_KEY$8;
   var DATA_API_KEY$6 = '.data-api';
@@ -10802,7 +10863,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$9 = 'tab';
-  var VERSION$9 = '4.5.3';
+  var VERSION$9 = '4.6.0';
   var DATA_KEY$9 = 'bs.tab';
   var EVENT_KEY$9 = "." + DATA_KEY$9;
   var DATA_API_KEY$7 = '.data-api';
@@ -11028,7 +11089,7 @@ function fromByteArray (uint8) {
    */
 
   var NAME$a = 'toast';
-  var VERSION$a = '4.5.3';
+  var VERSION$a = '4.6.0';
   var DATA_KEY$a = 'bs.toast';
   var EVENT_KEY$a = "." + DATA_KEY$a;
   var JQUERY_NO_CONFLICT$a = $__default['default'].fn[NAME$a];
@@ -43562,291 +43623,6 @@ var Echo = /*#__PURE__*/function () {
 
 /***/ }),
 
-/***/ "./node_modules/loglevel/lib/loglevel.js":
-/*!***********************************************!*\
-  !*** ./node_modules/loglevel/lib/loglevel.js ***!
-  \***********************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
-* loglevel - https://github.com/pimterry/loglevel
-*
-* Copyright (c) 2013 Tim Perry
-* Licensed under the MIT license.
-*/
-(function (root, definition) {
-    "use strict";
-    if (true) {
-        !(__WEBPACK_AMD_DEFINE_FACTORY__ = (definition),
-				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
-				(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
-				__WEBPACK_AMD_DEFINE_FACTORY__),
-				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-    } else {}
-}(this, function () {
-    "use strict";
-
-    // Slightly dubious tricks to cut down minimized file size
-    var noop = function() {};
-    var undefinedType = "undefined";
-    var isIE = (typeof window !== undefinedType) && (typeof window.navigator !== undefinedType) && (
-        /Trident\/|MSIE /.test(window.navigator.userAgent)
-    );
-
-    var logMethods = [
-        "trace",
-        "debug",
-        "info",
-        "warn",
-        "error"
-    ];
-
-    // Cross-browser bind equivalent that works at least back to IE6
-    function bindMethod(obj, methodName) {
-        var method = obj[methodName];
-        if (typeof method.bind === 'function') {
-            return method.bind(obj);
-        } else {
-            try {
-                return Function.prototype.bind.call(method, obj);
-            } catch (e) {
-                // Missing bind shim or IE8 + Modernizr, fallback to wrapping
-                return function() {
-                    return Function.prototype.apply.apply(method, [obj, arguments]);
-                };
-            }
-        }
-    }
-
-    // Trace() doesn't print the message in IE, so for that case we need to wrap it
-    function traceForIE() {
-        if (console.log) {
-            if (console.log.apply) {
-                console.log.apply(console, arguments);
-            } else {
-                // In old IE, native console methods themselves don't have apply().
-                Function.prototype.apply.apply(console.log, [console, arguments]);
-            }
-        }
-        if (console.trace) console.trace();
-    }
-
-    // Build the best logging method possible for this env
-    // Wherever possible we want to bind, not wrap, to preserve stack traces
-    function realMethod(methodName) {
-        if (methodName === 'debug') {
-            methodName = 'log';
-        }
-
-        if (typeof console === undefinedType) {
-            return false; // No method possible, for now - fixed later by enableLoggingWhenConsoleArrives
-        } else if (methodName === 'trace' && isIE) {
-            return traceForIE;
-        } else if (console[methodName] !== undefined) {
-            return bindMethod(console, methodName);
-        } else if (console.log !== undefined) {
-            return bindMethod(console, 'log');
-        } else {
-            return noop;
-        }
-    }
-
-    // These private functions always need `this` to be set properly
-
-    function replaceLoggingMethods(level, loggerName) {
-        /*jshint validthis:true */
-        for (var i = 0; i < logMethods.length; i++) {
-            var methodName = logMethods[i];
-            this[methodName] = (i < level) ?
-                noop :
-                this.methodFactory(methodName, level, loggerName);
-        }
-
-        // Define log.log as an alias for log.debug
-        this.log = this.debug;
-    }
-
-    // In old IE versions, the console isn't present until you first open it.
-    // We build realMethod() replacements here that regenerate logging methods
-    function enableLoggingWhenConsoleArrives(methodName, level, loggerName) {
-        return function () {
-            if (typeof console !== undefinedType) {
-                replaceLoggingMethods.call(this, level, loggerName);
-                this[methodName].apply(this, arguments);
-            }
-        };
-    }
-
-    // By default, we use closely bound real methods wherever possible, and
-    // otherwise we wait for a console to appear, and then try again.
-    function defaultMethodFactory(methodName, level, loggerName) {
-        /*jshint validthis:true */
-        return realMethod(methodName) ||
-               enableLoggingWhenConsoleArrives.apply(this, arguments);
-    }
-
-    function Logger(name, defaultLevel, factory) {
-      var self = this;
-      var currentLevel;
-
-      var storageKey = "loglevel";
-      if (typeof name === "string") {
-        storageKey += ":" + name;
-      } else if (typeof name === "symbol") {
-        storageKey = undefined;
-      }
-
-      function persistLevelIfPossible(levelNum) {
-          var levelName = (logMethods[levelNum] || 'silent').toUpperCase();
-
-          if (typeof window === undefinedType || !storageKey) return;
-
-          // Use localStorage if available
-          try {
-              window.localStorage[storageKey] = levelName;
-              return;
-          } catch (ignore) {}
-
-          // Use session cookie as fallback
-          try {
-              window.document.cookie =
-                encodeURIComponent(storageKey) + "=" + levelName + ";";
-          } catch (ignore) {}
-      }
-
-      function getPersistedLevel() {
-          var storedLevel;
-
-          if (typeof window === undefinedType || !storageKey) return;
-
-          try {
-              storedLevel = window.localStorage[storageKey];
-          } catch (ignore) {}
-
-          // Fallback to cookies if local storage gives us nothing
-          if (typeof storedLevel === undefinedType) {
-              try {
-                  var cookie = window.document.cookie;
-                  var location = cookie.indexOf(
-                      encodeURIComponent(storageKey) + "=");
-                  if (location !== -1) {
-                      storedLevel = /^([^;]+)/.exec(cookie.slice(location))[1];
-                  }
-              } catch (ignore) {}
-          }
-
-          // If the stored level is not valid, treat it as if nothing was stored.
-          if (self.levels[storedLevel] === undefined) {
-              storedLevel = undefined;
-          }
-
-          return storedLevel;
-      }
-
-      /*
-       *
-       * Public logger API - see https://github.com/pimterry/loglevel for details
-       *
-       */
-
-      self.name = name;
-
-      self.levels = { "TRACE": 0, "DEBUG": 1, "INFO": 2, "WARN": 3,
-          "ERROR": 4, "SILENT": 5};
-
-      self.methodFactory = factory || defaultMethodFactory;
-
-      self.getLevel = function () {
-          return currentLevel;
-      };
-
-      self.setLevel = function (level, persist) {
-          if (typeof level === "string" && self.levels[level.toUpperCase()] !== undefined) {
-              level = self.levels[level.toUpperCase()];
-          }
-          if (typeof level === "number" && level >= 0 && level <= self.levels.SILENT) {
-              currentLevel = level;
-              if (persist !== false) {  // defaults to true
-                  persistLevelIfPossible(level);
-              }
-              replaceLoggingMethods.call(self, level, name);
-              if (typeof console === undefinedType && level < self.levels.SILENT) {
-                  return "No console available for logging";
-              }
-          } else {
-              throw "log.setLevel() called with invalid level: " + level;
-          }
-      };
-
-      self.setDefaultLevel = function (level) {
-          if (!getPersistedLevel()) {
-              self.setLevel(level, false);
-          }
-      };
-
-      self.enableAll = function(persist) {
-          self.setLevel(self.levels.TRACE, persist);
-      };
-
-      self.disableAll = function(persist) {
-          self.setLevel(self.levels.SILENT, persist);
-      };
-
-      // Initialize with the right level
-      var initialLevel = getPersistedLevel();
-      if (initialLevel == null) {
-          initialLevel = defaultLevel == null ? "WARN" : defaultLevel;
-      }
-      self.setLevel(initialLevel, false);
-    }
-
-    /*
-     *
-     * Top-level API
-     *
-     */
-
-    var defaultLogger = new Logger();
-
-    var _loggersByName = {};
-    defaultLogger.getLogger = function getLogger(name) {
-        if ((typeof name !== "symbol" && typeof name !== "string") || name === "") {
-          throw new TypeError("You must supply a name when creating a logger.");
-        }
-
-        var logger = _loggersByName[name];
-        if (!logger) {
-          logger = _loggersByName[name] = new Logger(
-            name, defaultLogger.getLevel(), defaultLogger.methodFactory);
-        }
-        return logger;
-    };
-
-    // Grab the current global log variable in case of overwrite
-    var _log = (typeof window !== undefinedType) ? window.log : undefined;
-    defaultLogger.noConflict = function() {
-        if (typeof window !== undefinedType &&
-               window.log === defaultLogger) {
-            window.log = _log;
-        }
-
-        return defaultLogger;
-    };
-
-    defaultLogger.getLoggers = function getLoggers() {
-        return _loggersByName;
-    };
-
-    // ES6 default export, for compatibility
-    defaultLogger['default'] = defaultLogger;
-
-    return defaultLogger;
-}));
-
-
-/***/ }),
-
 /***/ "./node_modules/popper.js/dist/esm/popper.js":
 /*!***************************************************!*\
   !*** ./node_modules/popper.js/dist/esm/popper.js ***!
@@ -60134,9 +59910,6 @@ function connect(token, options) {
 
   var networkQualityConfiguration = new NetworkQualityConfigurationImpl(isNonArrayObject(options.networkQuality) ? options.networkQuality : {});
 
-  // Convert options.networkQuality to boolean to configure Media Signaling
-  options.networkQuality = isNonArrayObject(options.networkQuality) || options.networkQuality;
-
   // Create a CancelableRoomPromise<Room> that resolves after these steps:
   // 1 - Get the LocalTracks.
   // 2 - Create the LocalParticipant using options.tracks.
@@ -61708,7 +61481,7 @@ Object.defineProperties(Video, {
   },
   Logger: {
     enumerable: true,
-    value: __webpack_require__(/*! loglevel */ "./node_modules/loglevel/lib/loglevel.js")
+    value: __webpack_require__(/*! ./vendor/loglevel */ "./node_modules/twilio-video/es5/vendor/loglevel.js")
   },
   version: {
     enumerable: true,
@@ -68241,7 +68014,7 @@ function rewriteLocalTrackIds(room, trackStats) {
  * A message was received over one of the {@link RemoteParticipant}'s
  * {@link RemoteDataTrack}'s.
  * @param {string|ArrayBuffer} data
- * @param {RemoteVideoTrack} track - The {@link RemoteDataTrack} over which the
+ * @param {RemoteDataTrack} track - The {@link RemoteDataTrack} over which the
  *   message was received
  * @param {RemoteParticipant} participant - The {@link RemoteParticipant} whose
  *   {@link RemoteDataTrack} received the message
@@ -75665,7 +75438,8 @@ var _require3 = __webpack_require__(/*! ../../util */ "./node_modules/twilio-vid
     createBandwidthProfilePayload = _require3.createBandwidthProfilePayload,
     createMediaSignalingPayload = _require3.createMediaSignalingPayload,
     createSubscribePayload = _require3.createSubscribePayload,
-    getUserAgent = _require3.getUserAgent;
+    getUserAgent = _require3.getUserAgent,
+    isNonArrayObject = _require3.isNonArrayObject;
 
 var _require4 = __webpack_require__(/*! ../../util/twilio-video-errors */ "./node_modules/twilio-video/es5/util/twilio-video-errors.js"),
     createTwilioError = _require4.createTwilioError,
@@ -75778,7 +75552,7 @@ var TwilioConnectionTransport = function (_StateMachine) {
         value: name
       },
       _networkQuality: {
-        value: options.networkQuality
+        value: isNonArrayObject(options.networkQuality) || options.networkQuality
       },
       _options: {
         value: options
@@ -81636,10 +81410,24 @@ function createRoomConnectEventPayload(connectOptions) {
     }
   });
 
+  if ('networkQuality' in connectOptions) {
+    payload.networkQualityConfiguration = {};
+    if (isNonArrayObject(connectOptions.networkQuality)) {
+      ['local', 'remote'].forEach(function (prop) {
+        if (typeof connectOptions.networkQuality[prop] === 'number') {
+          payload.networkQualityConfiguration[prop] = connectOptions.networkQuality[prop];
+        }
+      });
+    } else {
+      payload.networkQualityConfiguration.remote = 0;
+      payload.networkQualityConfiguration.local = connectOptions.networkQuality ? 1 : 0;
+    }
+  }
+
   if (connectOptions.bandwidthProfile && connectOptions.bandwidthProfile.video) {
     var videoBPOptions = connectOptions.bandwidthProfile.video || {};
     payload.bandwidthProfileOptions = {};
-    ['mode', 'maxTracks', 'trackSwitchOffMode', 'dominantSpeakerPriority'].forEach(function (prop) {
+    ['mode', 'maxTracks', 'trackSwitchOffMode', 'dominantSpeakerPriority', 'maxSubscriptionBitrate'].forEach(function (prop) {
       if (typeof videoBPOptions[prop] === 'number' || typeof videoBPOptions[prop] === 'string') {
         if (prop in videoBPOptions) {
           payload.bandwidthProfileOptions[prop] = videoBPOptions[prop];
@@ -82383,7 +82171,7 @@ function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var defaultGetLogger = __webpack_require__(/*! loglevel */ "./node_modules/loglevel/lib/loglevel.js").getLogger;
+var defaultGetLogger = __webpack_require__(/*! ../vendor/loglevel */ "./node_modules/twilio-video/es5/vendor/loglevel.js").getLogger;
 var constants = __webpack_require__(/*! ./constants */ "./node_modules/twilio-video/es5/util/constants.js");
 var DEFAULT_LOG_LEVEL = constants.DEFAULT_LOG_LEVEL,
     DEFAULT_LOGGER_NAME = constants.DEFAULT_LOGGER_NAME;
@@ -86073,6 +85861,275 @@ exports.validateObject = validateObject;
 
 /***/ }),
 
+/***/ "./node_modules/twilio-video/es5/vendor/loglevel.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/twilio-video/es5/vendor/loglevel.js ***!
+  \**********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+/**
+ * Copyright (c) 2013 Tim Perry
+ * Licensed under the MIT license.
+ *
+ * Copied from https://github.com/pimterry/loglevel (1.7.0)
+ * and modified to remove browser and AMD module support, while keeping CommonJS.
+ * It was causing a conflict when this is bundled using CommonJS, and then loaded via RequireJS.
+ * The proper way to fix this module is to have a build that outputs CommonJS and AMD separately
+ * which needs to be submitted to the original module's repo.
+ */
+
+/* istanbul ignore file */
+/* eslint-disable */
+// Slightly dubious tricks to cut down minimized file size
+var noop = function noop() {};
+var undefinedType = "undefined";
+var isIE = (typeof window === "undefined" ? "undefined" : _typeof(window)) !== undefinedType && _typeof(window.navigator) !== undefinedType && /Trident\/|MSIE /.test(window.navigator.userAgent);
+
+var logMethods = ["trace", "debug", "info", "warn", "error"];
+
+// Cross-browser bind equivalent that works at least back to IE6
+function bindMethod(obj, methodName) {
+    var method = obj[methodName];
+    if (typeof method.bind === 'function') {
+        return method.bind(obj);
+    } else {
+        try {
+            return Function.prototype.bind.call(method, obj);
+        } catch (e) {
+            // Missing bind shim or IE8 + Modernizr, fallback to wrapping
+            return function () {
+                return Function.prototype.apply.apply(method, [obj, arguments]);
+            };
+        }
+    }
+}
+
+// Trace() doesn't print the message in IE, so for that case we need to wrap it
+function traceForIE() {
+    if (console.log) {
+        if (console.log.apply) {
+            console.log.apply(console, arguments);
+        } else {
+            // In old IE, native console methods themselves don't have apply().
+            Function.prototype.apply.apply(console.log, [console, arguments]);
+        }
+    }
+    if (console.trace) console.trace();
+}
+
+// Build the best logging method possible for this env
+// Wherever possible we want to bind, not wrap, to preserve stack traces
+function realMethod(methodName) {
+    if (methodName === 'debug') {
+        methodName = 'log';
+    }
+
+    if ((typeof console === "undefined" ? "undefined" : _typeof(console)) === undefinedType) {
+        return false; // No method possible, for now - fixed later by enableLoggingWhenConsoleArrives
+    } else if (methodName === 'trace' && isIE) {
+        return traceForIE;
+    } else if (console[methodName] !== undefined) {
+        return bindMethod(console, methodName);
+    } else if (console.log !== undefined) {
+        return bindMethod(console, 'log');
+    } else {
+        return noop;
+    }
+}
+
+// These private functions always need `this` to be set properly
+
+function replaceLoggingMethods(level, loggerName) {
+    /*jshint validthis:true */
+    for (var i = 0; i < logMethods.length; i++) {
+        var methodName = logMethods[i];
+        this[methodName] = i < level ? noop : this.methodFactory(methodName, level, loggerName);
+    }
+
+    // Define log.log as an alias for log.debug
+    this.log = this.debug;
+}
+
+// In old IE versions, the console isn't present until you first open it.
+// We build realMethod() replacements here that regenerate logging methods
+function enableLoggingWhenConsoleArrives(methodName, level, loggerName) {
+    return function () {
+        if ((typeof console === "undefined" ? "undefined" : _typeof(console)) !== undefinedType) {
+            replaceLoggingMethods.call(this, level, loggerName);
+            this[methodName].apply(this, arguments);
+        }
+    };
+}
+
+// By default, we use closely bound real methods wherever possible, and
+// otherwise we wait for a console to appear, and then try again.
+function defaultMethodFactory(methodName, level, loggerName) {
+    /*jshint validthis:true */
+    return realMethod(methodName) || enableLoggingWhenConsoleArrives.apply(this, arguments);
+}
+
+function Logger(name, defaultLevel, factory) {
+    var self = this;
+    var currentLevel;
+
+    var storageKey = "loglevel";
+    if (typeof name === "string") {
+        storageKey += ":" + name;
+    } else if ((typeof name === "undefined" ? "undefined" : _typeof(name)) === "symbol") {
+        storageKey = undefined;
+    }
+
+    function persistLevelIfPossible(levelNum) {
+        var levelName = (logMethods[levelNum] || 'silent').toUpperCase();
+
+        if ((typeof window === "undefined" ? "undefined" : _typeof(window)) === undefinedType || !storageKey) return;
+
+        // Use localStorage if available
+        try {
+            window.localStorage[storageKey] = levelName;
+            return;
+        } catch (ignore) {}
+
+        // Use session cookie as fallback
+        try {
+            window.document.cookie = encodeURIComponent(storageKey) + "=" + levelName + ";";
+        } catch (ignore) {}
+    }
+
+    function getPersistedLevel() {
+        var storedLevel;
+
+        if ((typeof window === "undefined" ? "undefined" : _typeof(window)) === undefinedType || !storageKey) return;
+
+        try {
+            storedLevel = window.localStorage[storageKey];
+        } catch (ignore) {}
+
+        // Fallback to cookies if local storage gives us nothing
+        if ((typeof storedLevel === "undefined" ? "undefined" : _typeof(storedLevel)) === undefinedType) {
+            try {
+                var cookie = window.document.cookie;
+                var location = cookie.indexOf(encodeURIComponent(storageKey) + "=");
+                if (location !== -1) {
+                    storedLevel = /^([^;]+)/.exec(cookie.slice(location))[1];
+                }
+            } catch (ignore) {}
+        }
+
+        // If the stored level is not valid, treat it as if nothing was stored.
+        if (self.levels[storedLevel] === undefined) {
+            storedLevel = undefined;
+        }
+
+        return storedLevel;
+    }
+
+    /*
+     *
+     * Public logger API - see https://github.com/pimterry/loglevel for details
+     *
+     */
+
+    self.name = name;
+
+    self.levels = { "TRACE": 0, "DEBUG": 1, "INFO": 2, "WARN": 3,
+        "ERROR": 4, "SILENT": 5 };
+
+    self.methodFactory = factory || defaultMethodFactory;
+
+    self.getLevel = function () {
+        return currentLevel;
+    };
+
+    self.setLevel = function (level, persist) {
+        if (typeof level === "string" && self.levels[level.toUpperCase()] !== undefined) {
+            level = self.levels[level.toUpperCase()];
+        }
+        if (typeof level === "number" && level >= 0 && level <= self.levels.SILENT) {
+            currentLevel = level;
+            if (persist !== false) {
+                // defaults to true
+                persistLevelIfPossible(level);
+            }
+            replaceLoggingMethods.call(self, level, name);
+            if ((typeof console === "undefined" ? "undefined" : _typeof(console)) === undefinedType && level < self.levels.SILENT) {
+                return "No console available for logging";
+            }
+        } else {
+            throw "log.setLevel() called with invalid level: " + level;
+        }
+    };
+
+    self.setDefaultLevel = function (level) {
+        if (!getPersistedLevel()) {
+            self.setLevel(level, false);
+        }
+    };
+
+    self.enableAll = function (persist) {
+        self.setLevel(self.levels.TRACE, persist);
+    };
+
+    self.disableAll = function (persist) {
+        self.setLevel(self.levels.SILENT, persist);
+    };
+
+    // Initialize with the right level
+    var initialLevel = getPersistedLevel();
+    if (initialLevel == null) {
+        initialLevel = defaultLevel == null ? "WARN" : defaultLevel;
+    }
+    self.setLevel(initialLevel, false);
+}
+
+/*
+ *
+ * Top-level API
+ *
+ */
+
+var defaultLogger = new Logger();
+
+var _loggersByName = {};
+defaultLogger.getLogger = function getLogger(name) {
+    if ((typeof name === "undefined" ? "undefined" : _typeof(name)) !== "symbol" && typeof name !== "string" || name === "") {
+        throw new TypeError("You must supply a name when creating a logger.");
+    }
+
+    var logger = _loggersByName[name];
+    if (!logger) {
+        logger = _loggersByName[name] = new Logger(name, defaultLogger.getLevel(), defaultLogger.methodFactory);
+    }
+    return logger;
+};
+
+// Grab the current global log variable in case of overwrite
+var _log = (typeof window === "undefined" ? "undefined" : _typeof(window)) !== undefinedType ? window.log : undefined;
+defaultLogger.noConflict = function () {
+    if ((typeof window === "undefined" ? "undefined" : _typeof(window)) !== undefinedType && window.log === defaultLogger) {
+        window.log = _log;
+    }
+
+    return defaultLogger;
+};
+
+defaultLogger.getLoggers = function getLoggers() {
+    return _loggersByName;
+};
+
+// ES6 default export, for compatibility
+defaultLogger['default'] = defaultLogger;
+
+module.exports = defaultLogger;
+
+/***/ }),
+
 /***/ "./node_modules/twilio-video/es5/webaudio/audiocontext.js":
 /*!****************************************************************!*\
   !*** ./node_modules/twilio-video/es5/webaudio/audiocontext.js ***!
@@ -86345,10 +86402,10 @@ module.exports = workaround;
 /*!************************************************!*\
   !*** ./node_modules/twilio-video/package.json ***!
   \************************************************/
-/*! exports provided: _from, _id, _inBundle, _integrity, _location, _phantomChildren, _requested, _requiredBy, _resolved, _shasum, _spec, _where, author, browser, bugs, bundleDependencies, contributors, dependencies, deprecated, description, devDependencies, engines, homepage, keywords, license, main, name, repository, scripts, title, version, default */
+/*! exports provided: _from, _id, _inBundle, _integrity, _location, _phantomChildren, _requested, _requiredBy, _resolved, _shasum, _spec, _where, author, browser, bugs, bundleDependencies, contributors, dependencies, deprecated, description, devDependencies, engines, homepage, keywords, license, main, name, repository, scripts, title, types, version, default */
 /***/ (function(module) {
 
-module.exports = JSON.parse("{\"_from\":\"twilio-video@2.10.0\",\"_id\":\"twilio-video@2.10.0\",\"_inBundle\":false,\"_integrity\":\"sha512-XRVztAp9NefECW8Zg6sg5dGxtrwvJZQ6DLCCBL3nmNgviYmE9tKOErSzlH9MmAUUvyu6YArcuTTmfIL4AcHAsw==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.10.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.10.0\",\"saveSpec\":null,\"fetchSpec\":\"2.10.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.10.0.tgz\",\"_shasum\":\"f5d6f7495f7ff94bde35996d7b596cf4c3645159\",\"_spec\":\"twilio-video@2.10.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"loglevel\":\"^1.7.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"2.6.2\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/**\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:angular test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"version\":\"2.10.0\"}");
+module.exports = JSON.parse("{\"_from\":\"twilio-video@2.11.0\",\"_id\":\"twilio-video@2.11.0\",\"_inBundle\":false,\"_integrity\":\"sha512-6nvMzkvcXP3616ocX3hZU0SclpExCpBUbYwW1y79h993xmiY25C0WOIkcgycKIIdQwLcysXBWl01OGYDYw8R3w==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.11.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.11.0\",\"saveSpec\":null,\"fetchSpec\":\"2.11.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.11.0.tgz\",\"_shasum\":\"b0500aab9e5c2ec624173d874aacf7c4c43cf6bb\",\"_spec\":\"twilio-video@2.11.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"@typescript-eslint/eslint-plugin\":\"^4.13.0\",\"@typescript-eslint/parser\":\"^3.10.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"^4.0.5\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js build:ts\",\"build:ts\":\"tsc -p tsconfig.json --noEmit\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"npm-run-all lint:js lint:ts\",\"lint:js\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/** \",\"lint:ts\":\"eslint ./tsdef/*.ts\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:angular test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:umd:install\":\"npm install puppeteer\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"types\":\"./tsdef/index.d.ts\",\"version\":\"2.11.0\"}");
 
 /***/ }),
 
