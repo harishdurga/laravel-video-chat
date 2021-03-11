@@ -14036,17 +14036,17 @@ module.exports = Array.isArray || function (arr) {
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
- * jQuery JavaScript Library v3.5.1
+ * jQuery JavaScript Library v3.6.0
  * https://jquery.com/
  *
  * Includes Sizzle.js
  * https://sizzlejs.com/
  *
- * Copyright JS Foundation and other contributors
+ * Copyright OpenJS Foundation and other contributors
  * Released under the MIT license
  * https://jquery.org/license
  *
- * Date: 2020-05-04T22:49Z
+ * Date: 2021-03-02T17:08Z
  */
 ( function( global, factory ) {
 
@@ -14113,12 +14113,16 @@ var support = {};
 
 var isFunction = function isFunction( obj ) {
 
-      // Support: Chrome <=57, Firefox <=52
-      // In some browsers, typeof returns "function" for HTML <object> elements
-      // (i.e., `typeof document.createElement( "object" ) === "function"`).
-      // We don't want to classify *any* DOM node as a function.
-      return typeof obj === "function" && typeof obj.nodeType !== "number";
-  };
+		// Support: Chrome <=57, Firefox <=52
+		// In some browsers, typeof returns "function" for HTML <object> elements
+		// (i.e., `typeof document.createElement( "object" ) === "function"`).
+		// We don't want to classify *any* DOM node as a function.
+		// Support: QtWeb <=3.8.5, WebKit <=534.34, wkhtmltopdf tool <=0.12.5
+		// Plus for old WebKit, typeof returns "function" for HTML collections
+		// (e.g., `typeof document.getElementsByTagName("div") === "function"`). (gh-4756)
+		return typeof obj === "function" && typeof obj.nodeType !== "number" &&
+			typeof obj.item !== "function";
+	};
 
 
 var isWindow = function isWindow( obj ) {
@@ -14184,7 +14188,7 @@ function toType( obj ) {
 
 
 var
-	version = "3.5.1",
+	version = "3.6.0",
 
 	// Define a local copy of jQuery
 	jQuery = function( selector, context ) {
@@ -14438,7 +14442,7 @@ jQuery.extend( {
 			if ( isArrayLike( Object( arr ) ) ) {
 				jQuery.merge( ret,
 					typeof arr === "string" ?
-					[ arr ] : arr
+						[ arr ] : arr
 				);
 			} else {
 				push.call( ret, arr );
@@ -14533,9 +14537,9 @@ if ( typeof Symbol === "function" ) {
 
 // Populate the class2type map
 jQuery.each( "Boolean Number String Function Array Date RegExp Object Error Symbol".split( " " ),
-function( _i, name ) {
-	class2type[ "[object " + name + "]" ] = name.toLowerCase();
-} );
+	function( _i, name ) {
+		class2type[ "[object " + name + "]" ] = name.toLowerCase();
+	} );
 
 function isArrayLike( obj ) {
 
@@ -14555,14 +14559,14 @@ function isArrayLike( obj ) {
 }
 var Sizzle =
 /*!
- * Sizzle CSS Selector Engine v2.3.5
+ * Sizzle CSS Selector Engine v2.3.6
  * https://sizzlejs.com/
  *
  * Copyright JS Foundation and other contributors
  * Released under the MIT license
  * https://js.foundation/
  *
- * Date: 2020-03-14
+ * Date: 2021-02-16
  */
 ( function( window ) {
 var i,
@@ -15145,8 +15149,8 @@ support = Sizzle.support = {};
  * @returns {Boolean} True iff elem is a non-HTML XML node
  */
 isXML = Sizzle.isXML = function( elem ) {
-	var namespace = elem.namespaceURI,
-		docElem = ( elem.ownerDocument || elem ).documentElement;
+	var namespace = elem && elem.namespaceURI,
+		docElem = elem && ( elem.ownerDocument || elem ).documentElement;
 
 	// Support: IE <=8
 	// Assume HTML when documentElement doesn't yet exist, such as inside loading iframes
@@ -17061,9 +17065,9 @@ var rneedsContext = jQuery.expr.match.needsContext;
 
 function nodeName( elem, name ) {
 
-  return elem.nodeName && elem.nodeName.toLowerCase() === name.toLowerCase();
+	return elem.nodeName && elem.nodeName.toLowerCase() === name.toLowerCase();
 
-};
+}
 var rsingleTag = ( /^<([a-z][^\/\0>:\x20\t\r\n\f]*)[\x20\t\r\n\f]*\/?>(?:<\/\1>|)$/i );
 
 
@@ -18034,8 +18038,8 @@ jQuery.extend( {
 			resolveContexts = Array( i ),
 			resolveValues = slice.call( arguments ),
 
-			// the master Deferred
-			master = jQuery.Deferred(),
+			// the primary Deferred
+			primary = jQuery.Deferred(),
 
 			// subordinate callback factory
 			updateFunc = function( i ) {
@@ -18043,30 +18047,30 @@ jQuery.extend( {
 					resolveContexts[ i ] = this;
 					resolveValues[ i ] = arguments.length > 1 ? slice.call( arguments ) : value;
 					if ( !( --remaining ) ) {
-						master.resolveWith( resolveContexts, resolveValues );
+						primary.resolveWith( resolveContexts, resolveValues );
 					}
 				};
 			};
 
 		// Single- and empty arguments are adopted like Promise.resolve
 		if ( remaining <= 1 ) {
-			adoptValue( singleValue, master.done( updateFunc( i ) ).resolve, master.reject,
+			adoptValue( singleValue, primary.done( updateFunc( i ) ).resolve, primary.reject,
 				!remaining );
 
 			// Use .then() to unwrap secondary thenables (cf. gh-3000)
-			if ( master.state() === "pending" ||
+			if ( primary.state() === "pending" ||
 				isFunction( resolveValues[ i ] && resolveValues[ i ].then ) ) {
 
-				return master.then();
+				return primary.then();
 			}
 		}
 
 		// Multiple arguments are aggregated like Promise.all array elements
 		while ( i-- ) {
-			adoptValue( resolveValues[ i ], updateFunc( i ), master.reject );
+			adoptValue( resolveValues[ i ], updateFunc( i ), primary.reject );
 		}
 
-		return master.promise();
+		return primary.promise();
 	}
 } );
 
@@ -18217,8 +18221,8 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 			for ( ; i < len; i++ ) {
 				fn(
 					elems[ i ], key, raw ?
-					value :
-					value.call( elems[ i ], i, fn( elems[ i ], key ) )
+						value :
+						value.call( elems[ i ], i, fn( elems[ i ], key ) )
 				);
 			}
 		}
@@ -19126,10 +19130,7 @@ function buildFragment( elems, context, scripts, selection, ignored ) {
 }
 
 
-var
-	rkeyEvent = /^key/,
-	rmouseEvent = /^(?:mouse|pointer|contextmenu|drag|drop)|click/,
-	rtypenamespace = /^([^.]*)(?:\.(.+)|)/;
+var rtypenamespace = /^([^.]*)(?:\.(.+)|)/;
 
 function returnTrue() {
 	return true;
@@ -19424,8 +19425,8 @@ jQuery.event = {
 			event = jQuery.event.fix( nativeEvent ),
 
 			handlers = (
-					dataPriv.get( this, "events" ) || Object.create( null )
-				)[ event.type ] || [],
+				dataPriv.get( this, "events" ) || Object.create( null )
+			)[ event.type ] || [],
 			special = jQuery.event.special[ event.type ] || {};
 
 		// Use the fix-ed jQuery.Event rather than the (read-only) native event
@@ -19549,12 +19550,12 @@ jQuery.event = {
 			get: isFunction( hook ) ?
 				function() {
 					if ( this.originalEvent ) {
-							return hook( this.originalEvent );
+						return hook( this.originalEvent );
 					}
 				} :
 				function() {
 					if ( this.originalEvent ) {
-							return this.originalEvent[ name ];
+						return this.originalEvent[ name ];
 					}
 				},
 
@@ -19693,7 +19694,13 @@ function leverageNative( el, type, expectSync ) {
 						// Cancel the outer synthetic event
 						event.stopImmediatePropagation();
 						event.preventDefault();
-						return result.value;
+
+						// Support: Chrome 86+
+						// In Chrome, if an element having a focusout handler is blurred by
+						// clicking outside of it, it invokes the handler synchronously. If
+						// that handler calls `.remove()` on the element, the data is cleared,
+						// leaving `result` undefined. We need to guard against this.
+						return result && result.value;
 					}
 
 				// If this is an inner synthetic event for an event with a bubbling surrogate
@@ -19858,34 +19865,7 @@ jQuery.each( {
 	targetTouches: true,
 	toElement: true,
 	touches: true,
-
-	which: function( event ) {
-		var button = event.button;
-
-		// Add which for key events
-		if ( event.which == null && rkeyEvent.test( event.type ) ) {
-			return event.charCode != null ? event.charCode : event.keyCode;
-		}
-
-		// Add which for click: 1 === left; 2 === middle; 3 === right
-		if ( !event.which && button !== undefined && rmouseEvent.test( event.type ) ) {
-			if ( button & 1 ) {
-				return 1;
-			}
-
-			if ( button & 2 ) {
-				return 3;
-			}
-
-			if ( button & 4 ) {
-				return 2;
-			}
-
-			return 0;
-		}
-
-		return event.which;
-	}
+	which: true
 }, jQuery.event.addProp );
 
 jQuery.each( { focus: "focusin", blur: "focusout" }, function( type, delegateType ) {
@@ -19908,6 +19888,12 @@ jQuery.each( { focus: "focusin", blur: "focusout" }, function( type, delegateTyp
 			leverageNative( this, type );
 
 			// Return non-false to allow normal event-path propagation
+			return true;
+		},
+
+		// Suppress native focus or blur as it's already being fired
+		// in leverageNative.
+		_default: function() {
 			return true;
 		},
 
@@ -20578,6 +20564,10 @@ var rboxStyle = new RegExp( cssExpand.join( "|" ), "i" );
 		// set in CSS while `offset*` properties report correct values.
 		// Behavior in IE 9 is more subtle than in newer versions & it passes
 		// some versions of this test; make sure not to make it pass there!
+		//
+		// Support: Firefox 70+
+		// Only Firefox includes border widths
+		// in computed dimensions. (gh-4529)
 		reliableTrDimensions: function() {
 			var table, tr, trChild, trStyle;
 			if ( reliableTrDimensionsVal == null ) {
@@ -20585,9 +20575,22 @@ var rboxStyle = new RegExp( cssExpand.join( "|" ), "i" );
 				tr = document.createElement( "tr" );
 				trChild = document.createElement( "div" );
 
-				table.style.cssText = "position:absolute;left:-11111px";
+				table.style.cssText = "position:absolute;left:-11111px;border-collapse:separate";
+				tr.style.cssText = "border:1px solid";
+
+				// Support: Chrome 86+
+				// Height set through cssText does not get applied.
+				// Computed height then comes back as 0.
 				tr.style.height = "1px";
 				trChild.style.height = "9px";
+
+				// Support: Android 8 Chrome 86+
+				// In our bodyBackground.html iframe,
+				// display for all div elements is set to "inline",
+				// which causes a problem only in Android 8 Chrome 86.
+				// Ensuring the div is display: block
+				// gets around this issue.
+				trChild.style.display = "block";
 
 				documentElement
 					.appendChild( table )
@@ -20595,7 +20598,9 @@ var rboxStyle = new RegExp( cssExpand.join( "|" ), "i" );
 					.appendChild( trChild );
 
 				trStyle = window.getComputedStyle( tr );
-				reliableTrDimensionsVal = parseInt( trStyle.height ) > 3;
+				reliableTrDimensionsVal = ( parseInt( trStyle.height, 10 ) +
+					parseInt( trStyle.borderTopWidth, 10 ) +
+					parseInt( trStyle.borderBottomWidth, 10 ) ) === tr.offsetHeight;
 
 				documentElement.removeChild( table );
 			}
@@ -21059,10 +21064,10 @@ jQuery.each( [ "height", "width" ], function( _i, dimension ) {
 					// Running getBoundingClientRect on a disconnected node
 					// in IE throws an error.
 					( !elem.getClientRects().length || !elem.getBoundingClientRect().width ) ?
-						swap( elem, cssShow, function() {
-							return getWidthOrHeight( elem, dimension, extra );
-						} ) :
-						getWidthOrHeight( elem, dimension, extra );
+					swap( elem, cssShow, function() {
+						return getWidthOrHeight( elem, dimension, extra );
+					} ) :
+					getWidthOrHeight( elem, dimension, extra );
 			}
 		},
 
@@ -21121,7 +21126,7 @@ jQuery.cssHooks.marginLeft = addGetHookIf( support.reliableMarginLeft,
 					swap( elem, { marginLeft: 0 }, function() {
 						return elem.getBoundingClientRect().left;
 					} )
-				) + "px";
+			) + "px";
 		}
 	}
 );
@@ -21260,7 +21265,7 @@ Tween.propHooks = {
 			if ( jQuery.fx.step[ tween.prop ] ) {
 				jQuery.fx.step[ tween.prop ]( tween );
 			} else if ( tween.elem.nodeType === 1 && (
-					jQuery.cssHooks[ tween.prop ] ||
+				jQuery.cssHooks[ tween.prop ] ||
 					tween.elem.style[ finalPropName( tween.prop ) ] != null ) ) {
 				jQuery.style( tween.elem, tween.prop, tween.now + tween.unit );
 			} else {
@@ -21505,7 +21510,7 @@ function defaultPrefilter( elem, props, opts ) {
 
 			anim.done( function() {
 
-			/* eslint-enable no-loop-func */
+				/* eslint-enable no-loop-func */
 
 				// The final step of a "hide" animation is actually hiding the element
 				if ( !hidden ) {
@@ -21625,7 +21630,7 @@ function Animation( elem, properties, options ) {
 			tweens: [],
 			createTween: function( prop, end ) {
 				var tween = jQuery.Tween( elem, animation.opts, prop, end,
-						animation.opts.specialEasing[ prop ] || animation.opts.easing );
+					animation.opts.specialEasing[ prop ] || animation.opts.easing );
 				animation.tweens.push( tween );
 				return tween;
 			},
@@ -21798,7 +21803,8 @@ jQuery.fn.extend( {
 					anim.stop( true );
 				}
 			};
-			doAnimation.finish = doAnimation;
+
+		doAnimation.finish = doAnimation;
 
 		return empty || optall.queue === false ?
 			this.each( doAnimation ) :
@@ -22438,8 +22444,8 @@ jQuery.fn.extend( {
 				if ( this.setAttribute ) {
 					this.setAttribute( "class",
 						className || value === false ?
-						"" :
-						dataPriv.get( this, "__className__" ) || ""
+							"" :
+							dataPriv.get( this, "__className__" ) || ""
 					);
 				}
 			}
@@ -22454,7 +22460,7 @@ jQuery.fn.extend( {
 		while ( ( elem = this[ i++ ] ) ) {
 			if ( elem.nodeType === 1 &&
 				( " " + stripAndCollapse( getClass( elem ) ) + " " ).indexOf( className ) > -1 ) {
-					return true;
+				return true;
 			}
 		}
 
@@ -22744,9 +22750,7 @@ jQuery.extend( jQuery.event, {
 				special.bindType || type;
 
 			// jQuery handler
-			handle = (
-					dataPriv.get( cur, "events" ) || Object.create( null )
-				)[ event.type ] &&
+			handle = ( dataPriv.get( cur, "events" ) || Object.create( null ) )[ event.type ] &&
 				dataPriv.get( cur, "handle" );
 			if ( handle ) {
 				handle.apply( cur, data );
@@ -22893,7 +22897,7 @@ var rquery = ( /\?/ );
 
 // Cross-browser xml parsing
 jQuery.parseXML = function( data ) {
-	var xml;
+	var xml, parserErrorElem;
 	if ( !data || typeof data !== "string" ) {
 		return null;
 	}
@@ -22902,12 +22906,17 @@ jQuery.parseXML = function( data ) {
 	// IE throws on parseFromString with invalid input.
 	try {
 		xml = ( new window.DOMParser() ).parseFromString( data, "text/xml" );
-	} catch ( e ) {
-		xml = undefined;
-	}
+	} catch ( e ) {}
 
-	if ( !xml || xml.getElementsByTagName( "parsererror" ).length ) {
-		jQuery.error( "Invalid XML: " + data );
+	parserErrorElem = xml && xml.getElementsByTagName( "parsererror" )[ 0 ];
+	if ( !xml || parserErrorElem ) {
+		jQuery.error( "Invalid XML: " + (
+			parserErrorElem ?
+				jQuery.map( parserErrorElem.childNodes, function( el ) {
+					return el.textContent;
+				} ).join( "\n" ) :
+				data
+		) );
 	}
 	return xml;
 };
@@ -23008,16 +23017,14 @@ jQuery.fn.extend( {
 			// Can add propHook for "elements" to filter or add form elements
 			var elements = jQuery.prop( this, "elements" );
 			return elements ? jQuery.makeArray( elements ) : this;
-		} )
-		.filter( function() {
+		} ).filter( function() {
 			var type = this.type;
 
 			// Use .is( ":disabled" ) so that fieldset[disabled] works
 			return this.name && !jQuery( this ).is( ":disabled" ) &&
 				rsubmittable.test( this.nodeName ) && !rsubmitterTypes.test( type ) &&
 				( this.checked || !rcheckableType.test( type ) );
-		} )
-		.map( function( _i, elem ) {
+		} ).map( function( _i, elem ) {
 			var val = jQuery( this ).val();
 
 			if ( val == null ) {
@@ -23070,7 +23077,8 @@ var
 
 	// Anchor tag for parsing the document origin
 	originAnchor = document.createElement( "a" );
-	originAnchor.href = location.href;
+
+originAnchor.href = location.href;
 
 // Base "constructor" for jQuery.ajaxPrefilter and jQuery.ajaxTransport
 function addToPrefiltersOrTransports( structure ) {
@@ -23451,8 +23459,8 @@ jQuery.extend( {
 			// Context for global events is callbackContext if it is a DOM node or jQuery collection
 			globalEventContext = s.context &&
 				( callbackContext.nodeType || callbackContext.jquery ) ?
-					jQuery( callbackContext ) :
-					jQuery.event,
+				jQuery( callbackContext ) :
+				jQuery.event,
 
 			// Deferreds
 			deferred = jQuery.Deferred(),
@@ -23764,8 +23772,10 @@ jQuery.extend( {
 				response = ajaxHandleResponses( s, jqXHR, responses );
 			}
 
-			// Use a noop converter for missing script
-			if ( !isSuccess && jQuery.inArray( "script", s.dataTypes ) > -1 ) {
+			// Use a noop converter for missing script but not if jsonp
+			if ( !isSuccess &&
+				jQuery.inArray( "script", s.dataTypes ) > -1 &&
+				jQuery.inArray( "json", s.dataTypes ) < 0 ) {
 				s.converters[ "text script" ] = function() {};
 			}
 
@@ -24503,12 +24513,6 @@ jQuery.offset = {
 			options.using.call( elem, props );
 
 		} else {
-			if ( typeof props.top === "number" ) {
-				props.top += "px";
-			}
-			if ( typeof props.left === "number" ) {
-				props.left += "px";
-			}
 			curElem.css( props );
 		}
 	}
@@ -24677,8 +24681,11 @@ jQuery.each( [ "top", "left" ], function( _i, prop ) {
 
 // Create innerHeight, innerWidth, height, width, outerHeight and outerWidth methods
 jQuery.each( { Height: "height", Width: "width" }, function( name, type ) {
-	jQuery.each( { padding: "inner" + name, content: type, "": "outer" + name },
-		function( defaultExtra, funcName ) {
+	jQuery.each( {
+		padding: "inner" + name,
+		content: type,
+		"": "outer" + name
+	}, function( defaultExtra, funcName ) {
 
 		// Margin is only for outerHeight, outerWidth
 		jQuery.fn[ funcName ] = function( margin, value ) {
@@ -24763,7 +24770,8 @@ jQuery.fn.extend( {
 	}
 } );
 
-jQuery.each( ( "blur focus focusin focusout resize scroll click dblclick " +
+jQuery.each(
+	( "blur focus focusin focusout resize scroll click dblclick " +
 	"mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave " +
 	"change select submit keydown keypress keyup contextmenu" ).split( " " ),
 	function( _i, name ) {
@@ -24774,7 +24782,8 @@ jQuery.each( ( "blur focus focusin focusout resize scroll click dblclick " +
 				this.on( name, null, data, fn ) :
 				this.trigger( name );
 		};
-	} );
+	}
+);
 
 
 
@@ -26479,14 +26488,15 @@ var Echo = /*#__PURE__*/function () {
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.20';
+  var VERSION = '4.17.21';
 
   /** Used as the size to enable large array optimizations. */
   var LARGE_ARRAY_SIZE = 200;
 
   /** Error message constants. */
   var CORE_ERROR_TEXT = 'Unsupported core-js use. Try https://npms.io/search?q=ponyfill.',
-      FUNC_ERROR_TEXT = 'Expected a function';
+      FUNC_ERROR_TEXT = 'Expected a function',
+      INVALID_TEMPL_VAR_ERROR_TEXT = 'Invalid `variable` option passed into `_.template`';
 
   /** Used to stand-in for `undefined` hash values. */
   var HASH_UNDEFINED = '__lodash_hash_undefined__';
@@ -26619,10 +26629,11 @@ var Echo = /*#__PURE__*/function () {
   var reRegExpChar = /[\\^$.*+?()[\]{}|]/g,
       reHasRegExpChar = RegExp(reRegExpChar.source);
 
-  /** Used to match leading and trailing whitespace. */
-  var reTrim = /^\s+|\s+$/g,
-      reTrimStart = /^\s+/,
-      reTrimEnd = /\s+$/;
+  /** Used to match leading whitespace. */
+  var reTrimStart = /^\s+/;
+
+  /** Used to match a single whitespace character. */
+  var reWhitespace = /\s/;
 
   /** Used to match wrap detail comments. */
   var reWrapComment = /\{(?:\n\/\* \[wrapped with .+\] \*\/)?\n?/,
@@ -26631,6 +26642,18 @@ var Echo = /*#__PURE__*/function () {
 
   /** Used to match words composed of alphanumeric characters. */
   var reAsciiWord = /[^\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
+
+  /**
+   * Used to validate the `validate` option in `_.template` variable.
+   *
+   * Forbids characters which could potentially change the meaning of the function argument definition:
+   * - "()," (modification of function parameters)
+   * - "=" (default value)
+   * - "[]{}" (destructuring of function parameters)
+   * - "/" (beginning of a comment)
+   * - whitespace
+   */
+  var reForbiddenIdentifierChars = /[()=,{}\[\]\/\s]/;
 
   /** Used to match backslashes in property paths. */
   var reEscapeChar = /\\(\\)?/g;
@@ -27461,6 +27484,19 @@ var Echo = /*#__PURE__*/function () {
   }
 
   /**
+   * The base implementation of `_.trim`.
+   *
+   * @private
+   * @param {string} string The string to trim.
+   * @returns {string} Returns the trimmed string.
+   */
+  function baseTrim(string) {
+    return string
+      ? string.slice(0, trimmedEndIndex(string) + 1).replace(reTrimStart, '')
+      : string;
+  }
+
+  /**
    * The base implementation of `_.unary` without support for storing metadata.
    *
    * @private
@@ -27791,6 +27827,21 @@ var Echo = /*#__PURE__*/function () {
     return hasUnicode(string)
       ? unicodeToArray(string)
       : asciiToArray(string);
+  }
+
+  /**
+   * Used by `_.trim` and `_.trimEnd` to get the index of the last non-whitespace
+   * character of `string`.
+   *
+   * @private
+   * @param {string} string The string to inspect.
+   * @returns {number} Returns the index of the last non-whitespace character.
+   */
+  function trimmedEndIndex(string) {
+    var index = string.length;
+
+    while (index-- && reWhitespace.test(string.charAt(index))) {}
+    return index;
   }
 
   /**
@@ -38961,7 +39012,7 @@ var Echo = /*#__PURE__*/function () {
       if (typeof value != 'string') {
         return value === 0 ? value : +value;
       }
-      value = value.replace(reTrim, '');
+      value = baseTrim(value);
       var isBinary = reIsBinary.test(value);
       return (isBinary || reIsOctal.test(value))
         ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
@@ -41333,6 +41384,12 @@ var Echo = /*#__PURE__*/function () {
       if (!variable) {
         source = 'with (obj) {\n' + source + '\n}\n';
       }
+      // Throw an error if a forbidden character was found in `variable`, to prevent
+      // potential command injection attacks.
+      else if (reForbiddenIdentifierChars.test(variable)) {
+        throw new Error(INVALID_TEMPL_VAR_ERROR_TEXT);
+      }
+
       // Cleanup code by stripping empty strings.
       source = (isEvaluating ? source.replace(reEmptyStringLeading, '') : source)
         .replace(reEmptyStringMiddle, '$1')
@@ -41446,7 +41503,7 @@ var Echo = /*#__PURE__*/function () {
     function trim(string, chars, guard) {
       string = toString(string);
       if (string && (guard || chars === undefined)) {
-        return string.replace(reTrim, '');
+        return baseTrim(string);
       }
       if (!string || !(chars = baseToString(chars))) {
         return string;
@@ -41481,7 +41538,7 @@ var Echo = /*#__PURE__*/function () {
     function trimEnd(string, chars, guard) {
       string = toString(string);
       if (string && (guard || chars === undefined)) {
-        return string.replace(reTrimEnd, '');
+        return string.slice(0, trimmedEndIndex(string) + 1);
       }
       if (!string || !(chars = baseToString(chars))) {
         return string;
@@ -61863,7 +61920,14 @@ var LocalParticipant = function (_Participant) {
             self._addTrackPublication(localTrackPublication);
           }
 
-          if (self._signaling.state === 'connected') {
+          var state = self._signaling.state;
+          // NOTE(csantos): For tracks created before joining a room or already joined but about to publish it
+
+          if (localTrack.processedTrack && (state === 'connected' || state === 'connecting')) {
+            localTrack._captureFrames();
+            localTrack._setSenderMediaStreamTrack(true);
+          }
+          if (state === 'connected') {
             setTimeout(function () {
               self.emit('trackPublished', localTrackPublication);
             });
@@ -61881,7 +61945,10 @@ var LocalParticipant = function (_Participant) {
      * @param {LocalTrackPublishOptions} [options] - The {@link LocalTrackPublishOptions}
      *   for publishing the {@link LocalTrack}
      * @returns {Promise<LocalTrackPublication>} - Resolves with the corresponding
-     *   {@link LocalTrackPublication} if successful
+     *   {@link LocalTrackPublication} if successful; In a Large Group Room (Maximum
+     *   Participants greater than 50), rejects with a {@link ParticipantMaxTracksExceededError}
+     *   if either the total number of published Tracks in the Room exceeds 16, or the {@link LocalTrack}
+     *   is part of a set of {@link LocalTrack}s which along with the published Tracks exceeds 16.
      * @throws {TypeError}
      * @throws {RangeError}
      * @example
@@ -61912,7 +61979,10 @@ var LocalParticipant = function (_Participant) {
        * @param {MediaStreamTrackPublishOptions} [options] - The options for publishing
        *   the MediaStreamTrack
        * @returns {Promise<LocalTrackPublication>} - Resolves with the corresponding
-       *   {@link LocalTrackPublication} if successful
+       *   {@link LocalTrackPublication} if successful; In a Large Group Room (Maximum
+       *   Participants greater than 50), rejects with a {@link ParticipantMaxTracksExceededError}
+       *   if the total number of published Tracks in the Room exceeds 16, or the {@link LocalTrack}
+       *   is part of a set of {@link LocalTrack}s which along with the published Tracks exceeds 16.
        * @throws {TypeError}
        * @throws {RangeError}
        * @example
@@ -61980,7 +62050,10 @@ var LocalParticipant = function (_Participant) {
      *   {@link LocalAudioTrack} or {@link LocalVideoTrack} has not yet been
      *   published, this method will construct one
      * @returns {Promise<Array<LocalTrackPublication>>} - The resulting
-     *   {@link LocalTrackPublication}s
+     *   {@link LocalTrackPublication}s if successful; In a Large Group Room (Maximum
+     *   Participants greater than 50), rejects with a {@link ParticipantMaxTracksExceededError}
+     *   if the total number of published Tracks in the Room exceeds 16, or the {@link LocalTrack}s
+     *   along with the published Tracks exceeds 16.
      * @throws {TypeError}
      */
 
@@ -62178,7 +62251,11 @@ var LocalParticipant = function (_Participant) {
 
 /**
  * A {@link LocalTrack} failed to publish. Check the error message for more
- * information.
+ * information. In a Large Group Room (Maximum Participants greater than 50),
+ * this event is raised with a {@link ParticipantMaxTracksExceededError} either
+ * when attempting to publish the {@link LocalTrack} will exceed the Maximum Published
+ * Tracks limit of 16, or the {@link LocalTrack} is part of a set of {@link LocalTrack}s
+ * which along with the published Tracks exceeds 16.
  * @param {TwilioError} error - A {@link TwilioError} explaining why publication
  *   failed
  * @param {LocalTrack} localTrack - The {@link LocalTrack} that failed to
@@ -62295,6 +62372,8 @@ var MediaTrack = __webpack_require__(/*! ./mediatrack */ "./node_modules/twilio-
  *   enabled; if the {@link AudioTrack} is not enabled, it is "muted"
  * @property {Track.Kind} kind - "audio"
  * @property {MediaStreamTrack} mediaStreamTrack - An audio MediaStreamTrack
+ * @property {?MediaStreamTrack} processedTrack - The source of processed audio samples.
+ * It is always null as audio processing is not currently supported.
  * @emits AudioTrack#disabled
  * @emits AudioTrack#enabled
  * @emits AudioTrack#started
@@ -63419,9 +63498,13 @@ function mixinLocalMediaTrack(AudioOrVideoTrack) {
         // stopped, this should fire a "stopped" event.
         this._stop();
 
-        return this._trackSender.setMediaStreamTrack(mediaStreamTrack).catch(function (error) {
+        // NOTE(csantos): If there's an unprocessedTrack, this means RTCRtpSender has
+        // the processedTrack already set, we don't want to replace that.
+        return (this._unprocessedTrack ? Promise.resolve().then(function () {
+          _this3._unprocessedTrack = mediaStreamTrack;
+        }) : this._trackSender.setMediaStreamTrack(mediaStreamTrack).catch(function (error) {
           _this3._log.warn('setMediaStreamTrack failed:', { error: error, mediaStreamTrack: mediaStreamTrack });
-        }).then(function () {
+        })).then(function () {
           _this3._initialize();
           _this3._getAllAttachedElements().forEach(function (el) {
             return _this3._attach(el);
@@ -63855,13 +63938,129 @@ var LocalVideoTrack = function (_LocalMediaVideoTrack) {
      */
 
   }, {
+    key: '_canCaptureFrames',
+    value: function _canCaptureFrames() {
+      return _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), '_canCaptureFrames', this).call(this, this._trackSender.isPublishing);
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
     key: '_end',
     value: function _end() {
       return _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), '_end', this).apply(this, arguments);
     }
 
     /**
+     * @private
+     */
+
+  }, {
+    key: '_setSenderMediaStreamTrack',
+    value: function _setSenderMediaStreamTrack(useProcessed) {
+      var _this2 = this;
+
+      var unprocessedTrack = this.mediaStreamTrack;
+      var mediaStreamTrack = useProcessed ? this.processedTrack : unprocessedTrack;
+
+      return this._trackSender.setMediaStreamTrack(mediaStreamTrack).catch(function (error) {
+        return _this2._log.warn('setMediaStreamTrack failed on LocalVideoTrack RTCRtpSender', { error: error, mediaStreamTrack: mediaStreamTrack });
+      }).then(function () {
+        _this2._unprocessedTrack = useProcessed ? unprocessedTrack : null;
+      });
+    }
+
+    /**
+     * Add a {@link VideoProcessor} to allow for custom processing of video frames belonging to a VideoTrack.
+     * Only Chrome supports this as of now. Calling this API from a non-supported browser will result in a log warning.
+     * @param {VideoProcessor} processor - The {@link VideoProcessor} to use.
+     * @returns {this}
+     * @example
+     * class GrayScaleProcessor {
+     *   constructor(percentage) {
+     *     this.outputFrame = new OffscreenCanvas(0, 0);
+     *     this.percentage = percentage;
+     *   }
+     *   processFrame(inputFrame) {
+     *     this.outputFrame.width = inputFrame.width;
+     *     this.outputFrame.height = inputFrame.height;
+     *
+     *     const context = this.outputFrame.getContext('2d');
+     *     context.filter = `grayscale(${this.percentage}%)`;
+     *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+     *     return this.outputFrame;
+     *   }
+     * }
+     *
+     * const localVideoTrack = Array.from(room.localParticipant.videoTracks.values())[0].track;
+     * localVideoTrack.addProcessor(new GrayScaleProcessor(100));
+     */
+
+  }, {
+    key: 'addProcessor',
+    value: function addProcessor() {
+      this._log.debug('Adding VideoProcessor to the LocalVideoTrack');
+      var result = _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'addProcessor', this).apply(this, arguments);
+
+      if (!this.processedTrack) {
+        return this._log.warn('Unable to add a VideoProcessor to the LocalVideoTrack');
+      }
+
+      this._log.debug('Updating LocalVideoTrack\'s MediaStreamTrack with the processed MediaStreamTrack', this.processedTrack);
+      this._setSenderMediaStreamTrack(true);
+
+      return result;
+    }
+
+    /**
+     * Remove the previously added {@link VideoProcessor} using `addProcessor` API.
+     * @param {VideoProcessor} processor - The {@link VideoProcessor} to remove.
+     * @returns {this}
+     * @example
+     * class GrayScaleProcessor {
+     *   constructor(percentage) {
+     *     this.outputFrame = new OffscreenCanvas(0, 0);
+     *     this.percentage = percentage;
+     *   }
+     *   processFrame(inputFrame) {
+     *     this.outputFrame.width = inputFrame.width;
+     *     this.outputFrame.height = inputFrame.height;
+     *
+     *     const context = this.outputFrame.getContext('2d');
+     *     context.filter = `grayscale(${this.percentage}%)`;
+     *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+     *     return this.outputFrame;
+     *   }
+     * }
+     *
+     * const localVideoTrack = Array.from(room.localParticipant.videoTracks.values())[0].track;
+     * const grayScaleProcessor = new GrayScaleProcessor(100);
+     * localVideoTrack.addProcessor(grayScaleProcessor);
+     *
+     * document.getElementById('remove-button').onclick = () => localVideoTrack.removeProcessor(grayScaleProcessor);
+     */
+
+  }, {
+    key: 'removeProcessor',
+    value: function removeProcessor() {
+      var _this3 = this;
+
+      this._log.debug('Removing VideoProcessor from the LocalVideoTrack');
+      var result = _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'removeProcessor', this).apply(this, arguments);
+
+      this._log.debug('Updating LocalVideoTrack\'s MediaStreamTrack with the original MediaStreamTrack');
+      this._setSenderMediaStreamTrack().then(function () {
+        return _this3._updateElementsMediaStreamTrack();
+      });
+
+      return result;
+    }
+
+    /**
      * Disable the {@link LocalVideoTrack}. This is effectively "pause".
+     * If a {@link VideoProcessor} is added, then `processedTrack` is disabled as well.
      * @returns {this}
      * @fires VideoTrack#disabled
      */
@@ -63869,16 +64068,22 @@ var LocalVideoTrack = function (_LocalMediaVideoTrack) {
   }, {
     key: 'disable',
     value: function disable() {
-      return _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'disable', this).apply(this, arguments);
+      var result = _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'disable', this).apply(this, arguments);
+      if (this.processedTrack) {
+        this.processedTrack.enabled = false;
+      }
+      return result;
     }
 
     /**
      * Enable the {@link LocalVideoTrack}. This is effectively "unpause".
+     * If a {@link VideoProcessor} is added, then `processedTrack` is enabled as well.
      * @returns {this}
      * @fires VideoTrack#enabled
     */ /**
        * Enable or disable the {@link LocalVideoTrack}. This is effectively "unpause"
-       * or "pause".
+       * or "pause". If a {@link VideoProcessor} is added,
+       * then `processedTrack` is enabled or disabled as well.
        * @param {boolean} [enabled] - Specify false to pause the
        *   {@link LocalVideoTrack}
        * @returns {this}
@@ -63889,7 +64094,19 @@ var LocalVideoTrack = function (_LocalMediaVideoTrack) {
   }, {
     key: 'enable',
     value: function enable() {
-      return _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'enable', this).apply(this, arguments);
+      var enabled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+
+      var result = _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'enable', this).apply(this, arguments);
+      if (this.processedTrack) {
+        this.processedTrack.enabled = enabled;
+
+        if (enabled) {
+          this._captureFrames();
+          this._log.debug('Updating LocalVideoTrack\'s MediaStreamTrack with the processed MediaStreamTrack', this.processedTrack);
+          this._setSenderMediaStreamTrack(true);
+        }
+      }
+      return result;
     }
 
     /**
@@ -63930,17 +64147,23 @@ var LocalVideoTrack = function (_LocalMediaVideoTrack) {
   }, {
     key: 'restart',
     value: function restart() {
-      var _this2 = this;
+      var _this4 = this;
 
       if (this._workaroundSilentLocalVideoCleanup) {
         this._workaroundSilentLocalVideoCleanup();
         this._workaroundSilentLocalVideoCleanup = null;
       }
+
       var promise = _get(LocalVideoTrack.prototype.__proto__ || Object.getPrototypeOf(LocalVideoTrack.prototype), 'restart', this).apply(this, arguments);
+      if (this.processor) {
+        promise.then(function () {
+          _this4._restartProcessor();
+        });
+      }
 
       if (this._workaroundSilentLocalVideo) {
         promise.finally(function () {
-          _this2._workaroundSilentLocalVideoCleanup = _this2._workaroundSilentLocalVideo(_this2, document);
+          _this4._workaroundSilentLocalVideoCleanup = _this4._workaroundSilentLocalVideo(_this4, document);
         });
       }
       return promise;
@@ -64223,6 +64446,10 @@ var MediaTrack = function (_Track) {
       _shouldShimAttachedElements: {
         value: options.workaroundWebKitBug212780 || options.playPausedElementsIfNotBackgrounded
       },
+      _unprocessedTrack: {
+        value: null,
+        writable: true
+      },
       _MediaStream: {
         value: options.MediaStream
       },
@@ -64235,8 +64462,13 @@ var MediaTrack = function (_Track) {
       mediaStreamTrack: {
         enumerable: true,
         get: function get() {
-          return mediaTrackTransceiver.track;
+          return this._unprocessedTrack || mediaTrackTransceiver.track;
         }
+      },
+      processedTrack: {
+        enumerable: true,
+        value: null,
+        writable: true
       }
     });
 
@@ -64281,7 +64513,10 @@ var MediaTrack = function (_Track) {
       if (this._dummyEl) {
         this._dummyEl.muted = true;
         this._dummyEl.oncanplay = this._start.bind(this, this._dummyEl);
-        this._attach(this._dummyEl);
+
+        // NOTE(csantos): We always want to attach the original mediaStreamTrack for dummyEl
+        this._attach(this._dummyEl, this.mediaStreamTrack);
+
         this._attachments.delete(this._dummyEl);
       }
     }
@@ -64323,23 +64558,30 @@ var MediaTrack = function (_Track) {
     }
 
     /**
+     * Attach the provided MediaStreamTrack to the media element.
+     * @param el - The media element to attach to
+     * @param mediaStreamTrack - The MediaStreamTrack to attach. If this is
+     * not provided, it uses the processedTrack if it exists
+     * or it defaults to the current mediaStreamTrack
      * @private
      */
 
   }, {
     key: '_attach',
     value: function _attach(el) {
+      var mediaStreamTrack = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : this.processedTrack || this.mediaStreamTrack;
+
       var mediaStream = el.srcObject;
       if (!(mediaStream instanceof this._MediaStream)) {
         mediaStream = new this._MediaStream();
       }
 
-      var getTracks = this.mediaStreamTrack.kind === 'audio' ? 'getAudioTracks' : 'getVideoTracks';
+      var getTracks = mediaStreamTrack.kind === 'audio' ? 'getAudioTracks' : 'getVideoTracks';
 
-      mediaStream[getTracks]().forEach(function (mediaStreamTrack) {
-        mediaStream.removeTrack(mediaStreamTrack);
+      mediaStream[getTracks]().forEach(function (track) {
+        mediaStream.removeTrack(track);
       });
-      mediaStream.addTrack(this.mediaStreamTrack);
+      mediaStream.addTrack(mediaStreamTrack);
 
       // NOTE(mpatwardhan): resetting `srcObject` here, causes flicker (JSDK-2641), but it lets us
       // to sidestep the a chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=1052353
@@ -64369,6 +64611,21 @@ var MediaTrack = function (_Track) {
       }
 
       return el;
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
+    key: '_updateElementsMediaStreamTrack',
+    value: function _updateElementsMediaStreamTrack() {
+      var _this3 = this;
+
+      this._log.debug('Reattaching all elements to update mediaStreamTrack');
+      this._getAllAttachedElements().forEach(function (el) {
+        return _this3._attach(el);
+      });
     }
 
     /**
@@ -64421,7 +64678,7 @@ var MediaTrack = function (_Track) {
 
       var mediaStream = el.srcObject;
       if (mediaStream instanceof this._MediaStream) {
-        mediaStream.removeTrack(this.mediaStreamTrack);
+        mediaStream.removeTrack(this.processedTrack || this.mediaStreamTrack);
       }
 
       this._attachments.delete(el);
@@ -64637,14 +64894,15 @@ var RemoteAudioTrack = function (_RemoteMediaAudioTrac) {
    * @param {Track.SID} sid - The {@link RemoteAudioTrack}'s SID
    * @param {MediaTrackReceiver} mediaTrackReceiver - An audio MediaStreamTrack container
    * @param {boolean} isEnabled - Whether the {@link RemoteAudioTrack} is enabled
+   * @param {boolean} isSwitchedOff - Whether the {@link RemoteAudioTrack} is switched off
    * @param {function(?Track.Priority): void} setPriority - Set or clear the subscribe
    *  {@link Track.Priority} of the {@link RemoteAudioTrack}
    * @param {{log: Log}} options - The {@link RemoteTrack} options
    */
-  function RemoteAudioTrack(sid, mediaTrackReceiver, isEnabled, setPriority, options) {
+  function RemoteAudioTrack(sid, mediaTrackReceiver, isEnabled, isSwitchedOff, setPriority, options) {
     _classCallCheck(this, RemoteAudioTrack);
 
-    return _possibleConstructorReturn(this, (RemoteAudioTrack.__proto__ || Object.getPrototypeOf(RemoteAudioTrack)).call(this, sid, mediaTrackReceiver, isEnabled, setPriority, options));
+    return _possibleConstructorReturn(this, (RemoteAudioTrack.__proto__ || Object.getPrototypeOf(RemoteAudioTrack)).call(this, sid, mediaTrackReceiver, isEnabled, isSwitchedOff, setPriority, options));
   }
 
   _createClass(RemoteAudioTrack, [{
@@ -65135,11 +65393,12 @@ function mixinRemoteMediaTrack(AudioOrVideoTrack) {
      * @param {Track.SID} sid
      * @param {MediaTrackReceiver} mediaTrackReceiver
      * @param {boolean} isEnabled
+      @param {boolean} isSwitchedOff
      * @param {function(?Track.Priority): void} setPriority - Set or clear the subscribe
      *  {@link Track.Priority} of the {@link RemoteMediaTrack}
      * @param {{log: Log, name: ?string}} options
      */
-    function RemoteMediaTrack(sid, mediaTrackReceiver, isEnabled, setPriority, options) {
+    function RemoteMediaTrack(sid, mediaTrackReceiver, isEnabled, isSwitchedOff, setPriority, options) {
       _classCallCheck(this, RemoteMediaTrack);
 
       options = Object.assign({
@@ -65157,7 +65416,7 @@ function mixinRemoteMediaTrack(AudioOrVideoTrack) {
           writable: true
         },
         _isSwitchedOff: {
-          value: false,
+          value: isSwitchedOff,
           writable: true
         },
         _priority: {
@@ -65261,6 +65520,16 @@ function mixinRemoteMediaTrack(AudioOrVideoTrack) {
           // are no attachments to it (see notes below). Now that there
           // are attachments re-enable the track.
           this.mediaStreamTrack.enabled = true;
+          if (this.processedTrack) {
+            this.processedTrack.enabled = true;
+          }
+
+          // NOTE(csantos): since remote tracks disables/enables the mediaStreamTrack,
+          // captureFrames stops along with it. We need to start it again after re-enabling.
+          // See attach/detach methods in this class and in VideoTrack class.
+          if (this.processor) {
+            this._captureFrames();
+          }
         }
         if (this._workaroundWebKitBug212780) {
           this._workaroundWebKitBug212780Cleanup = this._workaroundWebKitBug212780Cleanup || playIfPausedWhileInBackground(this);
@@ -65279,6 +65548,9 @@ function mixinRemoteMediaTrack(AudioOrVideoTrack) {
           // to workaround: here disable the track when
           // there are no elements attached to it.
           this.mediaStreamTrack.enabled = false;
+          if (this.processedTrack) {
+            this.processedTrack.enabled = false;
+          }
 
           if (this._workaroundWebKitBug212780Cleanup) {
             // unhook visibility change
@@ -65477,10 +65749,13 @@ var RemoteTrackPublication = function (_TrackPublication) {
         _this.emit(signaling.isEnabled ? 'trackEnabled' : 'trackDisabled');
       }
       if (isSwitchedOff !== signaling.isSwitchedOff) {
+        _this._log.warn(_this.trackSid + ': ' + (isSwitchedOff ? 'OFF' : 'ON') + ' => ' + (signaling.isSwitchedOff ? 'OFF' : 'ON'));
         isSwitchedOff = signaling.isSwitchedOff;
         if (_this.track) {
           _this.track._setSwitchedOff(signaling.isSwitchedOff);
-          _this.emit(signaling.isSwitchedOff ? 'trackSwitchedOff' : 'trackSwitchedOn', _this.track);
+          _this.emit(isSwitchedOff ? 'trackSwitchedOff' : 'trackSwitchedOn', _this.track);
+        } else if (isSwitchedOff) {
+          _this._log.warn('Track was not subscribed when switched Off.');
         }
       }
       if (priority !== signaling.priority) {
@@ -65638,17 +65913,98 @@ var RemoteVideoTrack = function (_RemoteMediaVideoTrac) {
    * @param {Track.SID} sid - The {@link RemoteVideoTrack}'s SID
    * @param {MediaTrackReceiver} mediaTrackReceiver - A video MediaStreamTrack container
    * @param {boolean} isEnabled - whether the {@link RemoteVideoTrack} is enabled
+   * @param {boolean} isSwitchedOff - Whether the {@link RemoteVideoTrack} is switched off
    * @param {function(?Track.Priority): void} setPriority - Set or clear the subscribe
    *  {@link Track.Priority} of the {@link RemoteVideoTrack}
    * @param {{log: Log}} options - The {@link RemoteTrack} options
    */
-  function RemoteVideoTrack(sid, mediaTrackReceiver, isEnabled, setPriority, options) {
+  function RemoteVideoTrack(sid, mediaTrackReceiver, isEnabled, isSwitchedOff, setPriority, options) {
     _classCallCheck(this, RemoteVideoTrack);
 
-    return _possibleConstructorReturn(this, (RemoteVideoTrack.__proto__ || Object.getPrototypeOf(RemoteVideoTrack)).call(this, sid, mediaTrackReceiver, isEnabled, setPriority, options));
+    return _possibleConstructorReturn(this, (RemoteVideoTrack.__proto__ || Object.getPrototypeOf(RemoteVideoTrack)).call(this, sid, mediaTrackReceiver, isEnabled, isSwitchedOff, setPriority, options));
   }
 
+  /**
+   * Add a {@link VideoProcessor} to allow for custom processing of video frames belonging to a VideoTrack.
+   * When a Participant unpublishes and re-publishes a VideoTrack, a new RemoteVideoTrack is created and
+   * any VideoProcessors attached to the previous RemoteVideoTrack would have to be re-added again.
+   * Only Chrome supports this as of now. Calling this API from a non-supported browser will result in a log warning.
+   * @param {VideoProcessor} processor - The {@link VideoProcessor} to use.
+   * @returns {this}
+   * @example
+   * class GrayScaleProcessor {
+   *   constructor(percentage) {
+   *     this.outputFrame = new OffscreenCanvas(0, 0);
+   *     this.percentage = percentage;
+   *   }
+   *   processFrame(inputFrame) {
+   *     this.outputFrame.width = inputFrame.width;
+   *     this.outputFrame.height = inputFrame.height;
+   *
+   *     const context = this.outputFrame.getContext('2d');
+   *     context.filter = `grayscale(${this.percentage}%)`;
+   *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+   *     return this.outputFrame;
+   *   }
+   * }
+   *
+   * const grayscaleProcessor = new GrayScaleProcessor(100);
+   *
+   * Array.from(room.participants.values()).forEach(participant => {
+   *   const remoteVideoTrack = Array.from(participant.videoTracks.values())[0].track;
+   *   remoteVideoTrack.addProcessor(grayscaleProcessor);
+   * });
+   */
+
+
   _createClass(RemoteVideoTrack, [{
+    key: 'addProcessor',
+    value: function addProcessor() {
+      return _get(RemoteVideoTrack.prototype.__proto__ || Object.getPrototypeOf(RemoteVideoTrack.prototype), 'addProcessor', this).apply(this, arguments);
+    }
+
+    /**
+     * Remove the previously added {@link VideoProcessor} using `addProcessor` API.
+     * @param {VideoProcessor} processor - The {@link VideoProcessor} to remove.
+     * @returns {this}
+     * @example
+     * class GrayScaleProcessor {
+     *   constructor(percentage) {
+     *     this.outputFrame = new OffscreenCanvas(0, 0);
+     *     this.percentage = percentage;
+     *   }
+     *   processFrame(inputFrame) {
+     *     this.outputFrame.width = inputFrame.width;
+     *     this.outputFrame.height = inputFrame.height;
+     *
+     *     const context = this.outputFrame.getContext('2d');
+     *     context.filter = `grayscale(${this.percentage}%)`;
+     *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+     *     return this.outputFrame;
+     *   }
+     * }
+     *
+     * const grayscaleProcessor = new GrayScaleProcessor(100);
+     *
+     * Array.from(room.participants.values()).forEach(participant => {
+     *   const remoteVideoTrack = Array.from(participant.videoTracks.values())[0].track;
+     *   remoteVideoTrack.addProcessor(grayscaleProcessor);
+     * });
+     *
+     * document.getElementById('remove-button').onclick = () => {
+     *   Array.from(room.participants.values()).forEach(participant => {
+     *     const remoteVideoTrack = Array.from(participant.videoTracks.values())[0].track;
+     *     remoteVideoTrack.removeProcessor(grayscaleProcessor);
+     *   });
+     * }
+     */
+
+  }, {
+    key: 'removeProcessor',
+    value: function removeProcessor() {
+      return _get(RemoteVideoTrack.prototype.__proto__ || Object.getPrototypeOf(RemoteVideoTrack.prototype), 'removeProcessor', this).apply(this, arguments);
+    }
+  }, {
     key: 'toString',
     value: function toString() {
       return '[RemoteVideoTrack #' + this._instanceId + ': ' + this.sid + ']';
@@ -65853,6 +66209,11 @@ var MediaTrackSender = function (_MediaTrackTransceive) {
       },
       _senders: {
         value: new Set()
+      },
+      isPublishing: {
+        get: function get() {
+          return !!this._clones.size;
+        }
       }
     });
     return _this;
@@ -66004,7 +66365,7 @@ var TrackPublication = function (_EventEmitter) {
         value: nInstances++
       },
       _log: {
-        value: options.log || new Log('default', _this, logLevels, options.loggerName)
+        value: options.log ? options.log.createLog('default', _this) : new Log('default', _this, logLevels, options.loggerName)
       },
       trackName: {
         enumerable: true,
@@ -66174,6 +66535,9 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 var MediaTrack = __webpack_require__(/*! ./mediatrack */ "./node_modules/twilio-video/es5/media/track/mediatrack.js");
 
+var _require = __webpack_require__(/*! ../../util/constants */ "./node_modules/twilio-video/es5/util/constants.js"),
+    DEFAULT_FRAME_RATE = _require.DEFAULT_FRAME_RATE;
+
 /**
  * A {@link VideoTrack} is a {@link Track} representing video.
  * @extends Track
@@ -66186,11 +66550,16 @@ var MediaTrack = __webpack_require__(/*! ./mediatrack */ "./node_modules/twilio-
  *   {@link VideoTrack.Dimensions}
  * @property {Track.Kind} kind - "video"
  * @property {MediaStreamTrack} mediaStreamTrack - A video MediaStreamTrack
+ * @property {?MediaStreamTrack} processedTrack - The source of processed video frames.
+ * It is null if no VideoProcessor has been added.
+ * @property {?VideoProcessor} processor - A {@link VideoProcessor} that is currently
+ *   processing video frames. It is null if video frames are not being processed.
  * @emits VideoTrack#dimensionsChanged
  * @emits VideoTrack#disabled
  * @emits VideoTrack#enabled
  * @emits VideoTrack#started
  */
+
 
 var VideoTrack = function (_MediaTrack) {
   _inherits(VideoTrack, _MediaTrack);
@@ -66208,14 +66577,40 @@ var VideoTrack = function (_MediaTrack) {
     var _this = _possibleConstructorReturn(this, (VideoTrack.__proto__ || Object.getPrototypeOf(VideoTrack)).call(this, mediaTrackTransceiver, options));
 
     Object.defineProperties(_this, {
+      _captureTimeoutId: {
+        value: null,
+        writable: true
+      },
+      _isCapturing: {
+        value: false,
+        writable: true
+      },
+      _inputFrame: {
+        value: null,
+        writable: true
+      },
+      _outputFrame: {
+        value: null,
+        writable: true
+      },
+      _unmuteHandler: {
+        value: null,
+        writable: true
+      },
       dimensions: {
         enumerable: true,
         value: {
           width: null,
           height: null
         }
+      },
+      processor: {
+        enumerable: true,
+        value: null,
+        writable: true
       }
     });
+
     return _ret = _this, _possibleConstructorReturn(_this, _ret);
   }
 
@@ -66225,28 +66620,153 @@ var VideoTrack = function (_MediaTrack) {
 
 
   _createClass(VideoTrack, [{
+    key: '_canCaptureFrames',
+    value: function _canCaptureFrames() {
+      var isPublishing = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+
+      var canCaptureFrames = true;
+      var _mediaStreamTrack = this.mediaStreamTrack,
+          enabled = _mediaStreamTrack.enabled,
+          readyState = _mediaStreamTrack.readyState;
+
+      if (!enabled) {
+        canCaptureFrames = false;
+        this._log.debug('MediaStreamTrack is disabled');
+      }
+      if (readyState === 'ended') {
+        canCaptureFrames = false;
+        this._log.debug('MediaStreamTrack is ended');
+      }
+      if (!this.processor) {
+        canCaptureFrames = false;
+        this._log.debug('VideoProcessor not detected.');
+      }
+      if (!this._attachments.size && !isPublishing) {
+        canCaptureFrames = false;
+        this._log.debug('VideoTrack is not publishing and there is no attached element.');
+      }
+      return canCaptureFrames;
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
+    key: '_captureFrames',
+    value: function _captureFrames() {
+      var _this2 = this;
+
+      if (this._isCapturing) {
+        return this._log.debug('Ignoring captureFrames call. Capture is already in progress');
+      }
+      if (!this._canCaptureFrames()) {
+        this._isCapturing = false;
+        return this._log.debug('Cannot capture frames. Ignoring captureFrames call.');
+      }
+      this._isCapturing = true;
+      this._log.debug('Start capturing frames');
+
+      var startTime = Date.now();
+      var processFramePeriodMs = void 0;
+
+      this._dummyEl.play().then(function () {
+        var captureFrame = function captureFrame(cb) {
+          clearTimeout(_this2._captureTimeoutId);
+
+          var _mediaStreamTrack$get = _this2.mediaStreamTrack.getSettings(),
+              _mediaStreamTrack$get2 = _mediaStreamTrack$get.frameRate,
+              frameRate = _mediaStreamTrack$get2 === undefined ? DEFAULT_FRAME_RATE : _mediaStreamTrack$get2;
+
+          var capturePeriodMs = Math.floor(1000 / frameRate);
+          var delay = capturePeriodMs - processFramePeriodMs;
+          if (delay < 0 || typeof processFramePeriodMs !== 'number') {
+            delay = 0;
+          }
+          _this2._captureTimeoutId = setTimeout(cb, delay);
+        };
+        var process = function process() {
+          if (!_this2._canCaptureFrames()) {
+            _this2._isCapturing = false;
+            return _this2._log.debug('Cannot capture frames. Stopping capturing frames.');
+          }
+          startTime = Date.now();
+
+          var _mediaStreamTrack$get3 = _this2.mediaStreamTrack.getSettings(),
+              _mediaStreamTrack$get4 = _mediaStreamTrack$get3.width,
+              width = _mediaStreamTrack$get4 === undefined ? 0 : _mediaStreamTrack$get4,
+              _mediaStreamTrack$get5 = _mediaStreamTrack$get3.height,
+              height = _mediaStreamTrack$get5 === undefined ? 0 : _mediaStreamTrack$get5;
+
+          _this2._inputFrame.width = width;
+          _this2._inputFrame.height = height;
+          _this2._inputFrame.getContext('2d').drawImage(_this2._dummyEl, 0, 0, width, height);
+
+          var result = null;
+          try {
+            result = _this2.processor.processFrame(_this2._inputFrame);
+          } catch (ex) {
+            _this2._log.debug('Exception detected after calling processFrame.', ex);
+          }
+          (result instanceof Promise ? result : Promise.resolve(result)).then(function (outputFrame) {
+            if (outputFrame && _this2._outputFrame) {
+              _this2._outputFrame.width = width;
+              _this2._outputFrame.height = height;
+              _this2._outputFrame.getContext('2d').drawImage(outputFrame, 0, 0, width, height);
+              _this2.processedTrack.requestFrame();
+            }
+          }).finally(function () {
+            processFramePeriodMs = Date.now() - startTime;
+            captureFrame(process);
+          });
+        };
+        captureFrame(process);
+      }).catch(function (error) {
+        return _this2._log.error('Video element cannot be played', { error: error, track: _this2 });
+      });
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
     key: '_initialize',
     value: function _initialize() {
-      var _this2 = this;
+      var _this3 = this;
 
       _get(VideoTrack.prototype.__proto__ || Object.getPrototypeOf(VideoTrack.prototype), '_initialize', this).call(this);
       if (this._dummyEl) {
         this._dummyEl.onloadedmetadata = function () {
-          if (dimensionsChanged(_this2, _this2._dummyEl)) {
-            _this2.dimensions.width = _this2._dummyEl.videoWidth;
-            _this2.dimensions.height = _this2._dummyEl.videoHeight;
+          if (dimensionsChanged(_this3, _this3._dummyEl)) {
+            _this3.dimensions.width = _this3._dummyEl.videoWidth;
+            _this3.dimensions.height = _this3._dummyEl.videoHeight;
           }
         };
         this._dummyEl.onresize = function () {
-          if (dimensionsChanged(_this2, _this2._dummyEl)) {
-            _this2.dimensions.width = _this2._dummyEl.videoWidth;
-            _this2.dimensions.height = _this2._dummyEl.videoHeight;
-            if (_this2.isStarted) {
-              _this2._log.debug('Dimensions changed:', _this2.dimensions);
-              _this2.emit(VideoTrack.DIMENSIONS_CHANGED, _this2);
+          if (dimensionsChanged(_this3, _this3._dummyEl)) {
+            _this3.dimensions.width = _this3._dummyEl.videoWidth;
+            _this3.dimensions.height = _this3._dummyEl.videoHeight;
+            if (_this3.isStarted) {
+              _this3._log.debug('Dimensions changed:', _this3.dimensions);
+              _this3.emit(VideoTrack.DIMENSIONS_CHANGED, _this3);
             }
           }
         };
+      }
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
+    key: '_restartProcessor',
+    value: function _restartProcessor() {
+      var processor = this.processor;
+      if (processor) {
+        this.removeProcessor(processor);
+        this.addProcessor(processor);
       }
     }
 
@@ -66262,6 +66782,86 @@ var VideoTrack = function (_MediaTrack) {
 
       this._log.debug('Dimensions:', this.dimensions);
       return _get(VideoTrack.prototype.__proto__ || Object.getPrototypeOf(VideoTrack.prototype), '_start', this).call(this, dummyEl);
+    }
+
+    /**
+     * Add a {@link VideoProcessor} to allow for custom processing of video frames belonging to a VideoTrack.
+     * Only Chrome supports this as of now. Calling this API from a non-supported browser will result in a log warning.
+     * @param {VideoProcessor} processor - The {@link VideoProcessor} to use.
+     * @returns {this}
+     * @example
+     * class GrayScaleProcessor {
+     *   constructor(percentage) {
+     *     this.outputFrame = new OffscreenCanvas(0, 0);
+     *     this.percentage = percentage;
+     *   }
+     *   processFrame(inputFrame) {
+     *     this.outputFrame.width = inputFrame.width;
+     *     this.outputFrame.height = inputFrame.height;
+     *
+     *     const context = this.outputFrame.getContext('2d');
+     *     context.filter = `grayscale(${this.percentage}%)`;
+     *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+     *     return this.outputFrame;
+     *   }
+     * }
+     *
+     * Video.createLocalVideoTrack().then(function(videoTrack) {
+     *   videoTrack.addProcessor(new GrayScaleProcessor(100));
+     * });
+     */
+
+  }, {
+    key: 'addProcessor',
+    value: function addProcessor(processor) {
+      var _this4 = this;
+
+      if (typeof OffscreenCanvas !== 'function') {
+        return this._log.warn('Adding a VideoProcessor is not supported in this browser.');
+      }
+      if (!processor || typeof processor.processFrame !== 'function') {
+        throw new Error('Received an invalid VideoProcessor from addProcessor.');
+      }
+      if (this.processor) {
+        throw new Error('A VideoProcessor has already been added.');
+      }
+      if (!this._dummyEl) {
+        throw new Error('VideoTrack has not been initialized.');
+      }
+      this._log.debug('Adding VideoProcessor to the VideoTrack', processor);
+
+      if (!this._unmuteHandler) {
+        this._unmuteHandler = function () {
+          _this4._log.debug('mediaStreamTrack unmuted');
+          // NOTE(csantos): On certain scenarios where mediaStreamTrack is coming from muted to unmuted state,
+          // the processedTrack doesn't unmutes automatically although enabled is already set to true.
+          // This is a terminal state for the processedTrack and should be restarted. (VIDEO-4176)
+          if (_this4.processedTrack.muted) {
+            _this4._log.debug('mediaStreamTrack is unmuted but processedTrack is muted. Restarting processor.');
+            _this4._restartProcessor();
+          }
+        };
+        this.mediaStreamTrack.addEventListener('unmute', this._unmuteHandler);
+      }
+
+      var _mediaStreamTrack$get6 = this.mediaStreamTrack.getSettings(),
+          _mediaStreamTrack$get7 = _mediaStreamTrack$get6.width,
+          width = _mediaStreamTrack$get7 === undefined ? 0 : _mediaStreamTrack$get7,
+          _mediaStreamTrack$get8 = _mediaStreamTrack$get6.height,
+          height = _mediaStreamTrack$get8 === undefined ? 0 : _mediaStreamTrack$get8;
+
+      this._inputFrame = new OffscreenCanvas(width, height);
+      this._outputFrame = document.createElement('canvas');
+      this._outputFrame.width = width;
+      this._outputFrame.height = height;
+
+      this.processedTrack = this._outputFrame.captureStream(0).getTracks()[0];
+      this.processedTrack.enabled = this.mediaStreamTrack.enabled;
+      this.processor = processor;
+
+      this._updateElementsMediaStreamTrack();
+      this._captureFrames();
+      return this;
     }
 
     /**
@@ -66330,7 +66930,11 @@ var VideoTrack = function (_MediaTrack) {
   }, {
     key: 'attach',
     value: function attach() {
-      return _get(VideoTrack.prototype.__proto__ || Object.getPrototypeOf(VideoTrack.prototype), 'attach', this).apply(this, arguments);
+      var result = _get(VideoTrack.prototype.__proto__ || Object.getPrototypeOf(VideoTrack.prototype), 'attach', this).apply(this, arguments);
+      if (this.processor) {
+        this._captureFrames();
+      }
+      return result;
     }
 
     /**
@@ -66362,6 +66966,63 @@ var VideoTrack = function (_MediaTrack) {
     value: function detach() {
       return _get(VideoTrack.prototype.__proto__ || Object.getPrototypeOf(VideoTrack.prototype), 'detach', this).apply(this, arguments);
     }
+
+    /**
+     * Remove the previously added {@link VideoProcessor} using `addProcessor` API.
+     * @param {VideoProcessor} processor - The {@link VideoProcessor} to remove.
+     * @returns {this}
+     * @example
+     * class GrayScaleProcessor {
+     *   constructor(percentage) {
+     *     this.outputFrame = new OffscreenCanvas(0, 0);
+     *     this.percentage = percentage;
+     *   }
+     *   processFrame(inputFrame) {
+     *     this.outputFrame.width = inputFrame.width;
+     *     this.outputFrame.height = inputFrame.height;
+     *
+     *     const context = this.outputFrame.getContext('2d');
+     *     context.filter = `grayscale(${this.percentage}%)`;
+     *     context.drawImage(inputFrame, 0, 0, inputFrame.width, inputFrame.height);
+     *     return this.outputFrame;
+     *   }
+     * }
+     *
+     * Video.createLocalVideoTrack().then(function(videoTrack) {
+     *   const grayScaleProcessor = new GrayScaleProcessor(100);
+     *   videoTrack.addProcessor(grayScaleProcessor);
+     *   document.getElementById('remove-button').onclick = () => videoTrack.removeProcessor(grayScaleProcessor);
+     * });
+     */
+
+  }, {
+    key: 'removeProcessor',
+    value: function removeProcessor(processor) {
+      if (!processor) {
+        throw new Error('Received an invalid VideoProcessor from removeProcessor.');
+      }
+      if (!this.processor) {
+        throw new Error('No existing VideoProcessor detected.');
+      }
+      if (processor !== this.processor) {
+        throw new Error('The provided VideoProcessor is different than the existing one.');
+      }
+      this._log.debug('Removing VideoProcessor from the VideoTrack', processor);
+      clearTimeout(this._captureTimeoutId);
+      this.mediaStreamTrack.removeEventListener('unmute', this._unmuteHandler);
+      this._unmuteHandler = null;
+      this._isCapturing = false;
+
+      this.processor = null;
+      this.processedTrack = null;
+      this._inputFrame.getContext('2d').clearRect(0, 0, this._inputFrame.width, this._inputFrame.height);
+      this._outputFrame.getContext('2d').clearRect(0, 0, this._outputFrame.width, this._outputFrame.height);
+      this._inputFrame = null;
+      this._outputFrame = null;
+
+      this._updateElementsMediaStreamTrack();
+      return this;
+    }
   }]);
 
   return VideoTrack;
@@ -66380,6 +67041,19 @@ function dimensionsChanged(track, elem) {
  *   {@link VideoTrack} has not yet started
  * @property {?number} height - The {@link VideoTrack}'s height or null if the
  *   {@link VideoTrack} has not yet started
+ */
+
+/**
+ * A {@link VideoProcessor} is used to process incoming video frames before
+ * sending to the encoder or renderer.
+ * @typedef {object} VideoProcessor
+ * @property {function} processFrame - A callback to receive incoming video frames for processing.
+ * Any exception raised (either synchronously or asynchronously) in `processFrame` will result in the frame being dropped.
+ * Developers can drop the current frame by returning null.
+ * This callback has the following signature:
+ * <code>processFrame(inputFrame: OffscreenCanvas)</code><br/>
+ * &nbsp;&nbsp;<code>: Promise<OffscreenCanvas | null></code><br/>
+ * &nbsp;&nbsp;<code>| OffscreenCanvas | null;</code><br/>
  */
 
 /**
@@ -66874,7 +67548,8 @@ var Participant = function (_EventEmitter) {
             name = signaling.name,
             kind = signaling.kind,
             sid = signaling.sid,
-            trackTransceiver = signaling.trackTransceiver;
+            trackTransceiver = signaling.trackTransceiver,
+            isSwitchedOff = signaling.isSwitchedOff;
 
         var RemoteTrack = {
           audio: RemoteAudioTrack,
@@ -66895,7 +67570,7 @@ var Participant = function (_EventEmitter) {
         var setPriority = function setPriority(newPriority) {
           return participantSignaling.updateSubscriberTrackPriority(sid, newPriority);
         };
-        var track = kind === 'data' ? new RemoteTrack(sid, trackTransceiver, options) : new RemoteTrack(sid, trackTransceiver, isEnabled, setPriority, options);
+        var track = kind === 'data' ? new RemoteTrack(sid, trackTransceiver, options) : new RemoteTrack(sid, trackTransceiver, isEnabled, isSwitchedOff, setPriority, options);
 
         self._addTrack(track, publication, trackTransceiver.id);
       }
@@ -67902,7 +68577,9 @@ function rewriteLocalTrackIds(room, trackStats) {
  */
 
 /**
- * A {@link RemoteParticipant} joined the {@link Room}.
+ * A {@link RemoteParticipant} joined the {@link Room}. In Large Group Rooms (Maximum
+ * Participants greater than 50), this event is raised only when a {@link RemoteParticipant}
+ * publishes at least one {@link LocalTrack}.
  * @param {RemoteParticipant} participant - The {@link RemoteParticipant} who joined
  * @event Room#participantConnected
  * @example
@@ -67912,7 +68589,9 @@ function rewriteLocalTrackIds(room, trackStats) {
  */
 
 /**
- * A {@link RemoteParticipant} left the {@link Room}.
+ * A {@link RemoteParticipant} left the {@link Room}. In Large Group Rooms (Maximum
+ * Participants greater than 50), this event is raised only when a {@link RemoteParticipant}
+ * unpublishes all its {@link LocalTrack}s.
  * @param {RemoteParticipant} participant - The {@link RemoteParticipant} who left
  * @event Room#participantDisconnected
  * @example
@@ -69198,15 +69877,16 @@ var RemoteTrackPublicationSignaling = function (_TrackSignaling) {
    * @param {Track.Kind} kind
    * @param {boolean} isEnabled
    * @param {Track.Priority} priority
+   * @param {boolean} isSwitchedOff
    */
-  function RemoteTrackPublicationSignaling(sid, name, kind, isEnabled, priority) {
+  function RemoteTrackPublicationSignaling(sid, name, kind, isEnabled, priority, isSwitchedOff) {
     _classCallCheck(this, RemoteTrackPublicationSignaling);
 
     var _this = _possibleConstructorReturn(this, (RemoteTrackPublicationSignaling.__proto__ || Object.getPrototypeOf(RemoteTrackPublicationSignaling)).call(this, name, kind, isEnabled, priority));
 
     Object.defineProperties(_this, {
       _isSwitchedOff: {
-        value: false,
+        value: isSwitchedOff,
         writable: true
       }
     });
@@ -69314,10 +69994,20 @@ var DefaultRecordingSignaling = __webpack_require__(/*! ./recording */ "./node_m
 var StateMachine = __webpack_require__(/*! ../statemachine */ "./node_modules/twilio-video/es5/statemachine.js");
 var DefaultTimeout = __webpack_require__(/*! ../util/timeout */ "./node_modules/twilio-video/es5/util/timeout.js");
 
-var _require = __webpack_require__(/*! ../util/twilio-video-errors */ "./node_modules/twilio-video/es5/util/twilio-video-errors.js"),
-    MediaConnectionError = _require.MediaConnectionError,
-    MediaDTLSTransportFailedError = _require.MediaDTLSTransportFailedError,
-    SignalingConnectionDisconnectedError = _require.SignalingConnectionDisconnectedError;
+var _require = __webpack_require__(/*! ../util */ "./node_modules/twilio-video/es5/util/index.js"),
+    buildLogLevels = _require.buildLogLevels;
+
+var _require2 = __webpack_require__(/*! ../util/constants */ "./node_modules/twilio-video/es5/util/constants.js"),
+    DEFAULT_LOG_LEVEL = _require2.DEFAULT_LOG_LEVEL;
+
+var Log = __webpack_require__(/*! ../util/log */ "./node_modules/twilio-video/es5/util/log.js");
+
+var _require3 = __webpack_require__(/*! ../util/twilio-video-errors */ "./node_modules/twilio-video/es5/util/twilio-video-errors.js"),
+    MediaConnectionError = _require3.MediaConnectionError,
+    MediaDTLSTransportFailedError = _require3.MediaDTLSTransportFailedError,
+    SignalingConnectionDisconnectedError = _require3.SignalingConnectionDisconnectedError;
+
+var nInstances = 0;
 
 /*
 RoomSignaling States
@@ -69378,9 +70068,12 @@ var RoomSignaling = function (_StateMachine) {
     _classCallCheck(this, RoomSignaling);
 
     options = Object.assign({
+      logLevel: DEFAULT_LOG_LEVEL,
       RecordingSignaling: DefaultRecordingSignaling,
       Timeout: DefaultTimeout
     }, options);
+
+    var logLevels = buildLogLevels(options.logLevel);
 
     var _this = _possibleConstructorReturn(this, (RoomSignaling.__proto__ || Object.getPrototypeOf(RoomSignaling)).call(this, 'connected', states));
 
@@ -69391,6 +70084,12 @@ var RoomSignaling = function (_StateMachine) {
     }, options.sessionTimeout, false);
 
     Object.defineProperties(_this, {
+      _instanceId: {
+        value: nInstances++
+      },
+      _log: {
+        value: options.log ? options.log.createLog('default', _this) : new Log('default', _this, logLevels, options.loggerName)
+      },
       _mediaConnectionIsReconnecting: {
         writable: true,
         value: false
@@ -69471,6 +70170,11 @@ var RoomSignaling = function (_StateMachine) {
         return true;
       }
       return false;
+    }
+  }, {
+    key: 'toString',
+    value: function toString() {
+      return '[RoomSignaling #' + this._instanceId + ']';
     }
 
     /**
@@ -71697,6 +72401,9 @@ var PeerConnectionV2 = function (_StateMachine) {
       _log: {
         value: log
       },
+      _eventObserver: {
+        value: options.eventObserver
+      },
       _remoteCodecMaps: {
         value: new Map()
       },
@@ -72022,7 +72729,13 @@ var PeerConnectionV2 = function (_StateMachine) {
         _this4._queuedDescription = null;
         return _this4._maybeReoffer(_this4._peerConnection.localDescription);
       }).catch(function (error) {
-        throw error instanceof MediaClientRemoteDescFailedError ? error : new MediaClientLocalDescFailedError();
+        var errorToThrow = error instanceof MediaClientRemoteDescFailedError ? error : new MediaClientLocalDescFailedError();
+        _this4._publishMediaWarning({
+          message: 'Failed to _answer',
+          code: errorToThrow.code,
+          error: error
+        });
+        throw errorToThrow;
       });
     }
 
@@ -72108,6 +72821,20 @@ var PeerConnectionV2 = function (_StateMachine) {
       }).then(function (didReoffer) {
         return didReoffer ? Promise.resolve() : _this6._offer();
       });
+    }
+  }, {
+    key: '_publishMediaWarning',
+    value: function _publishMediaWarning(_ref3) {
+      var message = _ref3.message,
+          code = _ref3.code,
+          error = _ref3.error,
+          sdp = _ref3.sdp;
+
+      this._eventObserver.emit('event', { level: 'warning', name: 'error', group: 'media', payload: {
+          message: message,
+          code: code,
+          context: JSON.stringify({ error: error.message, sdp: sdp })
+        } });
     }
 
     /**
@@ -72411,8 +73138,14 @@ var PeerConnectionV2 = function (_StateMachine) {
 
       return Promise.all(this._replaceTrackPromises.values()).then(function () {
         return _this9._peerConnection.createOffer(offerOptions);
-      }).catch(function () {
-        throw new MediaClientLocalDescFailedError();
+      }).catch(function (error) {
+        var errorToThrow = new MediaClientLocalDescFailedError();
+        _this9._publishMediaWarning({
+          message: 'Failed to create offer',
+          code: errorToThrow.code,
+          error: error
+        });
+        throw errorToThrow;
       }).then(function (offer) {
         if (isFirefox) {
           // NOTE(mmalavalli): We work around Chromium bug 1106157 by disabling
@@ -72467,8 +73200,8 @@ var PeerConnectionV2 = function (_StateMachine) {
   }, {
     key: '_getMediaTrackSenderId',
     value: function _getMediaTrackSenderId(trackId) {
-      var mediaTrackSender = Array.from(this._rtpSenders.keys()).find(function (_ref3) {
-        var id = _ref3.track.id;
+      var mediaTrackSender = Array.from(this._rtpSenders.keys()).find(function (_ref4) {
+        var id = _ref4.track.id;
         return id === trackId;
       });
       return mediaTrackSender ? mediaTrackSender.id : trackId;
@@ -72487,9 +73220,9 @@ var PeerConnectionV2 = function (_StateMachine) {
       var _this10 = this;
 
       var transceivers = this._peerConnection.getTransceivers();
-      var activeTransceivers = transceivers.filter(function (_ref4) {
-        var sender = _ref4.sender,
-            stopped = _ref4.stopped;
+      var activeTransceivers = transceivers.filter(function (_ref5) {
+        var sender = _ref5.sender,
+            stopped = _ref5.stopped;
         return !stopped && sender && sender.track;
       });
 
@@ -72497,29 +73230,29 @@ var PeerConnectionV2 = function (_StateMachine) {
       // SDPs, and even if they are, there is no guarantee that they will be the same as the
       // actual MediaStreamTrack IDs. So, we add or re-write the actual MediaStreamTrack IDs
       // to the assigned m= sections here.
-      var assignedTransceivers = activeTransceivers.filter(function (_ref5) {
-        var mid = _ref5.mid;
+      var assignedTransceivers = activeTransceivers.filter(function (_ref6) {
+        var mid = _ref6.mid;
         return mid;
       });
-      var midsToTrackIds = new Map(assignedTransceivers.map(function (_ref6) {
-        var mid = _ref6.mid,
-            sender = _ref6.sender;
+      var midsToTrackIds = new Map(assignedTransceivers.map(function (_ref7) {
+        var mid = _ref7.mid,
+            sender = _ref7.sender;
         return [mid, _this10._getMediaTrackSenderId(sender.track.id)];
       }));
       var sdp1 = unifiedPlanAddOrRewriteTrackIds(description.sdp, midsToTrackIds);
 
       // NOTE(mmalavalli): Chrome and Safari do not apply the offer until they get an answer.
       // So, we add or re-write the actual MediaStreamTrack IDs to the unassigned m= sections here.
-      var unassignedTransceivers = activeTransceivers.filter(function (_ref7) {
-        var mid = _ref7.mid;
+      var unassignedTransceivers = activeTransceivers.filter(function (_ref8) {
+        var mid = _ref8.mid;
         return !mid;
       });
       var newTrackIdsByKind = new Map(['audio', 'video'].map(function (kind) {
-        return [kind, unassignedTransceivers.filter(function (_ref8) {
-          var sender = _ref8.sender;
-          return sender.track.kind === kind;
-        }).map(function (_ref9) {
+        return [kind, unassignedTransceivers.filter(function (_ref9) {
           var sender = _ref9.sender;
+          return sender.track.kind === kind;
+        }).map(function (_ref10) {
+          var sender = _ref10.sender;
           return _this10._getMediaTrackSenderId(sender.track.id);
         })];
       }));
@@ -72568,10 +73301,20 @@ var PeerConnectionV2 = function (_StateMachine) {
       }
       return this._peerConnection.setLocalDescription(description).catch(function (error) {
         _this12._log.warn('Calling setLocalDescription with an RTCSessionDescription of type "' + description.type + '" failed with the error "' + error.message + '".');
+
+        var errorToThrow = new MediaClientLocalDescFailedError();
+        var publishWarning = {
+          message: 'Calling setLocalDescription with an RTCSessionDescription of type "' + description.type + '" failed',
+          code: errorToThrow.code,
+          error: error
+        };
+
         if (description.sdp) {
           _this12._log.warn('The SDP was ' + description.sdp);
+          publishWarning.sdp = description.sdp;
         }
-        throw new MediaClientLocalDescFailedError();
+        _this12._publishMediaWarning(publishWarning);
+        throw errorToThrow;
       }).then(function () {
         if (description.type !== 'rollback') {
           _this12._localDescription = _this12._isUnifiedPlan ? _this12._addOrRewriteLocalTrackIds(description) : description;
@@ -72733,8 +73476,15 @@ var PeerConnectionV2 = function (_StateMachine) {
       var revision = description.revision;
       return Promise.resolve().then(function () {
         return _this14._setRemoteDescription(description);
-      }).catch(function () {
-        throw new MediaClientRemoteDescFailedError();
+      }).catch(function (error) {
+        var errorToThrow = new MediaClientRemoteDescFailedError();
+        _this14._publishMediaWarning({
+          message: 'Calling setRemoteDescription with an RTCSessionDescription of type "' + description.type + '" failed',
+          code: errorToThrow.code,
+          error: error,
+          sdp: description.sdp
+        });
+        throw errorToThrow;
       }).then(function () {
         _this14._lastStableDescriptionRevision = revision;
         _this14._needsAnswer = false;
@@ -72925,11 +73675,13 @@ var PeerConnectionV2 = function (_StateMachine) {
   }, {
     key: 'removeMediaTrackSender',
     value: function removeMediaTrackSender(mediaTrackSender) {
-      if (this._peerConnection.signalingState === 'closed' || !this._rtpSenders.has(mediaTrackSender)) {
+      var sender = this._rtpSenders.get(mediaTrackSender);
+      if (!sender) {
         return;
       }
-      var sender = this._rtpSenders.get(mediaTrackSender);
-      this._peerConnection.removeTrack(sender);
+      if (this._peerConnection.signalingState !== 'closed') {
+        this._peerConnection.removeTrack(sender);
+      }
       if (this._localMediaStream) {
         this._localMediaStream.removeTrack(mediaTrackSender.track);
       }
@@ -73165,12 +73917,12 @@ function shouldRecycleTransceiver(transceiver, pcv2) {
  */
 function takeRecycledTransceiver(pcv2, kind) {
   var preferredCodecs = {
-    audio: pcv2._preferredAudioCodecs.map(function (_ref10) {
-      var codec = _ref10.codec;
+    audio: pcv2._preferredAudioCodecs.map(function (_ref11) {
+      var codec = _ref11.codec;
       return codec.toLowerCase();
     }),
-    video: pcv2._preferredVideoCodecs.map(function (_ref11) {
-      var codec = _ref11.codec;
+    video: pcv2._preferredVideoCodecs.map(function (_ref12) {
+      var codec = _ref12.codec;
       return codec.toLowerCase();
     })
   }[kind];
@@ -73549,6 +74301,12 @@ var PeerConnectionManager = function (_QueueingEventEmitter) {
         peerConnection.on('stateChanged', function stateChanged(state) {
           if (state === 'closed') {
             peerConnection.removeListener('stateChanged', stateChanged);
+            self._dataTrackSenders.forEach(function (sender) {
+              return peerConnection.removeDataTrackSender(sender);
+            });
+            self._mediaTrackSenders.forEach(function (sender) {
+              return peerConnection.removeMediaTrackSender(sender);
+            });
             self._peerConnections.delete(peerConnection.id);
             self._closedPeerConnectionIds.add(peerConnection.id);
             updateConnectionState(self);
@@ -74092,9 +74850,11 @@ var RemoteParticipantV2 = function (_RemoteParticipantSig) {
    * Construct a {@link RemoteParticipantV2}.
    * @param {object} participantState
    * @param {function(string): Promise<DataTrackReceiver|MediaTrackReceiver>} getTrackReceiver
+   * @param {function(string): boolean} getInitialTrackSwitchOffState
+   *
    * @param {object} [options]
    */
-  function RemoteParticipantV2(participantState, getTrackReceiver, options) {
+  function RemoteParticipantV2(participantState, getTrackReceiver, getInitialTrackSwitchOffState, options) {
     var _ret;
 
     _classCallCheck(this, RemoteParticipantV2);
@@ -74115,6 +74875,9 @@ var RemoteParticipantV2 = function (_RemoteParticipantSig) {
       },
       _getTrackReceiver: {
         value: getTrackReceiver
+      },
+      _getInitialTrackSwitchOffState: {
+        value: getInitialTrackSwitchOffState
       },
       revision: {
         enumerable: true,
@@ -74138,7 +74901,8 @@ var RemoteParticipantV2 = function (_RemoteParticipantSig) {
       var RemoteTrackPublicationV2 = this._RemoteTrackPublicationV2;
       var track = this.tracks.get(trackState.sid);
       if (!track) {
-        track = new RemoteTrackPublicationV2(trackState);
+        var isSwitchedOff = this._getInitialTrackSwitchOffState(trackState.sid);
+        track = new RemoteTrackPublicationV2(trackState, isSwitchedOff);
         this.addTrack(track);
       }
       return track;
@@ -74227,11 +74991,13 @@ var RemoteTrackPublicationV2 = function (_RemoteTrackPublicati) {
   /**
    * Construct a {@link RemoteTrackPublicationV2}.
    * @param {RemoteTrackPublicationV2#Representation} track
+   * @param {boolean} isSwitchedOff
+   *
    */
-  function RemoteTrackPublicationV2(track) {
+  function RemoteTrackPublicationV2(track, isSwitchedOff) {
     _classCallCheck(this, RemoteTrackPublicationV2);
 
-    return _possibleConstructorReturn(this, (RemoteTrackPublicationV2.__proto__ || Object.getPrototypeOf(RemoteTrackPublicationV2)).call(this, track.sid, track.name, track.kind, track.enabled, track.priority));
+    return _possibleConstructorReturn(this, (RemoteTrackPublicationV2.__proto__ || Object.getPrototypeOf(RemoteTrackPublicationV2)).call(this, track.sid, track.name, track.kind, track.enabled, track.priority, isSwitchedOff));
   }
 
   /**
@@ -74357,8 +75123,8 @@ var RoomV2 = function (_RoomSignaling) {
         value: null,
         writable: true
       },
-      _disconnectedParticipantSids: {
-        value: new Set()
+      _disconnectedParticipantRevisions: {
+        value: new Map()
       },
       _NetworkQualityMonitor: {
         value: options.NetworkQualityMonitor
@@ -74425,6 +75191,9 @@ var RoomV2 = function (_RoomSignaling) {
       },
       _TrackSwitchOffSignaling: {
         value: options.TrackSwitchOffSignaling
+      },
+      _pendingSwitchOffStates: {
+        value: new Map()
       },
       _transport: {
         value: transport
@@ -74547,6 +75316,21 @@ var RoomV2 = function (_RoomSignaling) {
      */
 
   }, {
+    key: '_getInitialTrackSwitchOffState',
+    value: function _getInitialTrackSwitchOffState(trackSid) {
+      var initiallySwitchedOff = this._pendingSwitchOffStates.get(trackSid) || false;
+      this._pendingSwitchOffStates.delete(trackSid);
+      if (initiallySwitchedOff) {
+        this._log.warn('[' + trackSid + '] was initially switched off! ');
+      }
+      return initiallySwitchedOff;
+    }
+
+    /**
+     * @private
+     */
+
+  }, {
     key: '_getTrackSidsToTrackSignalings',
     value: function _getTrackSidsToTrackSignalings() {
       var trackSidsToTrackSignalings = flatMap(this.participants, function (participant) {
@@ -74566,12 +75350,12 @@ var RoomV2 = function (_RoomSignaling) {
       var participant = this.participants.get(participantState.sid);
       var self = this;
       if (!participant) {
-        participant = new RemoteParticipantV2(participantState, this._getTrackReceiver.bind(this));
+        participant = new RemoteParticipantV2(participantState, this._getTrackReceiver.bind(this), this._getInitialTrackSwitchOffState.bind(this));
         participant.on('stateChanged', function stateChanged(state) {
           if (state === 'disconnected') {
             participant.removeListener('stateChanged', stateChanged);
             self.participants.delete(participant.sid);
-            self._disconnectedParticipantSids.add(participant.sid);
+            self._disconnectedParticipantRevisions.set(participant.sid, participant.revision);
           }
         });
         this.connectParticipant(participant);
@@ -74672,8 +75456,21 @@ var RoomV2 = function (_RoomSignaling) {
       // eslint-disable-next-line no-warning-comments
       // TODO(mroberts): Remove me once the Server is fixed.
       (roomState.participants || []).forEach(function (participantState) {
-        if (participantState.sid === _this3.localParticipant.sid || _this3._disconnectedParticipantSids.has(participantState.sid)) {
+        if (participantState.sid === _this3.localParticipant.sid) {
           return;
+        }
+
+        // NOTE(mmalavalli): If the incoming revision for a disconnected Participant is less than or
+        // equal to the revision when it was disconnected, then the state is old and can be ignored.
+        // Otherwise, the Participant was most likely disconnected in a Large Group Room when it
+        // stopped publishing media, and hence needs to be re-added.
+        var disconnectedParticipantRevision = _this3._disconnectedParticipantRevisions.get(participantState.sid);
+        if (disconnectedParticipantRevision && participantState.revision <= disconnectedParticipantRevision) {
+          return;
+        }
+
+        if (disconnectedParticipantRevision) {
+          _this3._disconnectedParticipantRevisions.delete(participantState.sid);
         }
         var participant = _this3._getOrCreateRemoteParticipant(participantState);
         participant.update(participantState);
@@ -74771,16 +75568,36 @@ var RoomV2 = function (_RoomSignaling) {
 
       this._trackSwitchOffSignaling = trackSwitchOffSignaling;
       trackSwitchOffSignaling.on('updated', function (tracksOff, tracksOn) {
-        _this5.participants.forEach(function (participant) {
-          participant.tracks.forEach(function (track) {
-            if (tracksOff.includes(track.sid)) {
-              track.setSwitchedOff(true);
-            }
-            if (tracksOn.includes(track.sid)) {
-              track.setSwitchedOff(false);
-            }
+        try {
+          _this5._log.warn('trackSwitchOff: On: ', tracksOn, ' Off: ', tracksOff);
+          var trackUpdates = new Map();
+          tracksOn.forEach(function (trackSid) {
+            return trackUpdates.set(trackSid, true);
           });
-        });
+          tracksOff.forEach(function (trackSid) {
+            if (trackUpdates.get(trackSid)) {
+              // NOTE(mpatwardhan): This means that VIDEO-3762 has been reproduced.
+              _this5._log.warn(trackSid + ' is DUPLICATED in both tracksOff and tracksOn list');
+            }
+            trackUpdates.set(trackSid, false);
+          });
+          _this5.participants.forEach(function (participant) {
+            participant.tracks.forEach(function (track) {
+              var isOn = trackUpdates.get(track.sid);
+              if (typeof isOn !== 'undefined') {
+                track.setSwitchedOff(!isOn);
+                trackUpdates.delete(track.sid);
+              }
+            });
+          });
+
+          // NOTE(mpatwardhan): Cache any notification about the tracks that we do not yet know about.
+          trackUpdates.forEach(function (isOn, trackSid) {
+            return _this5._pendingSwitchOffStates.set(trackSid, !isOn);
+          });
+        } catch (ex) {
+          _this5._log.error('error processing track switch off:', ex);
+        }
       });
     }
   }, {
@@ -80207,6 +81024,8 @@ module.exports.typeErrors = {
   }
 };
 
+module.exports.DEFAULT_FRAME_RATE = 24;
+
 module.exports.DEFAULT_ICE_GATHERING_TIMEOUT_MS = 15000;
 module.exports.DEFAULT_SESSION_TIMEOUT_SEC = 30;
 
@@ -80572,7 +81391,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var _require = __webpack_require__(/*! events */ "./node_modules/events/events.js"),
     EventEmitter = _require.EventEmitter;
 
-var VALID_GROUPS = ['signaling', 'room'];
+var VALID_GROUPS = ['signaling', 'room', 'media'];
 
 var VALID_LEVELS = ['debug', 'error', 'info', 'warning'];
 
@@ -80662,7 +81481,7 @@ var EventObserver = function (_EventEmitter) {
   }
 
   /**
-   * sets the publisher object. Once set events will be send to publisher.
+   * sets the publisher object. Once set events will be sent to publisher.
    * @param {InsightsPublisher} publisher
   */
 
@@ -85249,10 +86068,10 @@ Object.defineProperty(TwilioErrorByCode, 53202, { value: ParticipantIdentityChar
 
 /**
  * @class ParticipantMaxTracksExceededError
- * @classdesc Raised whenever a Participant has too many Tracks.
+ * @classdesc Raised when the Room limit for published tracks has been reached and a Participant tries to publish a track to the Room.
  * @extends TwilioError
  * @property {number} code - 53203
- * @property {string} message - 'Participant has too many Tracks'
+ * @property {string} message - 'The maximum number of published tracks allowed in the Room at the same time has been reached'
  */
 
 var ParticipantMaxTracksExceededError = function (_TwilioError36) {
@@ -85261,7 +86080,7 @@ var ParticipantMaxTracksExceededError = function (_TwilioError36) {
   function ParticipantMaxTracksExceededError() {
     _classCallCheck(this, ParticipantMaxTracksExceededError);
 
-    return _possibleConstructorReturn(this, (ParticipantMaxTracksExceededError.__proto__ || Object.getPrototypeOf(ParticipantMaxTracksExceededError)).call(this, 53203, 'Participant has too many Tracks'));
+    return _possibleConstructorReturn(this, (ParticipantMaxTracksExceededError.__proto__ || Object.getPrototypeOf(ParticipantMaxTracksExceededError)).call(this, 53203, 'The maximum number of published tracks allowed in the Room at the same time has been reached'));
   }
 
   return ParticipantMaxTracksExceededError;
@@ -86405,7 +87224,7 @@ module.exports = workaround;
 /*! exports provided: _from, _id, _inBundle, _integrity, _location, _phantomChildren, _requested, _requiredBy, _resolved, _shasum, _spec, _where, author, browser, bugs, bundleDependencies, contributors, dependencies, deprecated, description, devDependencies, engines, homepage, keywords, license, main, name, repository, scripts, title, types, version, default */
 /***/ (function(module) {
 
-module.exports = JSON.parse("{\"_from\":\"twilio-video@2.11.0\",\"_id\":\"twilio-video@2.11.0\",\"_inBundle\":false,\"_integrity\":\"sha512-6nvMzkvcXP3616ocX3hZU0SclpExCpBUbYwW1y79h993xmiY25C0WOIkcgycKIIdQwLcysXBWl01OGYDYw8R3w==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.11.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.11.0\",\"saveSpec\":null,\"fetchSpec\":\"2.11.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.11.0.tgz\",\"_shasum\":\"b0500aab9e5c2ec624173d874aacf7c4c43cf6bb\",\"_spec\":\"twilio-video@2.11.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"@typescript-eslint/eslint-plugin\":\"^4.13.0\",\"@typescript-eslint/parser\":\"^3.10.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"^4.0.5\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js build:ts\",\"build:ts\":\"tsc -p tsconfig.json --noEmit\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"npm-run-all lint:js lint:ts\",\"lint:js\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/** \",\"lint:ts\":\"eslint ./tsdef/*.ts\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:angular test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:umd:install\":\"npm install puppeteer\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"types\":\"./tsdef/index.d.ts\",\"version\":\"2.11.0\"}");
+module.exports = JSON.parse("{\"_from\":\"twilio-video@2.13.0\",\"_id\":\"twilio-video@2.13.0\",\"_inBundle\":false,\"_integrity\":\"sha512-s+lU6a1eL3zmropDDQu0LaqmBEasrZ34Pr7vftUBsy23oYApEhby54XvPb2+aWkM0vvoOez32jLRjE2YgwQ38A==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.13.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.13.0\",\"saveSpec\":null,\"fetchSpec\":\"2.13.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.13.0.tgz\",\"_shasum\":\"cf3b5f2b20344724f4950d16357c60b07ba53ea9\",\"_spec\":\"twilio-video@2.13.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"@typescript-eslint/eslint-plugin\":\"^4.13.0\",\"@typescript-eslint/parser\":\"^3.10.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"mock-require\":\"^3.0.3\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"^4.0.5\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js build:ts\",\"build:ts\":\"tsc -p tsconfig.json --noEmit\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"npm-run-all lint:js lint:ts\",\"lint:js\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/** \",\"lint:ts\":\"eslint ./tsdef/*.ts\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:umd:install\":\"npm install puppeteer@5.5.0\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"types\":\"./tsdef/index.d.ts\",\"version\":\"2.13.0\"}");
 
 /***/ }),
 
