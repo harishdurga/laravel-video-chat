@@ -26,8 +26,8 @@
     "dependencies": {
         "laravel-echo": "^1.10.0",
         "pusher-js": "^5.1.1",
-        "simple-peer": "^9.9.3",
-        "twilio-video": "^2.13.0",
+        "simple-peer": "^9.10.0",
+        "twilio-video": "^2.13.1",
         "vue-axios": "^2.1.5",
         "vue-toasted": "^1.1.28",
         "vuejs-dialog": "^1.4.2"

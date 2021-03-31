@@ -53224,18 +53224,19 @@ runtime.setup(pusher_Pusher);
   !*** ./node_modules/queue-microtask/index.js ***!
   \***********************************************/
 /*! no static exports found */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-/*! queue-microtask. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
+/* WEBPACK VAR INJECTION */(function(global) {/*! queue-microtask. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 let promise
 
 module.exports = typeof queueMicrotask === 'function'
-  ? queueMicrotask.bind(globalThis)
+  ? queueMicrotask.bind(typeof window !== 'undefined' ? window : global)
   // reuse resolved promise, and allocate it lazily
   : cb => (promise || (promise = Promise.resolve()))
     .then(cb)
     .catch(err => setTimeout(() => { throw err }, 0))
 
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
 
 /***/ }),
 
@@ -53682,7 +53683,7 @@ class Peer extends stream.Duplex {
     try {
       this._pc = new (this._wrtc.RTCPeerConnection)(this.config)
     } catch (err) {
-      queueMicrotask(() => this.destroy(errCode(err, 'ERR_PC_CONSTRUCTOR')))
+      this.destroy(errCode(err, 'ERR_PC_CONSTRUCTOR'))
       return
     }
 
@@ -53704,6 +53705,13 @@ class Peer extends stream.Duplex {
     }
     this._pc.onicecandidate = event => {
       this._onIceCandidate(event)
+    }
+
+    // HACK: Fix for odd Firefox behavior, see: https://github.com/feross/simple-peer/pull/783
+    if (typeof this._pc.peerIdentity === 'object') {
+      this._pc.peerIdentity.catch(err => {
+        this.destroy(errCode(err, 'ERR_PC_PEER_IDENTITY'))
+      })
     }
 
     // Other spec events, unused by this implementation:
@@ -53755,7 +53763,8 @@ class Peer extends stream.Duplex {
   }
 
   signal (data) {
-    if (this.destroyed) throw errCode(new Error('cannot signal after peer is destroyed'), 'ERR_SIGNALING')
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot signal after peer is destroyed'), 'ERR_DESTROYED')
     if (typeof data === 'string') {
       try {
         data = JSON.parse(data)
@@ -53818,6 +53827,8 @@ class Peer extends stream.Duplex {
    * @param {ArrayBufferView|ArrayBuffer|Buffer|string|Blob} chunk
    */
   send (chunk) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot send after peer is destroyed'), 'ERR_DESTROYED')
     this._channel.send(chunk)
   }
 
@@ -53827,6 +53838,8 @@ class Peer extends stream.Duplex {
    * @param {Object} init
    */
   addTransceiver (kind, init) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot addTransceiver after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('addTransceiver()')
 
     if (this.initiator) {
@@ -53849,6 +53862,8 @@ class Peer extends stream.Duplex {
    * @param {MediaStream} stream
    */
   addStream (stream) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot addStream after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('addStream()')
 
     stream.getTracks().forEach(track => {
@@ -53862,6 +53877,8 @@ class Peer extends stream.Duplex {
    * @param {MediaStream} stream
    */
   addTrack (track, stream) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot addTrack after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('addTrack()')
 
     const submap = this._senderMap.get(track) || new Map() // nested Maps map [track, stream] to sender
@@ -53885,6 +53902,8 @@ class Peer extends stream.Duplex {
    * @param {MediaStream} stream
    */
   replaceTrack (oldTrack, newTrack, stream) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot replaceTrack after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('replaceTrack()')
 
     const submap = this._senderMap.get(oldTrack)
@@ -53907,6 +53926,8 @@ class Peer extends stream.Duplex {
    * @param {MediaStream} stream
    */
   removeTrack (track, stream) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot removeTrack after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('removeSender()')
 
     const submap = this._senderMap.get(track)
@@ -53932,6 +53953,8 @@ class Peer extends stream.Duplex {
    * @param {MediaStream} stream
    */
   removeStream (stream) {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot removeStream after peer is destroyed'), 'ERR_DESTROYED')
     this._debug('removeSenders()')
 
     stream.getTracks().forEach(track => {
@@ -53956,6 +53979,9 @@ class Peer extends stream.Duplex {
   }
 
   negotiate () {
+    if (this.destroying) return
+    if (this.destroyed) throw errCode(new Error('cannot negotiate after peer is destroyed'), 'ERR_DESTROYED')
+
     if (this.initiator) {
       if (this._isNegotiating) {
         this._queuedNegotiation = true
@@ -54626,6 +54652,16 @@ exports.save = save;
 exports.load = load;
 exports.useColors = useColors;
 exports.storage = localstorage();
+exports.destroy = (() => {
+	let warned = false;
+
+	return () => {
+		if (!warned) {
+			warned = true;
+			console.warn('Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.');
+		}
+	};
+})();
 
 /**
  * Colors.
@@ -54900,15 +54936,11 @@ function setup(env) {
 	createDebug.enable = enable;
 	createDebug.enabled = enabled;
 	createDebug.humanize = __webpack_require__(/*! ms */ "./node_modules/simple-peer/node_modules/ms/index.js");
+	createDebug.destroy = destroy;
 
 	Object.keys(env).forEach(key => {
 		createDebug[key] = env[key];
 	});
-
-	/**
-	* Active `debug` instances.
-	*/
-	createDebug.instances = [];
 
 	/**
 	* The currently active debug mode names, and names to skip.
@@ -54951,6 +54983,7 @@ function setup(env) {
 	*/
 	function createDebug(namespace) {
 		let prevTime;
+		let enableOverride = null;
 
 		function debug(...args) {
 			// Disabled?
@@ -54980,7 +55013,7 @@ function setup(env) {
 			args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
 				// If we encounter an escaped % then don't increase the array index
 				if (match === '%%') {
-					return match;
+					return '%';
 				}
 				index++;
 				const formatter = createDebug.formatters[format];
@@ -55003,29 +55036,26 @@ function setup(env) {
 		}
 
 		debug.namespace = namespace;
-		debug.enabled = createDebug.enabled(namespace);
 		debug.useColors = createDebug.useColors();
 		debug.color = createDebug.selectColor(namespace);
-		debug.destroy = destroy;
 		debug.extend = extend;
+		debug.destroy = createDebug.destroy; // XXX Temporary. Will be removed in the next major release.
+
+		Object.defineProperty(debug, 'enabled', {
+			enumerable: true,
+			configurable: false,
+			get: () => enableOverride === null ? createDebug.enabled(namespace) : enableOverride,
+			set: v => {
+				enableOverride = v;
+			}
+		});
 
 		// Env-specific initialization logic for debug instances
 		if (typeof createDebug.init === 'function') {
 			createDebug.init(debug);
 		}
 
-		createDebug.instances.push(debug);
-
 		return debug;
-	}
-
-	function destroy() {
-		const index = createDebug.instances.indexOf(this);
-		if (index !== -1) {
-			createDebug.instances.splice(index, 1);
-			return true;
-		}
-		return false;
 	}
 
 	function extend(namespace, delimiter) {
@@ -55064,11 +55094,6 @@ function setup(env) {
 			} else {
 				createDebug.names.push(new RegExp('^' + namespaces + '$'));
 			}
-		}
-
-		for (i = 0; i < createDebug.instances.length; i++) {
-			const instance = createDebug.instances[i];
-			instance.enabled = createDebug.enabled(instance.namespace);
 		}
 	}
 
@@ -55142,6 +55167,14 @@ function setup(env) {
 			return val.stack || val.message;
 		}
 		return val;
+	}
+
+	/**
+	* XXX DO NOT USE. This is a temporary stub function.
+	* XXX It WILL be removed in the next major release.
+	*/
+	function destroy() {
+		console.warn('Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.');
 	}
 
 	createDebug.enable(createDebug.load());
@@ -72182,6 +72215,7 @@ var _require6 = __webpack_require__(/*! ../../util/twilio-video-errors */ "./nod
 
 var _require7 = __webpack_require__(/*! ../../util */ "./node_modules/twilio-video/es5/util/index.js"),
     buildLogLevels = _require7.buildLogLevels,
+    getPlatform = _require7.getPlatform,
     isChromeScreenShareTrack = _require7.isChromeScreenShareTrack,
     oncePerTick = _require7.oncePerTick;
 
@@ -72197,6 +72231,8 @@ var MIDTrackMatcher = __webpack_require__(/*! ../../util/sdp/trackmatcher/mid */
 var workaroundIssue8329 = __webpack_require__(/*! ../../util/sdp/issue8329 */ "./node_modules/twilio-video/es5/util/sdp/issue8329.js");
 
 var guess = guessBrowser();
+var platform = getPlatform();
+var isAndroid = /android/.test(platform);
 var isChrome = guess === 'chrome';
 var isFirefox = guess === 'firefox';
 var isSafari = guess === 'safari';
@@ -72493,7 +72529,13 @@ var PeerConnectionV2 = function (_StateMachine) {
         value: options.setBitrateParameters
       },
       _setCodecPreferences: {
-        value: options.setCodecPreferences
+        // NOTE(mmalavalli): Re-ordering payload types in order to make sure a non-H264
+        // preferred codec is selected does not work on Android Firefox due to this behavior:
+        // https://bugzilla.mozilla.org/show_bug.cgi?id=1683258. So, we work around this by
+        // not applying any non-H264 preferred video codec.
+        value: isFirefox && isAndroid && preferredCodecs.video[0] && preferredCodecs.video[0].codec.toLowerCase() !== 'h264' ? function (sdp) {
+          return sdp;
+        } : options.setCodecPreferences
       },
       _setSimulcast: {
         value: options.setSimulcast
@@ -72704,6 +72746,7 @@ var PeerConnectionV2 = function (_StateMachine) {
         // We are not referencing those attributes, but this changes goes ahead and removes them to see if it works.
         // this also helps reduce bytes on wires
         var updatedSdp = removeSSRCAttributes(answer.sdp, ['mslabel', 'label']);
+
         if (_this4._shouldApplySimulcast) {
           var sdpWithoutSimulcast = updatedSdp;
           updatedSdp = _this4._setSimulcast(sdpWithoutSimulcast, _this4._sdpFormat, _this4._trackIdsToAttributes);
@@ -73370,11 +73413,11 @@ var PeerConnectionV2 = function (_StateMachine) {
           description.sdp = enableDtxForOpus(description.sdp, []);
         }
 
-        // NOTE(mroberts): Do this to reduce our MediaStream count in Firefox. By
-        // mapping MediaStream IDs in the SDP to "-", we ensure the "track" event
-        // doesn't include any new MediaStreams in Firefox. Its `streams` member
-        // will always be the empty Array.
         if (isFirefox) {
+          // NOTE(mroberts): Do this to reduce our MediaStream count in Firefox. By
+          // mapping MediaStream IDs in the SDP to "-", we ensure the "track" event
+          // doesn't include any new MediaStreams in Firefox. Its `streams` member
+          // will always be the empty Array.
           description.sdp = filterOutMediaStreamIds(description.sdp);
         }
         if (!this._peerConnection.remoteDescription) {
@@ -81591,9 +81634,9 @@ module.exports = Filter;
 "use strict";
 
 
-var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -81737,6 +81780,30 @@ function flatMap(list, mapFn) {
  */
 function getUserAgent() {
   return typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent : 'Unknown';
+}
+
+/**
+ * Get the platform component of the user agent string.
+ * Example:
+ *   Input - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36
+ *   Output - macintosh
+ * @returns {string}
+ */
+function getPlatform() {
+  var userAgent = getUserAgent();
+
+  var _ref = userAgent.match(/\(([^)]+)\)/) || [],
+      _ref2 = _slicedToArray(_ref, 2),
+      _ref2$ = _ref2[1],
+      match = _ref2$ === undefined ? 'unknown' : _ref2$;
+
+  var _match$split$map = match.split(';').map(function (entry) {
+    return entry.trim();
+  }),
+      _match$split$map2 = _slicedToArray(_match$split$map, 1),
+      platform = _match$split$map2[0];
+
+  return platform.toLowerCase();
 }
 
 /**
@@ -82066,7 +82133,7 @@ function hidePrivateAndCertainPublicPropertiesInClass(klass, props) {
     _inherits(_class, _klass);
 
     function _class() {
-      var _ref;
+      var _ref3;
 
       _classCallCheck(this, _class);
 
@@ -82074,7 +82141,7 @@ function hidePrivateAndCertainPublicPropertiesInClass(klass, props) {
         args[_key] = arguments[_key];
       }
 
-      var _this = _possibleConstructorReturn(this, (_ref = _class.__proto__ || Object.getPrototypeOf(_class)).call.apply(_ref, [this].concat(args)));
+      var _this = _possibleConstructorReturn(this, (_ref3 = _class.__proto__ || Object.getPrototypeOf(_class)).call.apply(_ref3, [this].concat(args)));
 
       hidePrivateProperties(_this);
       hidePublicProperties(_this, props);
@@ -82139,10 +82206,10 @@ function setToJSON(set) {
  * @returns {object}
  */
 function mapToJSON(map) {
-  return [].concat(_toConsumableArray(map.entries())).reduce(function (json, _ref2) {
-    var _ref3 = _slicedToArray(_ref2, 2),
-        key = _ref3[0],
-        value = _ref3[1];
+  return [].concat(_toConsumableArray(map.entries())).reduce(function (json, _ref4) {
+    var _ref5 = _slicedToArray(_ref4, 2),
+        key = _ref5[0],
+        value = _ref5[1];
 
     return Object.assign(_defineProperty({}, key, valueToJSON(value)), json);
   }, {});
@@ -82155,10 +82222,10 @@ function mapToJSON(map) {
  * @returns {object}
  */
 function objectToJSON(object) {
-  return Object.entries(object).reduce(function (json, _ref4) {
-    var _ref5 = _slicedToArray(_ref4, 2),
-        key = _ref5[0],
-        value = _ref5[1];
+  return Object.entries(object).reduce(function (json, _ref6) {
+    var _ref7 = _slicedToArray(_ref6, 2),
+        key = _ref7[0],
+        value = _ref7[1];
 
     return Object.assign(_defineProperty({}, key, valueToJSON(value)), json);
   }, {});
@@ -82201,20 +82268,20 @@ function createRoomConnectEventPayload(connectOptions) {
   };
 
   // boolean properties.
-  [['audio'], ['automaticSubscription'], ['enableDscp'], ['eventListener'], ['preflight'], ['video'], ['dominantSpeaker', 'enableDominantSpeaker']].forEach(function (_ref6) {
-    var _ref7 = _slicedToArray(_ref6, 2),
-        prop = _ref7[0],
-        eventProp = _ref7[1];
+  [['audio'], ['automaticSubscription'], ['enableDscp'], ['eventListener'], ['preflight'], ['video'], ['dominantSpeaker', 'enableDominantSpeaker']].forEach(function (_ref8) {
+    var _ref9 = _slicedToArray(_ref8, 2),
+        prop = _ref9[0],
+        eventProp = _ref9[1];
 
     eventProp = eventProp || prop;
     payload[eventProp] = boolToString(!!connectOptions[prop]);
   });
 
   // numbers and string properties.
-  [['maxVideoBitrate'], ['maxAudioBitrate'], ['iceTransportPolicy'], ['region'], ['name', 'roomName']].forEach(function (_ref8) {
-    var _ref9 = _slicedToArray(_ref8, 2),
-        prop = _ref9[0],
-        eventProp = _ref9[1];
+  [['maxVideoBitrate'], ['maxAudioBitrate'], ['iceTransportPolicy'], ['region'], ['name', 'roomName']].forEach(function (_ref10) {
+    var _ref11 = _slicedToArray(_ref10, 2),
+        prop = _ref11[0],
+        eventProp = _ref11[1];
 
     eventProp = eventProp || prop;
     if (typeof connectOptions[prop] === 'number' || typeof connectOptions[prop] === 'string') {
@@ -82341,15 +82408,15 @@ function createRenderDimensionsPayload(renderDimensions) {
  * @returns {object}
  */
 function createRSPPayload(object, propConversions) {
-  return propConversions.reduce(function (payload, _ref10) {
-    var prop = _ref10.prop,
-        type = _ref10.type,
-        _ref10$payloadProp = _ref10.payloadProp,
-        payloadProp = _ref10$payloadProp === undefined ? prop : _ref10$payloadProp,
-        _ref10$transform = _ref10.transform,
-        transform = _ref10$transform === undefined ? function (x) {
+  return propConversions.reduce(function (payload, _ref12) {
+    var prop = _ref12.prop,
+        type = _ref12.type,
+        _ref12$payloadProp = _ref12.payloadProp,
+        payloadProp = _ref12$payloadProp === undefined ? prop : _ref12$payloadProp,
+        _ref12$transform = _ref12.transform,
+        transform = _ref12$transform === undefined ? function (x) {
       return x;
-    } : _ref10$transform;
+    } : _ref12$transform;
 
     return _typeof(object[prop]) === type ? Object.assign(_defineProperty({}, payloadProp, transform(object[prop])), payload) : payload;
   }, {});
@@ -82445,6 +82512,7 @@ exports.deprecateEvents = deprecateEvents;
 exports.difference = difference;
 exports.filterObject = filterObject;
 exports.flatMap = flatMap;
+exports.getPlatform = getPlatform;
 exports.getUserAgent = getUserAgent;
 exports.hidePrivateProperties = hidePrivateProperties;
 exports.hidePrivateAndCertainPublicPropertiesInClass = hidePrivateAndCertainPublicPropertiesInClass;
@@ -83460,8 +83528,10 @@ module.exports = NetworkMonitor;
 
 var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
-var difference = __webpack_require__(/*! ../ */ "./node_modules/twilio-video/es5/util/index.js").difference;
-var flatMap = __webpack_require__(/*! ../ */ "./node_modules/twilio-video/es5/util/index.js").flatMap;
+var _require = __webpack_require__(/*! ../ */ "./node_modules/twilio-video/es5/util/index.js"),
+    difference = _require.difference,
+    flatMap = _require.flatMap;
+
 var setSimulcastInMediaSection = __webpack_require__(/*! ./simulcast */ "./node_modules/twilio-video/es5/util/sdp/simulcast.js");
 
 var ptToFixedBitrateAudioCodecName = {
@@ -83755,101 +83825,103 @@ function setSimulcast(sdp, sdpFormat, trackIdsToAttributes) {
 }
 
 /**
- * Get the matching Payload Types in a unified plan local m= section for a particular remote codec.
- * @param {Codec} remoteCodec
- * @param {PT} remotePt
- * @param {Map<Codec, PT>} localCodecsToPts
- * @param {string} localSection
- * @param {string} remoteSection
+ * Get the matching Payload Types in a unified plan m= section for a particular peer codec.
+ * @param {Codec} peerCodec
+ * @param {PT} peerPt
+ * @param {Map<Codec, PT>} codecsToPts
+ * @param {string} section
+ * @param {string} peerSection
  * @returns {Array<PT>}
  */
-function unifiedPlanGetMatchingLocalPayloadTypes(remoteCodec, remotePt, localCodecsToPts, localSection, remoteSection) {
+function unifiedPlanGetMatchingPayloadTypes(peerCodec, peerPt, codecsToPts, section, peerSection) {
   // If there is at most one local Payload Type that matches the remote codec, retain it.
-  var matchingLocalPts = localCodecsToPts.get(remoteCodec) || [];
-  if (matchingLocalPts.length <= 1) {
-    return matchingLocalPts;
+  var matchingPts = codecsToPts.get(peerCodec) || [];
+  if (matchingPts.length <= 1) {
+    return matchingPts;
   }
 
-  // If there are no fmtp attributes for the codec in the remote m= section,
-  // then we cannot get a match in the local m= section. In that case, retain
-  // all matching local Payload Types.
-  var remoteFmtpAttrs = getFmtpAttributesForPt(remotePt, remoteSection);
-  if (!remoteFmtpAttrs) {
-    return matchingLocalPts;
+  // If there are no fmtp attributes for the codec in the peer m= section, then we
+  // cannot get a match in the  m= section. In that case, retain all matching Payload
+  // Types.
+  var peerFmtpAttrs = getFmtpAttributesForPt(peerPt, peerSection);
+  if (!peerFmtpAttrs) {
+    return matchingPts;
   }
 
   // Among the matched local Payload Types, find the one that matches the remote
   // fmtp attributes.
-  var matchinglocalPt = matchingLocalPts.find(function (localPt) {
-    var localFmtpAttrs = getFmtpAttributesForPt(localPt, localSection);
-    return localFmtpAttrs && Object.keys(remoteFmtpAttrs).every(function (attr) {
-      return remoteFmtpAttrs[attr] === localFmtpAttrs[attr];
+  var matchingPt = matchingPts.find(function (pt) {
+    var fmtpAttrs = getFmtpAttributesForPt(pt, section);
+    return fmtpAttrs && Object.keys(peerFmtpAttrs).every(function (attr) {
+      return peerFmtpAttrs[attr] === fmtpAttrs[attr];
     });
   });
 
-  // If none of the matched local Payload Types also have matching fmtp attributes,
-  // then retain all of them, otherwise retain only the local Payload Type that
-  // matches the remote fmtp attributes.
-  return typeof matchinglocalPt === 'number' ? [matchinglocalPt] : matchingLocalPts;
+  // If none of the matched Payload Types also have matching fmtp attributes,
+  // then retain all of them, otherwise retain only the Payload Type that
+  // matches the peer fmtp attributes.
+  return typeof matchingPt === 'number' ? [matchingPt] : matchingPts;
 }
 
 /**
- * Filter codecs in a local unified plan m= section based on its equivalent remote m= section.
- * @param {string} localSection
- * @param {Map<string, string>} remoteMidsToMediaSections
+ * Filter codecs in a unified plan m= section based on its peer m= section.
+ * from the other peer.
+ * @param {string} section
+ * @param {Map<string, string>} peerMidsToMediaSections
+ * @param {Array<string>} codecsToRemove
  * @returns {string}
  */
-function unifiedPlanFilterCodecsInLocalMediaSection(localSection, remoteMidsToMediaSections) {
-  // Do nothing if the local m= section represents neither audio nor video.
-  if (!/^m=(audio|video)/.test(localSection)) {
-    return localSection;
+function unifiedPlanFilterCodecsInMediaSection(section, peerMidsToMediaSections, codecsToRemove) {
+  // Do nothing if the m= section represents neither audio nor video.
+  if (!/^m=(audio|video)/.test(section)) {
+    return section;
   }
 
-  // Do nothing if the local m= section does not have an equivalent remote m= section.
-  var localMid = getMidForMediaSection(localSection);
-  var remoteSection = localMid && remoteMidsToMediaSections.get(localMid);
-  if (!remoteSection) {
-    return localSection;
+  // Do nothing if the m= section does not have an equivalent remote m= section.
+  var mid = getMidForMediaSection(section);
+  var peerSection = mid && peerMidsToMediaSections.get(mid);
+  if (!peerSection) {
+    return section;
   }
 
-  // Construct a Map of the remote Payload Types to their codec names.
-  var remotePtToCodecs = createPtToCodecName(remoteSection);
-  // Construct a Map of the local codec names to their Payload Types.
-  var localCodecsToPts = createCodecMapForMediaSection(localSection);
-  // Maintain a list of local non-rtx Payload Types to retain.
-  var localPts = flatMap(Array.from(remotePtToCodecs), function (_ref2) {
+  // Construct a Map of the peer Payload Types to their codec names.
+  var peerPtToCodecs = createPtToCodecName(peerSection);
+  // Construct a Map of the codec names to their Payload Types.
+  var codecsToPts = createCodecMapForMediaSection(section);
+  // Maintain a list of non-rtx Payload Types to retain.
+  var pts = flatMap(Array.from(peerPtToCodecs), function (_ref2) {
     var _ref3 = _slicedToArray(_ref2, 2),
-        remotePt = _ref3[0],
-        remoteCodec = _ref3[1];
+        peerPt = _ref3[0],
+        peerCodec = _ref3[1];
 
-    return remoteCodec !== 'rtx' ? unifiedPlanGetMatchingLocalPayloadTypes(remoteCodec, remotePt, localCodecsToPts, localSection, remoteSection) : [];
+    return peerCodec !== 'rtx' && !codecsToRemove.includes(peerCodec) ? unifiedPlanGetMatchingPayloadTypes(peerCodec, peerPt, codecsToPts, section, peerSection) : [];
   });
 
-  // For each local Payload Type that will be retained, retain their
-  // corresponding rtx Payload Type if present.
-  var localRtxPts = localCodecsToPts.get('rtx') || [];
+  // For each Payload Type that will be retained, retain their corresponding rtx
+  // Payload Type if present.
+  var rtxPts = codecsToPts.get('rtx') || [];
   // In "a=fmtp:<rtxPt> apt=<apt>", extract the codec PT <apt> associated with rtxPt.
-  localPts = localPts.concat(localRtxPts.filter(function (rtxPt) {
-    var fmtpAttrs = getFmtpAttributesForPt(rtxPt, localSection);
-    return fmtpAttrs && localPts.includes(fmtpAttrs.apt);
+  pts = pts.concat(rtxPts.filter(function (rtxPt) {
+    var fmtpAttrs = getFmtpAttributesForPt(rtxPt, section);
+    return fmtpAttrs && pts.includes(fmtpAttrs.apt);
   }));
 
-  // Filter out the below mentioned attribute lines in the local m= section that
-  // do not belong to one of the local Payload Types that are to be retained.
+  // Filter out the below mentioned attribute lines in the m= section that do not
+  // belong to one of the Payload Types that are to be retained.
   // 1. "a=rtpmap:<pt> <codec>"
   // 2. "a=rtcp-fb:<pt> <attr>[ <attr>]*"
   // 3. "a=fmtp:<pt> <name>=<value>[;<name>=<value>]*"
-  var lines = localSection.split('\r\n').filter(function (line) {
+  var lines = section.split('\r\n').filter(function (line) {
     var ptMatches = line.match(/^a=(rtpmap|fmtp|rtcp-fb):(.+) .+$/);
     var pt = ptMatches && ptMatches[2];
-    return !ptMatches || pt && localPts.includes(parseInt(pt, 10));
+    return !ptMatches || pt && pts.includes(parseInt(pt, 10));
   });
 
   // Filter the list of Payload Types in the first line of the m= section.
-  var orderedLocalPts = getPayloadTypesInMediaSection(localSection).filter(function (pt) {
-    return localPts.includes(pt);
+  var orderedPts = getPayloadTypesInMediaSection(section).filter(function (pt) {
+    return pts.includes(pt);
   });
-  return setPayloadTypesInMediaSection(orderedLocalPts, lines.join('\r\n'));
+  return setPayloadTypesInMediaSection(orderedPts, lines.join('\r\n'));
 }
 
 /**
@@ -83863,7 +83935,7 @@ function unifiedPlanFilterLocalCodecs(localSdp, remoteSdp) {
   var localSession = localSdp.split('\r\nm=')[0];
   var remoteMidsToMediaSections = createMidToMediaSectionMap(remoteSdp);
   return [localSession].concat(localMediaSections.map(function (localSection) {
-    return unifiedPlanFilterCodecsInLocalMediaSection(localSection, remoteMidsToMediaSections);
+    return unifiedPlanFilterCodecsInMediaSection(localSection, remoteMidsToMediaSections, []);
   })).join('\r\n');
 }
 
@@ -87224,7 +87296,7 @@ module.exports = workaround;
 /*! exports provided: _from, _id, _inBundle, _integrity, _location, _phantomChildren, _requested, _requiredBy, _resolved, _shasum, _spec, _where, author, browser, bugs, bundleDependencies, contributors, dependencies, deprecated, description, devDependencies, engines, homepage, keywords, license, main, name, repository, scripts, title, types, version, default */
 /***/ (function(module) {
 
-module.exports = JSON.parse("{\"_from\":\"twilio-video@2.13.0\",\"_id\":\"twilio-video@2.13.0\",\"_inBundle\":false,\"_integrity\":\"sha512-s+lU6a1eL3zmropDDQu0LaqmBEasrZ34Pr7vftUBsy23oYApEhby54XvPb2+aWkM0vvoOez32jLRjE2YgwQ38A==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.13.0\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.13.0\",\"saveSpec\":null,\"fetchSpec\":\"2.13.0\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.13.0.tgz\",\"_shasum\":\"cf3b5f2b20344724f4950d16357c60b07ba53ea9\",\"_spec\":\"twilio-video@2.13.0\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"@typescript-eslint/eslint-plugin\":\"^4.13.0\",\"@typescript-eslint/parser\":\"^3.10.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"mock-require\":\"^3.0.3\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"^4.0.5\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js build:ts\",\"build:ts\":\"tsc -p tsconfig.json --noEmit\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"npm-run-all lint:js lint:ts\",\"lint:js\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/** \",\"lint:ts\":\"eslint ./tsdef/*.ts\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:umd:install\":\"npm install puppeteer@5.5.0\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"types\":\"./tsdef/index.d.ts\",\"version\":\"2.13.0\"}");
+module.exports = JSON.parse("{\"_from\":\"twilio-video@2.13.1\",\"_id\":\"twilio-video@2.13.1\",\"_inBundle\":false,\"_integrity\":\"sha512-rz20mDOREn9GmnPBEGfSATRXrldALzHyru/VIpbTmSQEH+r9xAEDoE2Hc+GX1a2x9FFNSd88Bw96YroYb8uJAQ==\",\"_location\":\"/twilio-video\",\"_phantomChildren\":{\"async-limiter\":\"1.0.1\",\"safe-buffer\":\"5.1.2\",\"ultron\":\"1.1.1\"},\"_requested\":{\"type\":\"version\",\"registry\":true,\"raw\":\"twilio-video@2.13.1\",\"name\":\"twilio-video\",\"escapedName\":\"twilio-video\",\"rawSpec\":\"2.13.1\",\"saveSpec\":null,\"fetchSpec\":\"2.13.1\"},\"_requiredBy\":[\"#USER\",\"/\"],\"_resolved\":\"https://registry.npmjs.org/twilio-video/-/twilio-video-2.13.1.tgz\",\"_shasum\":\"1d8b19726b0f84d834c00649624c14d84d2aa5eb\",\"_spec\":\"twilio-video@2.13.1\",\"_where\":\"/home/harish/Projects/laravel-video-chat\",\"author\":{\"name\":\"Mark Andrus Roberts\",\"email\":\"mroberts@twilio.com\"},\"browser\":{\"ws\":\"./src/ws.js\",\"xmlhttprequest\":\"./src/xmlhttprequest.js\"},\"bugs\":{\"url\":\"https://github.com/twilio/twilio-video.js/issues\"},\"bundleDependencies\":false,\"contributors\":[{\"name\":\"Ryan Rowland\",\"email\":\"rrowland@twilio.com\"},{\"name\":\"Manjesh Malavalli\",\"email\":\"mmalavalli@twilio.com\"},{\"name\":\"Makarand Patwardhan\",\"email\":\"mpatwardhan@twilio.com\"}],\"dependencies\":{\"@twilio/webrtc\":\"4.3.2\",\"backoff\":\"^2.5.0\",\"ws\":\"^3.3.1\",\"xmlhttprequest\":\"^1.8.0\"},\"deprecated\":false,\"description\":\"Twilio Video JavaScript Library\",\"devDependencies\":{\"@types/express\":\"^4.11.0\",\"@types/node\":\"^8.5.1\",\"@types/selenium-webdriver\":\"^3.0.8\",\"@types/ws\":\"^3.2.1\",\"@typescript-eslint/eslint-plugin\":\"^4.13.0\",\"@typescript-eslint/parser\":\"^3.10.1\",\"babel-cli\":\"^6.26.0\",\"babel-preset-es2015\":\"^6.24.1\",\"browserify\":\"^17.0.0\",\"cheerio\":\"^0.22.0\",\"cors\":\"^2.8.5\",\"electron\":\"^9.1.0\",\"envify\":\"^4.0.0\",\"eslint\":\"^6.2.1\",\"eslint-config-standard\":\"^14.0.0\",\"eslint-plugin-import\":\"^2.18.2\",\"eslint-plugin-node\":\"^9.1.0\",\"eslint-plugin-promise\":\"^4.2.1\",\"eslint-plugin-standard\":\"^4.0.1\",\"express\":\"^4.16.2\",\"ink-docstrap\":\"^1.3.2\",\"inquirer\":\"^7.0.0\",\"is-docker\":\"^2.0.0\",\"istanbul\":\"^0.4.5\",\"jsdoc\":\"^3.5.5\",\"json-loader\":\"^0.5.7\",\"karma\":\"^5.0.2\",\"karma-browserify\":\"^7.0.0\",\"karma-chrome-launcher\":\"^2.0.0\",\"karma-edgium-launcher\":\"^4.0.0-0\",\"karma-electron\":\"^6.1.0\",\"karma-firefox-launcher\":\"^1.3.0\",\"karma-htmlfile-reporter\":\"^0.3.8\",\"karma-junit-reporter\":\"^1.2.0\",\"karma-mocha\":\"^1.3.0\",\"karma-safari-launcher\":\"^1.0.0\",\"karma-spec-reporter\":\"0.0.32\",\"mocha\":\"^3.2.0\",\"mock-require\":\"^3.0.3\",\"node-http-server\":\"^8.1.2\",\"npm-run-all\":\"^4.0.2\",\"requirejs\":\"^2.3.3\",\"rimraf\":\"^2.6.1\",\"simple-git\":\"^1.126.0\",\"sinon\":\"^4.0.1\",\"ts-node\":\"4.0.1\",\"tslint\":\"5.8.0\",\"twilio\":\"^3.49.0\",\"twilio-release-tool\":\"^1.0.0\",\"typescript\":\"^4.0.5\",\"uglify-js\":\"^2.8.22\",\"vinyl-fs\":\"^2.4.4\",\"vinyl-source-stream\":\"^1.1.0\",\"watchify\":\"^3.11.1\",\"webrtc-adapter\":\"^4.1.1\"},\"engines\":{\"node\":\">=0.12\"},\"homepage\":\"https://twilio.com\",\"keywords\":[\"twilio\",\"webrtc\",\"library\",\"javascript\",\"video\",\"rooms\"],\"license\":\"BSD-3-Clause\",\"main\":\"./es5/index.js\",\"name\":\"twilio-video\",\"repository\":{\"type\":\"git\",\"url\":\"git+https://github.com/twilio/twilio-video.js.git\"},\"scripts\":{\"build\":\"npm-run-all clean lint docs cover test:integration build:es5 build:js build:min.js test:umd\",\"build:es5\":\"rimraf ./es5 && babel lib -d es5\",\"build:js\":\"node ./scripts/build.js ./src/twilio-video.js ./LICENSE.md ./dist/twilio-video.js\",\"build:min.js\":\"uglifyjs ./dist/twilio-video.js -o ./dist/twilio-video.min.js --comments \\\"/^! twilio-video.js/\\\" -b beautify=false,ascii_only=true\",\"build:quick\":\"npm-run-all clean lint docs build:es5 build:js build:min.js build:ts\",\"build:ts\":\"tsc -p tsconfig.json --noEmit\",\"clean\":\"rimraf ./coverage ./es5 ./dist\",\"cover\":\"istanbul cover node_modules/mocha/bin/_mocha -- ./test/unit/index.js\",\"docs\":\"node ./scripts/docs.js ./dist/docs\",\"lint\":\"npm-run-all lint:js lint:ts\",\"lint:js\":\"eslint ./lib ./test/*.js ./docker/**/*.js ./test/framework/*.js ./test/lib/*.js ./test/integration/** ./test/unit/** \",\"lint:ts\":\"eslint ./tsdef/*.ts\",\"test\":\"npm-run-all test:unit test:integration\",\"test:crossbrowser\":\"npm-run-all test:crossbrowser:*\",\"test:crossbrowser:build\":\"npm-run-all test:crossbrowser:build:*\",\"test:crossbrowser:build:browser\":\"cd ./test/crossbrowser && browserify lib/crossbrowser/src/browser/index.js > src/browser/index.js\",\"test:crossbrowser:build:clean\":\"rimraf ./test/crossbrowser/lib ./test/crossbrowser/src/browser/index.js\",\"test:crossbrowser:build:lint\":\"cd ./test/crossbrowser && tslint --project tsconfig.json\",\"test:crossbrowser:build:tsc\":\"cd ./test/crossbrowser && tsc\",\"test:crossbrowser:test\":\"cd ./test/crossbrowser && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:framework\":\"npm-run-all test:framework:install test:framework:no-framework test:framework:react\",\"test:framework:angular\":\"npm-run-all test:framework:angular:*\",\"test:framework:angular:install\":\"cd ./test/framework/twilio-video-angular && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:angular:run\":\"mocha ./test/framework/twilio-video-angular.js\",\"test:framework:install\":\"npm install chromedriver && npm install selenium-webdriver && npm install geckodriver && npm install puppeteer\",\"test:framework:no-framework\":\"npm-run-all test:framework:no-framework:*\",\"test:framework:no-framework:run\":\"mocha ./test/framework/twilio-video-no-framework.js\",\"test:framework:react\":\"npm-run-all test:framework:react:*\",\"test:framework:react:build\":\"cd ./test/framework/twilio-video-react && npm run build\",\"test:framework:react:install\":\"cd ./test/framework/twilio-video-react && rimraf ./node_modules package-lock.json && npm install\",\"test:framework:react:run\":\"mocha ./test/framework/twilio-video-react.js\",\"test:framework:react:test\":\"node ./scripts/framework.js twilio-video-react\",\"test:integration\":\"node ./scripts/karma.js karma/integration.conf.js\",\"test:integration:adapter\":\"node ./scripts/karma.js karma/integration.adapter.conf.js\",\"test:sdkdriver\":\"npm-run-all test:sdkdriver:*\",\"test:sdkdriver:build\":\"npm-run-all test:sdkdriver:build:*\",\"test:sdkdriver:build:clean\":\"rimraf ./test/lib/sdkdriver/lib ./test/lib/sdkdriver/test/integration/browser/index.js\",\"test:sdkdriver:build:lint\":\"cd ./test/lib/sdkdriver && tslint --project tsconfig.json\",\"test:sdkdriver:build:tsc\":\"cd ./test/lib/sdkdriver && tsc --rootDir src\",\"test:sdkdriver:test\":\"npm-run-all test:sdkdriver:test:*\",\"test:sdkdriver:test:integration\":\"npm-run-all test:sdkdriver:test:integration:*\",\"test:sdkdriver:test:integration:browser\":\"cd ./test/lib/sdkdriver/test/integration && browserify browser/browser.js > browser/index.js\",\"test:sdkdriver:test:integration:run\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/integration/spec/**/*.ts\",\"test:sdkdriver:test:unit\":\"cd ./test/lib/sdkdriver && mocha --compilers ts:ts-node/register test/unit/spec/**/*.ts\",\"test:umd\":\"mocha ./test/umd/index.js\",\"test:umd:install\":\"npm install puppeteer@5.5.0\",\"test:unit\":\"mocha ./test/unit/index.js\"},\"title\":\"Twilio Video\",\"types\":\"./tsdef/index.d.ts\",\"version\":\"2.13.1\"}");
 
 /***/ }),
 
